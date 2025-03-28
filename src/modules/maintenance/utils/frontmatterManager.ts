@@ -29,9 +29,9 @@ export class FrontmatterManager {
         return {
             title: defaultTitle,
             id: timestamp,
+            tags: [...FrontmatterManager.DEFAULT_TAGS],
             date: koreanTime.toISOString().split('.')[0],
             aliases: isLinkNote ? [] : [defaultTitle],
-            tags: [...FrontmatterManager.DEFAULT_TAGS],
             potentiation: FrontmatterManager.INITIAL_POTENTIATION,
             updated: koreanTime.toISOString().split('.')[0]
         };
