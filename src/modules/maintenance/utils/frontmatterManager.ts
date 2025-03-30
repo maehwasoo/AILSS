@@ -66,7 +66,7 @@ export class FrontmatterManager {
         const mergedFields = { ...defaultFields, ...additionalFields };
         
         // 프론트매터 순서 정의
-        const orderedKeys = ['title', 'id', 'date', 'aliases', 'tags', 'potentiation', 'updated'];
+        const orderedKeys = ['title', 'aliases', 'tags', 'date', 'id', 'potentiation', 'updated'];
         
         let yaml = '---\n';
         // 정의된 순서대로 먼저 처리
