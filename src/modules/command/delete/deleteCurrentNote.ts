@@ -34,10 +34,10 @@ export class DeleteCurrentNote {
             const potentiation = frontmatter?.potentiation ?? 0;
 
             // 강화 단계가 3~8 사이인지 확인
-            if (potentiation < 3 || potentiation > 8) {
-                new Notice(`강화 단계가 3~8 사이인 노트만 삭제할 수 있습니다. (현재: ${potentiation})`);
-                return;
-            }
+            // if (potentiation < 3 || potentiation > 8) {
+            //     new Notice(`강화 단계가 3~8 사이인 노트만 삭제할 수 있습니다. (현재: ${potentiation})`);
+            //     return;
+            // }
 
             // 첨부파일 찾기
             const attachments = await this.findAllAttachments(content);

@@ -29,43 +29,43 @@ export const DEFAULT_GRAPH_CONFIG = {
             "color": { "a": 1, "rgb": 10066329 }
         },
         {
-            "query": "[\"potentiation\":<2]",
+            "query": "[\"potentiation\":<11]",
             "color": { "a": 1, "rgb": 13855081 }
         },
         {
-            "query": "[\"potentiation\":<3]",
+            "query": "[\"potentiation\":<21]",
             "color": { "a": 1, "rgb": 14645827 }
         },
         {
-            "query": "[\"potentiation\":<4]",
+            "query": "[\"potentiation\":<31]",
             "color": { "a": 1, "rgb": 14399575 }
         },
         {
-            "query": "[\"potentiation\":<5]",
+            "query": "[\"potentiation\":<41]",
             "color": { "a": 1, "rgb": 9681227 }
         },
         {
-            "query": "[\"potentiation\":<6]",
+            "query": "[\"potentiation\":<51]",
             "color": { "a": 1, "rgb": 5425023 }
         },
         {
-            "query": "[\"potentiation\":<7]",
+            "query": "[\"potentiation\":<61]",
             "color": { "a": 1, "rgb": 4304797 }
         },
         {
-            "query": "[\"potentiation\":<8]",
+            "query": "[\"potentiation\":<71]",
             "color": { "a": 1, "rgb": 6466512 }
         },
         {
-            "query": "[\"potentiation\":<9]",
+            "query": "[\"potentiation\":<81]",
             "color": { "a": 1, "rgb": 7575246 }
         },
         {
-            "query": "[\"potentiation\":<10]",
+            "query": "[\"potentiation\":<91]",
             "color": { "a": 1, "rgb": 6911965 }
         },
         {
-            "query": "[\"potentiation\":<11]",
+            "query": "[\"potentiation\":<101]",
             "color": { "a": 1, "rgb": 8543941 }
         }
     ],
