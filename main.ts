@@ -27,6 +27,7 @@ import { AIReformat } from './src/modules/ai/text/aiReformat';
 import { UnlinkNotes } from './src/modules/command/update/unlinkNotes';
 import { OpenAITTS } from './src/modules/ai/audio/openai_tts';
 import { EmbedNote } from './src/modules/command/create/embedNote';
+import { AINoteRestructure } from './src/modules/ai/text/aiNoteRestructure';
 
 
 
@@ -62,6 +63,7 @@ export default class AILSSPlugin extends Plugin {
 	private aiReformat: AIReformat;
 	private unlinkNotesManager: UnlinkNotes;
 	private embedNoteManager: EmbedNote;
+	private aiNoteRestructure: AINoteRestructure;
 
 
 
@@ -121,6 +123,9 @@ export default class AILSSPlugin extends Plugin {
 
 		// UnlinkNotes 초기화
 		this.unlinkNotesManager = new UnlinkNotes(this.app, this);
+
+		// AI 노트 재구조화 초기화
+		this.aiNoteRestructure = new AINoteRestructure(this.app, this);
 
 		// 리본 메뉴 아이콘들 업데이트
 		this.addRibbonIcon('plus', '노트 생성', () => {
@@ -217,6 +222,11 @@ export default class AILSSPlugin extends Plugin {
 
 		this.addRibbonIcon('unlink', '노트 링크 해제', () => {
 			this.unlinkNotesManager.unlinkSelectedNotes();
+		});
+
+		// 노트 재구조화 리본 메뉴 추가
+		this.addRibbonIcon('boxes', '노트 채우기', () => {
+			this.aiNoteRestructure.main();
 		});
 
 		// TTS 리본 메뉴 추가
@@ -395,6 +405,14 @@ export default class AILSSPlugin extends Plugin {
 			name: '노트 링크 해제',
 			icon: 'unlink',
 			editorCallback: () => this.unlinkNotesManager.unlinkSelectedNotes()
+		});
+
+		// 노트 재구조화 명령 추가
+		this.addCommand({
+			id: 'restructure-note',
+			name: '노트 채우기',
+			icon: 'boxes',
+			editorCallback: () => this.aiNoteRestructure.main()
 		});
 
 		// TTS 명령어 등록 (하나로 통일)

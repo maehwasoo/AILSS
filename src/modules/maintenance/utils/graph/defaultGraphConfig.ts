@@ -1,7 +1,7 @@
 export const DEFAULT_GRAPH_CONFIG = {
     "collapse-filter": false,
     "search": "",
-    "showTags": false,
+    "showTags": true,
     "showAttachments": false,
     "hideUnresolved": false,
     "showOrphans": true,

@@ -161,7 +161,6 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('gpt-4o', 'GPT-4o')
                 .addOption('gpt-4.5-preview', 'GPT-4.5 Preview')
                 .addOption('gpt-4o-mini', 'GPT-4o mini')
-                .addOption('o1-preview', 'o1-preview')
                 .addOption('o1-mini', 'o1-mini')
                 .addOption('o3-mini', 'o3-mini')
                 .addOption('o1', 'o1')
