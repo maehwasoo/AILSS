@@ -128,7 +128,7 @@ ${tagsPrompt}
             
             if (jsonData) {
                 // 기존 태그와 새 태그 병합 (기본 태그 유지, 중복 제거)
-                const existingTags: string[] = frontmatter.tags || [];
+                const existingTags: string[] = Array.isArray(frontmatter.tags) ? frontmatter.tags : [];
                 const defaultTags: string[] = FrontmatterManager.DEFAULT_TAGS;
                 const nonDefaultExistingTags: string[] = existingTags.filter(
                     (tag: string) => !defaultTags.includes(tag)
@@ -136,7 +136,7 @@ ${tagsPrompt}
                 
                 // 새 태그 추가 (중복 제거)
                 const allTags: string[] = [...defaultTags];
-                const newTags: string[] = jsonData.tags || [];
+                const newTags: string[] = Array.isArray(jsonData.tags) ? jsonData.tags : [];
                 
                 newTags.forEach((tag: string) => {
                     if (!allTags.includes(tag) && !nonDefaultExistingTags.includes(tag)) {
@@ -154,7 +154,7 @@ ${tagsPrompt}
                 updatedFrontmatter.tags = allTags;
                 
                 // aliases 업데이트 (title은 항상 유지)
-                const existingAliases = frontmatter.aliases || [];
+                const existingAliases = Array.isArray(frontmatter.aliases) ? frontmatter.aliases : [];
                 const currentTitle = frontmatter.title;
                 let newAliases = [...existingAliases];
                 
@@ -164,7 +164,7 @@ ${tagsPrompt}
                 }
                 
                 // 새 별칭 추가 (중복 제거)
-                if (jsonData.aliases) {
+                if (jsonData.aliases && Array.isArray(jsonData.aliases)) {
                     jsonData.aliases.forEach((alias: string) => {
                         if (!newAliases.includes(alias)) {
                             newAliases.push(alias);
