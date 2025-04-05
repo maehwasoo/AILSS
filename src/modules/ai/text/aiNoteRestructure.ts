@@ -72,6 +72,7 @@ export class AINoteRestructure {
 8. 기존 노트 내용이 있는 경우 이를 참고하여 보완하고 확장
 
 출력 형식:
+- 응답은 한국어로 작성
 - 모든 줄은 '- ' 또는 '    - '로 시작해야 함
 - 계층 구조는 들여쓰기 4칸으로 표현
 - 최대 3단계 깊이까지만 계층화
@@ -112,7 +113,8 @@ ${tagsPrompt}
             let content = response;
             let jsonData = null;
             
-            const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
+            // 1. 코드 블록 안의 JSON 찾기 (기존 방식)
+            let jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch) {
                 try {
                     jsonData = JSON.parse(jsonMatch[1]);
@@ -121,6 +123,32 @@ ${tagsPrompt}
                 } catch (error) {
                     console.error('JSON 파싱 오류:', error);
                 }
+            }
+            
+            // 2. 코드 블록에서 찾지 못했으면 일반 텍스트 JSON 찾기
+            if (!jsonData) {
+                // 문서 끝부분에서 JSON 형식 객체를 찾는 정규식
+                // 태그와 별칭을 포함하는 JSON 객체를 찾음
+                const jsonRegex = /\{[\s\S]*?"tags"[\s\S]*?"aliases"[\s\S]*?\}/;
+                jsonMatch = response.match(jsonRegex);
+                
+                if (jsonMatch) {
+                    try {
+                        jsonData = JSON.parse(jsonMatch[0]);
+                        // JSON 부분 제거
+                        content = response.replace(jsonMatch[0], '').trim();
+                    } catch (error) {
+                        console.error('일반 텍스트 JSON 파싱 오류:', error);
+                    }
+                }
+            }
+            
+            // 3. 어떤 형태로든 JSON을 추출하지 못했더라도 
+            // 노트 내용에 JSON 형식 객체가 그대로 포함되는 것을 방지하기 위한 추가 정리
+            if (!jsonData) {
+                // 태그와 별칭을 포함하는 JSON 형식 텍스트를 찾아 제거
+                const cleanupRegex = /\{[\s\S]*?"tags"[\s\S]*?"aliases"[\s\S]*?\}/;
+                content = content.replace(cleanupRegex, '').trim();
             }
 
             // 프론트매터 업데이트
