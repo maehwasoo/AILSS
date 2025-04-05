@@ -10,7 +10,7 @@ export const DEFAULT_GRAPH_CONFIG = {
     "showArrow": true,
     "textFadeMultiplier": 0.5,
     "nodeSizeMultiplier": 1.5,
-    "lineSizeMultiplier": 4,
+    "lineSizeMultiplier": 2.5,
     "collapse-forces": true,
     "centerStrength": 0.8,
     "repelStrength": 13,
