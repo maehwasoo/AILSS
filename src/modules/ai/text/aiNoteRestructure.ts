@@ -155,25 +155,14 @@ ${tagsPrompt}
             let updatedFrontmatter = { ...frontmatter };
             
             if (jsonData) {
-                // 기존 태그와 새 태그 병합 (기본 태그 유지, 중복 제거)
+                // 기존 태그와 새 태그 병합 (기존 태그 유지, 중복 제거)
                 const existingTags: string[] = Array.isArray(frontmatter.tags) ? frontmatter.tags : [];
-                const defaultTags: string[] = FrontmatterManager.DEFAULT_TAGS;
-                const nonDefaultExistingTags: string[] = existingTags.filter(
-                    (tag: string) => !defaultTags.includes(tag)
-                );
-                
-                // 새 태그 추가 (중복 제거)
-                const allTags: string[] = [...defaultTags];
                 const newTags: string[] = Array.isArray(jsonData.tags) ? jsonData.tags : [];
                 
-                newTags.forEach((tag: string) => {
-                    if (!allTags.includes(tag) && !nonDefaultExistingTags.includes(tag)) {
-                        allTags.push(tag);
-                    }
-                });
+                // 새 태그만 추가 (중복 제거)
+                const allTags: string[] = [...existingTags];
                 
-                // 기존 비기본 태그 추가
-                nonDefaultExistingTags.forEach((tag: string) => {
+                newTags.forEach((tag: string) => {
                     if (!allTags.includes(tag)) {
                         allTags.push(tag);
                     }
