@@ -88,13 +88,13 @@ export const DEFAULT_GLOBAL_GRAPH = {
   "collapse-display": false,
   "showArrow": true,
   "textFadeMultiplier": 0,
-  "nodeSizeMultiplier": 1.3,
+  "nodeSizeMultiplier": 1,
   "lineSizeMultiplier": 0.8,
   "collapse-forces": false,
-  "centerStrength": 0.2,
-  "repelStrength": 8,
-  "linkStrength": 0.8,
-  "linkDistance": 80,
+  "centerStrength": 0.25,
+  "repelStrength": 8.5,
+  "linkStrength": 0.9,
+  "linkDistance": 35,
   "scale": 0.2,
   "close": true
 } as const;
