@@ -12,7 +12,7 @@ export const DEFAULT_GRAPH_CONFIG = {
     "nodeSizeMultiplier": 1,
     "lineSizeMultiplier": 0.7,
     "collapse-forces": true,
-    "centerStrength": 0.35,
+    "centerStrength": 0.6,
     "repelStrength": 9,
     "linkStrength": 1,
     "linkDistance": 35,
