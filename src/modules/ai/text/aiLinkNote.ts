@@ -56,33 +56,30 @@ export class AILinkNote {
             const fileContent = await this.app.vault.read(activeFile);
             const frontmatterManager = new FrontmatterManager();
             const currentFrontmatter = frontmatterManager.parseFrontmatter(fileContent);
-            const currentTags = currentFrontmatter?.tags || [];
-
-            // 기본 태그만 있는지 확인
-            if (FrontmatterManager.hasOnlyDefaultTags(currentTags)) {
-                new Notice("현재 노트에 기본 태그 외의 태그가 없습니다. 태그를 추가해주세요.");
-                return;
-            }
-
-            const now = moment();
-            const folderPath = PathSettings.getTimestampedPath(now);
-            
-            // 파일명을 ID 형식으로 생성
-            const fileName = PathSettings.getDefaultFileName();
 
             // AI 분석 요청
             new Notice("AI 분석 중...");
-            const aiContent = await this.generateAIContent(fileContent, selectedText);
+            const { content: aiContent, jsonData } = await this.generateAIContent(fileContent, selectedText);
 
-            // 노트 생성 준비
-            const nonDefaultTags = FrontmatterManager.getNonDefaultTags(currentTags);
+            // 새로운 태그 설정
+            let tags: string[] = [];
+            if (jsonData && jsonData.tags && Array.isArray(jsonData.tags)) {
+                tags = jsonData.tags;
+            }
+
+            // 새로운 별칭 설정
+            let aliases: string[] = [];
+            if (jsonData && jsonData.aliases && Array.isArray(jsonData.aliases)) {
+                aliases = jsonData.aliases;
+            }
 
             // 노트 생성
             const { file, fileName: newFileName, timestamp } = await PathSettings.createNote({
                 app: this.app,
                 frontmatterConfig: {
                     title: selectedText,
-                    tags: nonDefaultTags
+                    tags: tags,
+                    aliases: aliases
                 },
                 content: aiContent,
                 isInherited: true
@@ -184,7 +181,7 @@ export class AILinkNote {
         return positions;
     }
 
-    private async generateAIContent(currentContent: string, selectedText: string): Promise<string> {
+    private async generateAIContent(currentContent: string, selectedText: string): Promise<{ content: string, jsonData: any }> {
         // 프론트매터 제거 및 첨부파일 링크/노트 링크 처리
         const contentWithoutFrontmatter = getContentWithoutFrontmatter(currentContent);
         const processedContent = this.processNoteContent(contentWithoutFrontmatter);
@@ -236,6 +233,20 @@ export class AILinkNote {
 - 실용적 응용: 실제 적용 사례와 활용 방안
 - 참고 자료: 추가 학습을 위한 관련 리소스 제안`;
 
+        // 태그와 별칭 생성을 위한 프롬프트 추가
+        const tagsPrompt = `
+또한, 다음 요구사항에 따라 현재 노트의 키워드("${selectedText}")와 정확히 관련된 태그와 별칭(aliases)도 함께 생성해주세요:
+1. 태그: 현재 노트 주제와 직접 관련된 가장 핵심 3-5개의 태그 제안 (각 태그는 #없이 단일 단어로, 소문자 영어로 작성)
+2. 별칭: 현재 노트 제목의 다른 표현 또는 유사어 1-3개 (각 별칭은 작은따옴표 없이)
+
+태그와 별칭은 문서 마지막에 다음 JSON 형식으로 추가:
+\`\`\`json
+{
+  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
+  "aliases": ["별칭1", "별칭2", "별칭3"]
+}
+\`\`\``;
+
         const userPrompt = `${systemPrompt}
 
 다음은 전체 문서 내용입니다:
@@ -250,11 +261,56 @@ ${selectedText}
 - 기존 포맷팅은 모두 제거
 - 내용의 논리적 구조 유지 및 강화
 - 지식 간 연결성과 인과관계 명확히 표현
-- 변환 과정 설명 없이 결과만 출력`;
+- 변환 과정 설명 없이 결과만 출력
 
-        return await requestToAI(this.plugin, {
+${tagsPrompt}`;
+
+        const response = await requestToAI(this.plugin, {
             userPrompt
         });
+        
+        // JSON 데이터 추출
+        let content = response;
+        let jsonData = null;
+        
+        // 1. 코드 블록 안의 JSON 찾기
+        let jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch) {
+            try {
+                jsonData = JSON.parse(jsonMatch[1]);
+                // JSON 부분 제거
+                content = response.replace(/```json\n[\s\S]*?\n```/, '').trim();
+            } catch (error) {
+                console.error('JSON 파싱 오류:', error);
+            }
+        }
+        
+        // 2. 코드 블록에서 찾지 못했으면 일반 텍스트 JSON 찾기
+        if (!jsonData) {
+            // 문서 끝부분에서 JSON 형식 객체를 찾는 정규식
+            // 태그와 별칭을 포함하는 JSON 객체를 찾음
+            const jsonRegex = /\{[\s\S]*?"tags"[\s\S]*?"aliases"[\s\S]*?\}/;
+            jsonMatch = response.match(jsonRegex);
+            
+            if (jsonMatch) {
+                try {
+                    jsonData = JSON.parse(jsonMatch[0]);
+                    // JSON 부분 제거
+                    content = response.replace(jsonMatch[0], '').trim();
+                } catch (error) {
+                    console.error('일반 텍스트 JSON 파싱 오류:', error);
+                }
+            }
+        }
+        
+        // 3. JSON을 추출하지 못했더라도 노트 내용에 JSON 형식이 포함되는 것 방지
+        if (!jsonData) {
+            // 태그와 별칭을 포함하는 JSON 형식 텍스트를 찾아 제거
+            const cleanupRegex = /\{[\s\S]*?"tags"[\s\S]*?"aliases"[\s\S]*?\}/;
+            content = content.replace(cleanupRegex, '').trim();
+        }
+
+        return { content, jsonData };
     }
 
     private processNoteContent(content: string): string {
