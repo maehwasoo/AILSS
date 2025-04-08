@@ -88,7 +88,7 @@ export const DEFAULT_GLOBAL_GRAPH = {
   "collapse-display": false,
   "showArrow": true,
   "textFadeMultiplier": 0,
-  "nodeSizeMultiplier": 1.25,
+  "nodeSizeMultiplier": 1,
   "lineSizeMultiplier": 0.55,
   "collapse-forces": false,
   "centerStrength": 0.25,
