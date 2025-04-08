@@ -85,15 +85,21 @@ export class AILinkNote {
                 isInherited: true
             });
 
-            // 노트 생성 후 텍스트 내용 기반으로 위치를 찾아 링크 삽입
-            const fileNameWithoutExtension = newFileName.replace(PathSettings.DEFAULT_FILE_EXTENSION, '');
-            const linkText = `[[${fileNameWithoutExtension}|${selectedText}]]`;
-            
-            // 텍스트 검색 및 대체 (원래 선택했던 위치 정보 활용)
-            if (this.replaceSelectedText(editor, selectedText, linkText, selectionStartPos)) {
-                new Notice(`AI 분석이 포함된 새 노트가 생성되었습니다: ${file.path}`);
+            // 설정에 따라 링크 삽입 처리
+            if (this.plugin.settings.convertSelectionToLink) {
+                // 노트 생성 후 텍스트 내용 기반으로 위치를 찾아 링크 삽입
+                const fileNameWithoutExtension = newFileName.replace(PathSettings.DEFAULT_FILE_EXTENSION, '');
+                const linkText = `[[${fileNameWithoutExtension}|${selectedText}]]`;
+                
+                // 텍스트 검색 및 대체 (원래 선택했던 위치 정보 활용)
+                if (this.replaceSelectedText(editor, selectedText, linkText, selectionStartPos)) {
+                    new Notice(`AI 분석이 포함된 새 노트가 생성되었습니다: ${file.path}`);
+                } else {
+                    new Notice(`노트는 생성되었지만 링크 삽입에 실패했습니다. 수동으로 링크를 삽입해주세요: ${file.path}`);
+                }
             } else {
-                new Notice(`노트는 생성되었지만 링크 삽입에 실패했습니다. 수동으로 링크를 삽입해주세요: ${file.path}`);
+                // 링크로 변환하지 않고 노트만 생성
+                new Notice(`AI 분석이 포함된 새 노트가 생성되었습니다: ${file.path}`);
             }
             
             return file;

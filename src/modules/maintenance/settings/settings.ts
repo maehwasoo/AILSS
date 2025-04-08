@@ -15,6 +15,7 @@ export interface AILSSSettings {
     dalleModel: 'dall-e-2' | 'dall-e-3';
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    convertSelectionToLink: boolean;
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     dalleModel: 'dall-e-3',
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
+    convertSelectionToLink: true,
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -146,6 +148,16 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.ttsVoice)
                 .onChange(async (value: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer') => {
                     this.plugin.settings.ttsVoice = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('선택 텍스트를 링크로 변환')
+            .setDesc('AI 노트 연결 시 선택한 텍스트를 링크로 변환할지 설정합니다')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.convertSelectionToLink)
+                .onChange(async (value) => {
+                    this.plugin.settings.convertSelectionToLink = value;
                     await this.plugin.saveSettings();
                 }));
 
