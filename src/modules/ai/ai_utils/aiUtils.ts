@@ -41,10 +41,13 @@ function logAPIResponse(provider: string, response: string, usage: any): string 
 }
 
 export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promise<string> {
-    const { selectedAIModel, openAIModel, claudeModel, perplexityModel } = plugin.settings;
+    const { selectedAIModel, openAIModel, claudeModel, perplexityModel, googleAIModel, googleAIAPIKey } = plugin.settings; // googleAIModel, googleAIAPIKey 추가
     
-    const modelName = selectedAIModel === 'openai' ? openAIModel : 
-                    selectedAIModel === 'claude' ? claudeModel : perplexityModel;
+    // 모델 이름 결정 로직 수정
+    const modelName = selectedAIModel === 'openai' ? openAIModel :
+                    selectedAIModel === 'claude' ? claudeModel :
+                    selectedAIModel === 'perplexity' ? perplexityModel :
+                    selectedAIModel === 'google' ? googleAIModel : 'Unknown Model'; // google 케이스 추가
     
     // 사용자에게 보여줄 초기 메시지
     const userMessage = `🤖 AI 요청 정보:\n` +
@@ -69,6 +72,8 @@ export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promis
             response = await requestToClaude(plugin.settings.claudeAPIKey, combinedPrompt, claudeModel);
         } else if (selectedAIModel === 'perplexity') {
             response = await requestToPerplexity(plugin.settings.perplexityAPIKey, combinedPrompt, perplexityModel);
+        } else if (selectedAIModel === 'google') { // google 케이스 추가
+            response = await requestToGoogleAI(googleAIAPIKey, combinedPrompt, googleAIModel);
         } else {
             throw new Error('유효하지 않은 AI 모델이 선택되었습니다.');
         }
@@ -200,6 +205,76 @@ async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string):
     }
 }
 
+// Google AI (Gemini) 요청 함수 추가
+async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
+    new Notice('Google AI API 요청 시작');
+    // Gemini API 엔드포인트 (v1beta 사용 예시, 모델에 따라 다를 수 있음)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    // Google AI API 요청 형식에 맞게 데이터 구성
+    const data = {
+        contents: [{
+            parts: [{
+                text: prompt.userPrompt // Gemini는 'text' 필드를 사용
+            }]
+        }],
+        // generationConfig: { // 필요한 경우 온도 등 설정 추가
+        //     temperature: prompt.temperature,
+        //     maxOutputTokens: prompt.max_tokens
+        // }
+    };
+
+    const params: RequestUrlParam = {
+        url: url,
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(data)
+    };
+
+    try {
+        const response = await requestUrl(params);
+        if (response.status === 200) {
+            // 응답 구조 확인 및 텍스트 추출 (Gemini API 응답 구조에 따라 조정 필요)
+            const candidates = response.json.candidates;
+            if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts && candidates[0].content.parts.length > 0) {
+                const aiResponse = candidates[0].content.parts[0].text.trim();
+                // Google AI API는 현재(2024년 기준) 응답에 토큰 사용량 정보를 포함하지 않을 수 있음.
+                // 포함될 경우 response.json.usageMetadata 등을 확인하여 파싱 필요.
+                const usage = response.json.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+                // logAPIResponse 함수 형식에 맞게 변환
+                const formattedUsage = {
+                    prompt_tokens: usage.promptTokenCount,
+                    completion_tokens: usage.candidatesTokenCount,
+                    total_tokens: usage.totalTokenCount
+                };
+                return logAPIResponse('Google AI', aiResponse, formattedUsage);
+            } else {
+                console.error('Google AI API 응답 형식 오류:', response.json);
+                new Notice('Google AI API 응답 형식 오류');
+                throw new Error('Google AI API 응답에서 콘텐츠를 추출할 수 없습니다.');
+            }
+        } else {
+            console.error('Google AI API 오류 응답:', response);
+            new Notice(`Google AI API 오류 응답: ${response.status}`);
+            const errorBody = response.json?.error || { message: 'Unknown error' };
+            throw new Error(`Google AI API 요청 실패: 상태 코드 ${response.status}, 메시지: ${errorBody.message}`);
+        }
+    } catch (error) {
+        console.error('Google AI API 요청 중 오류 발생:', error);
+        new Notice('Google AI API 요청 중 오류 발생');
+        if (error instanceof Error) {
+            throw new Error(`Google AI API 오류: ${error.message}`);
+        } else {
+            throw new Error('Google AI API 요청 중 알 수 없는 오류 발생');
+        }
+    }
+}
+
+
 async function requestToPerplexity(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
     //logAPIRequest('Perplexity', prompt);
     //console.log('Perplexity 요청 정보:', {
@@ -249,4 +324,3 @@ async function requestToPerplexity(apiKey: string, prompt: AIPrompt, model: stri
         }
     }
 }
-
