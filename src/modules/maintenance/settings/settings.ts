@@ -7,28 +7,34 @@ export interface AILSSSettings {
     openAIAPIKey: string;
     claudeAPIKey: string;
     perplexityAPIKey: string;
-    selectedAIModel: 'openai' | 'claude' | 'perplexity';
-    selectedVisionModel: 'claude' | 'openai';
+    googleAIAPIKey: string;
+    selectedAIModel: 'openai' | 'claude' | 'perplexity' | 'google';
+    selectedVisionModel: 'claude' | 'openai' | 'google';
     openAIModel: string;
     claudeModel: string;
     perplexityModel: string;
+    googleAIModel: string;
     dalleModel: 'dall-e-2' | 'dall-e-3';
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    convertSelectionToLink: boolean;
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
     openAIAPIKey: '',
     claudeAPIKey: '',
     perplexityAPIKey: '',
+    googleAIAPIKey: '',
     selectedAIModel: 'claude',
     selectedVisionModel: 'claude',
     openAIModel: 'gpt-4o',
     claudeModel: 'claude-3-5-sonnet-20241022',
     perplexityModel: 'sonar-pro',
+    googleAIModel: 'gemini-2.5-pro-preview-03-25', // 기본 Google AI 모델 설정
     dalleModel: 'dall-e-3',
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
+    convertSelectionToLink: true,
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -91,8 +97,9 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('openai', 'OpenAI')
                 .addOption('claude', 'Claude')
                 .addOption('perplexity', 'Perplexity')
+                .addOption('google', 'Google AI') // Google AI 옵션 추가
                 .setValue(this.plugin.settings.selectedAIModel)
-                .onChange(async (value: 'openai' | 'claude' | 'perplexity') => {
+                .onChange(async (value: 'openai' | 'claude' | 'perplexity' | 'google') => {
                     this.plugin.settings.selectedAIModel = value;
                     await this.plugin.saveSettings();
                 }));
@@ -103,8 +110,9 @@ export class AILSSSettingTab extends PluginSettingTab {
             .addDropdown(dropdown => dropdown
                 .addOption('claude', 'Claude Vision')
                 .addOption('openai', 'GPT-4 Vision')
+                .addOption('google', 'Google AI Vision') // Google AI Vision 옵션 추가
                 .setValue(this.plugin.settings.selectedVisionModel)
-                .onChange(async (value: 'claude' | 'openai') => {
+                .onChange(async (value: 'claude' | 'openai' | 'google') => {
                     this.plugin.settings.selectedVisionModel = value;
                     await this.plugin.saveSettings();
                 }));
@@ -146,6 +154,16 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.ttsVoice)
                 .onChange(async (value: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer') => {
                     this.plugin.settings.ttsVoice = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('선택 텍스트를 링크로 변환')
+            .setDesc('AI 노트 연결 시 선택한 텍스트를 링크로 변환할지 설정합니다')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.convertSelectionToLink)
+                .onChange(async (value) => {
+                    this.plugin.settings.convertSelectionToLink = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -198,6 +216,20 @@ export class AILSSSettingTab extends PluginSettingTab {
                     this.plugin.settings.perplexityModel = value;
                     await this.plugin.saveSettings();
                 }));
+
+        this.addMaskedApiKeySetting(containerEl, 'Google AI API Key', 'googleAIAPIKey');
+        new Setting(containerEl)
+            .setName('Google AI 모델')
+            .setDesc('사용할 Google AI 모델을 선택하세요')
+            .addDropdown(dropdown => dropdown
+                .addOption('gemini-2.5-pro-preview-03-25', 'Gemini 2.5 Pro Preview')
+                .addOption('gemini-2.0-flash', 'Gemini 2.0 Flash')
+                // 필요에 따라 다른 Google AI 모델 추가
+                .setValue(this.plugin.settings.googleAIModel)
+                .onChange(async (value) => {
+                    this.plugin.settings.googleAIModel = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 
     private addMaskedApiKeySetting(containerEl: HTMLElement, name: string, settingKey: keyof AILSSSettings & string) {
@@ -209,10 +241,11 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings[settingKey] ? '•••••••••••••' : '')
                 .onChange(async (value) => {
                     if (value && value !== '•••••••••••••') {
-                        if ((settingKey === 'openAIAPIKey' || settingKey === 'claudeAPIKey') && !value.startsWith('sk-')) {
-                            new Notice(`유효하지 않은 ${name} 형식입니다. "sk-"로 시작해야 합니다`);
-                            return;
-                        }
+                        // Google AI API 키는 특정 접두사 요구사항이 없을 수 있으므로, 해당 검증 로직은 제거하거나 수정합니다.
+                        // if ((settingKey === 'openAIAPIKey' || settingKey === 'claudeAPIKey') && !value.startsWith('sk-')) {
+                        //     new Notice(`유효하지 않은 ${name} 형식입니다. "sk-"로 시작해야 합니다`);
+                        //     return;
+                        // }
                         (this.plugin.settings[settingKey] as string) = value;
                         await this.plugin.saveSettings();
                         text.setValue('•••••••••••••');
