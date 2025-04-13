@@ -64,16 +64,39 @@ export class NoteRefactoringModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         
-        // 제목 설정
-        contentEl.createEl('h2', { text: '노트 리팩토링' });
+        const container = contentEl.createDiv({
+            cls: "note-refactoring-container",
+            attr: { style: "padding: 2rem;" }
+        });
         
-        // 현재 노트 정보 표시
-        const infoContainer = contentEl.createDiv({ cls: 'note-refactoring-info' });
-        infoContainer.createEl('p', { text: `현재 노트: ${this.options.title}` });
-        infoContainer.createEl('p', { text: `ID: ${this.options.id}` });
+        // 헤더 영역 - 중앙 정렬
+        const headerContainer = container.createDiv({
+            cls: "header-container",
+            attr: { style: "display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem;" }
+        });
+        
+        // 타이틀 (상단)
+        headerContainer.createEl('h2', { 
+            text: this.options.title,
+            attr: { style: "margin: 0 0 0.5rem 0; font-size: 1.5em; text-align: center;" }
+        });
+        
+        // ID (하단에 작게)
+        if (this.options.id) {
+            headerContainer.createEl('div', { 
+                text: `ID: ${this.options.id}`,
+                attr: { style: "font-size: 0.9em; color: var(--text-muted); text-align: center;" }
+            });
+        }
+        
+        // 구분선
+        container.createEl('hr', { attr: { style: "margin-bottom: 1.5rem;" } });
         
         // 스텝 컨테이너 생성
-        this.stepContainer = contentEl.createDiv({ cls: 'note-refactoring-steps' });
+        this.stepContainer = container.createDiv({ 
+            cls: 'note-refactoring-steps',
+            attr: { style: "width: 100%;" }
+        });
         
         // 첫 단계 표시: 옵션 선택
         this.showOptionSelection();
@@ -83,10 +106,17 @@ export class NoteRefactoringModal extends Modal {
         this.currentStep = 'selection';
         this.stepContainer.empty();
         
+        // 제목
+        this.stepContainer.createEl('h3', { 
+            text: '리팩토링 옵션',
+            attr: { style: "margin: 0 0 1.5rem 0; font-size: 1.2em; text-align: center; font-weight: 600;" }
+        });
+        
+        // 옵션 버튼 컨테이너 - 가로 배치
         const optionsContainer = this.stepContainer.createDiv({
             cls: 'note-refactoring-options',
             attr: {
-                style: 'display: flex; gap: 10px; margin-top: 20px; margin-bottom: 20px;'
+                style: 'display: flex; gap: 1rem; margin-bottom: 2rem; width: 100%;'
             }
         });
         
@@ -99,26 +129,49 @@ export class NoteRefactoringModal extends Modal {
         // 조정 버튼
         this.createOptionButton(optionsContainer, 'adjust', '조정', 'settings');
         
-        // 옵션 설명
-        const descriptionContainer = this.stepContainer.createDiv({ cls: 'note-refactoring-description' });
-        descriptionContainer.createEl('p', { 
-            text: '옵션을 선택하세요:',
-            attr: { style: 'font-weight: bold; margin-bottom: 10px;' }
+        // 옵션 설명 텍스트 컨테이너
+        const descriptionContainer = this.stepContainer.createDiv({ 
+            cls: 'options-descriptions',
+            attr: { style: 'display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;' }
         });
         
-        descriptionContainer.createEl('p', { 
-            text: '• 통합: 현재 노트에 다른 노트 내용을 통합하여 재구성합니다.',
-            attr: { style: 'margin-bottom: 5px;' }
+        // 통합 설명
+        this.createOptionDescription(
+            descriptionContainer,
+            '통합',
+            '현재 노트에 다른 노트의 내용을 통합하여 주제별로 체계적으로 재구성합니다. 중복된 내용은 제거되고, 관련 내용은 함께 그룹화됩니다.'
+        );
+        
+        // 분할 설명
+        this.createOptionDescription(
+            descriptionContainer,
+            '분할',
+            '현재 노트의 내용을 주제별로 분석하고 여러 개의 관련된 노트들로 분리합니다. 분할된 노트들은 상호 참조를 위해 자동으로 링크됩니다.'
+        );
+        
+        // 조정 설명
+        this.createOptionDescription(
+            descriptionContainer,
+            '조정',
+            '현재 노트와 선택된 노트들 간의 내용을 주제별로 재분배합니다. 각 노트는 자신의 제목과 가장 관련 있는 내용만 유지하게 됩니다.'
+        );
+    }
+    
+    private createOptionDescription(container: HTMLElement, title: string, description: string) {
+        const descItem = container.createDiv({
+            attr: { style: 'background-color: var(--background-secondary); padding: 1rem; border-radius: 8px;' }
         });
         
-        descriptionContainer.createEl('p', { 
-            text: '• 분할: 현재 노트의 내용을 기반으로 새로운 노트들로 분리합니다.',
-            attr: { style: 'margin-bottom: 5px;' }
+        // 제목
+        descItem.createEl('h5', {
+            text: title,
+            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600; font-size: 1em;' }
         });
         
-        descriptionContainer.createEl('p', { 
-            text: '• 조정: 현재 노트와 선택된 노트들 간의 내용을 주제별로 재조정합니다.',
-            attr: { style: 'margin-bottom: 5px;' }
+        // 설명
+        descItem.createEl('p', {
+            text: description,
+            attr: { style: 'margin: 0; color: var(--text-muted);' }
         });
     }
     
@@ -126,23 +179,30 @@ export class NoteRefactoringModal extends Modal {
         const button = container.createEl('button', {
             cls: 'mod-cta',
             attr: {
-                style: 'display: flex; align-items: center; justify-content: center; padding: 25px 20px; min-height: 80px; flex: 1;'
+                style: 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; flex: 1; height: 90px; transition: all 0.3s ease;'
             }
         });
         
-        // 아이콘과 텍스트를 하나의 컨테이너로 묶음
-        const contentContainer = button.createDiv({
-            attr: { style: 'display: flex; align-items: center; justify-content: center; gap: 8px;' }
-        });
-        
-        // 아이콘 컨테이너
-        const iconContainer = contentContainer.createDiv({
-            attr: { style: 'font-size: 24px;' }
+        // 아이콘
+        const iconContainer = button.createDiv({
+            attr: { style: 'font-size: 1.8em; margin-bottom: 0.5rem;' }
         });
         setIcon(iconContainer, iconName);
         
         // 텍스트 추가
-        contentContainer.createSpan({ text: text });
+        button.createSpan({ 
+            text: text,
+            attr: { style: 'font-weight: 600;' }
+        });
+        
+        // 호버 효과
+        button.addEventListener('mouseenter', () => {
+            button.setAttribute('style', 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; flex: 1; height: 90px; transition: all 0.3s ease; transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);');
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            button.setAttribute('style', 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; flex: 1; height: 90px; transition: all 0.3s ease;');
+        });
         
         button.addEventListener('click', () => {
             this.selectedOption = option;
@@ -174,19 +234,19 @@ export class NoteRefactoringModal extends Modal {
         // 헤더
         searchContainer.createEl('h3', { 
             text: this.selectedOption === 'merge' ? '노트 통합' : '노트 조정',
-            attr: { style: 'margin-bottom: 15px;' }
+            attr: { style: 'margin: 0 0 1.5rem 0; font-size: 1.2em; text-align: center; font-weight: 600;' }
         });
         
         // 검색 필드
         const searchInputContainer = searchContainer.createDiv({
-            attr: { style: 'margin-bottom: 15px;' }
+            attr: { style: 'margin-bottom: 1.5rem;' }
         });
         
         this.searchInput = searchInputContainer.createEl('input', {
             attr: {
                 type: 'text',
                 placeholder: placeholder,
-                style: 'width: 100%; padding: 8px;'
+                style: 'width: 100%; padding: 0.8rem; border-radius: 4px;'
             }
         });
         
@@ -194,40 +254,46 @@ export class NoteRefactoringModal extends Modal {
         const searchButton = searchInputContainer.createEl('button', {
             text: '검색',
             cls: 'mod-cta',
-            attr: { style: 'margin-top: 8px;' }
+            attr: { style: 'margin-top: 0.8rem; padding: 0.6rem 1.2rem; width: 100%; border-radius: 4px;' }
         });
         
-        // 검색 결과 컨테이너
+        // 검색 결과 컨테이너 - 카드 형식
         this.searchResults = searchContainer.createDiv({
             cls: 'search-results',
-            attr: { style: 'max-height: 300px; overflow-y: auto; margin-bottom: 15px;' }
+            attr: { style: 'max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; border-radius: 4px;' }
         });
         
         // 선택된 노트들 표시 컨테이너
         const selectedNotesContainer = searchContainer.createDiv({
             cls: 'selected-notes',
-            attr: { style: 'margin-bottom: 15px;' }
+            attr: { style: 'margin-bottom: 1.5rem; background-color: var(--background-secondary); padding: 1rem; border-radius: 8px;' }
         });
         
-        selectedNotesContainer.createEl('h4', { text: '선택된 노트', attr: { style: 'margin-bottom: 5px;' } });
-        const selectedNotesList = selectedNotesContainer.createEl('ul', { attr: { style: 'padding-left: 20px;' } });
+        selectedNotesContainer.createEl('h4', { 
+            text: '선택된 노트',
+            attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 600;' }
+        });
+        
+        const selectedNotesList = selectedNotesContainer.createEl('ul', { 
+            attr: { style: 'padding-left: 1.5rem; margin: 0;' }
+        });
         
         // 버튼 컨테이너
         const buttonContainer = searchContainer.createDiv({
-            attr: { style: 'display: flex; justify-content: space-between;' }
+            attr: { style: 'display: flex; justify-content: space-between; gap: 1rem;' }
         });
         
         // 이전 버튼
         const backButton = buttonContainer.createEl('button', {
             text: '이전',
-            attr: { style: 'padding: 8px 16px;' }
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
         // 다음 버튼
         const nextButton = buttonContainer.createEl('button', {
             text: '다음',
             cls: 'mod-cta',
-            attr: { style: 'padding: 8px 16px;' }
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         nextButton.disabled = true;
         
@@ -251,16 +317,25 @@ export class NoteRefactoringModal extends Modal {
         const updateSelectedNotes = () => {
             selectedNotesList.empty();
             if (this.selectedNotes.length === 0) {
-                selectedNotesList.createEl('li', { text: '선택된 노트 없음' });
+                selectedNotesList.createEl('li', { 
+                    text: '선택된 노트 없음',
+                    attr: { style: 'color: var(--text-muted);' }
+                });
                 nextButton.disabled = true;
             } else {
                 this.selectedNotes.forEach(file => {
-                    const item = selectedNotesList.createEl('li');
-                    const fileDisplay = item.createSpan({ text: file.basename });
+                    const item = selectedNotesList.createEl('li', {
+                        attr: { style: 'margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;' }
+                    });
+                    
+                    item.createSpan({ 
+                        text: file.basename,
+                        attr: { style: 'font-weight: 500;' }
+                    });
                     
                     const removeButton = item.createEl('button', {
                         text: '제거',
-                        attr: { style: 'margin-left: 8px; font-size: 0.8em;' }
+                        attr: { style: 'font-size: 0.8em; padding: 0.3rem 0.5rem; border-radius: 4px;' }
                     });
                     
                     removeButton.addEventListener('click', () => {
@@ -320,30 +395,49 @@ export class NoteRefactoringModal extends Modal {
         });
         
         if (results.length === 0) {
-            this.searchResults.createEl('p', { text: '검색 결과가 없습니다.' });
+            this.searchResults.createEl('p', { 
+                text: '검색 결과가 없습니다.',
+                attr: { style: 'text-align: center; color: var(--text-muted); padding: 1rem;' }
+            });
             return;
         }
         
-        // 검색 결과 표시
-        const resultList = this.searchResults.createEl('ul', { attr: { style: 'list-style: none; padding: 0;' } });
-        
+        // 검색 결과 표시 - 카드 형식
         results.slice(0, 10).forEach(file => {
-            const item = resultList.createEl('li', { attr: { style: 'padding: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--background-modifier-border);' } });
+            const card = this.searchResults.createEl('div', { 
+                cls: 'search-result-card',
+                attr: { 
+                    style: 'padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 4px; background-color: var(--background-secondary); transition: all 0.2s ease;' 
+                }
+            });
             
-            const fileLink = item.createEl('div', {
+            card.addEventListener('mouseenter', () => {
+                card.setAttribute('style', 'padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 4px; background-color: var(--background-modifier-hover); transition: all 0.2s ease;');
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                card.setAttribute('style', 'padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 4px; background-color: var(--background-secondary); transition: all 0.2s ease;');
+            });
+            
+            const titleContainer = card.createDiv({
+                attr: { style: 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;' }
+            });
+            
+            titleContainer.createEl('div', {
                 text: file.basename,
-                attr: { style: 'font-weight: bold;' }
+                attr: { style: 'font-weight: 600; word-break: break-all;' }
             });
             
-            item.createEl('div', {
-                text: file.path,
-                attr: { style: 'font-size: 0.8em; color: var(--text-muted);' }
-            });
-            
-            const selectButton = item.createEl('button', {
+            const selectButton = card.createEl('button', {
                 text: '선택',
                 cls: 'mod-cta',
-                attr: { style: 'margin-top: 4px; font-size: 0.9em;' }
+                attr: { style: 'padding: 0.5rem 1rem; border-radius: 4px; margin-top: 0.5rem; width: 100%;' }
+            });
+            
+            // 파일 경로 표시
+            card.createEl('div', {
+                text: file.path,
+                attr: { style: 'font-size: 0.8em; color: var(--text-muted); word-break: break-all;' }
             });
             
             selectButton.addEventListener('click', () => {
@@ -352,7 +446,10 @@ export class NoteRefactoringModal extends Modal {
         });
         
         if (results.length > 10) {
-            this.searchResults.createEl('p', { text: `...외 ${results.length - 10}개 결과` });
+            this.searchResults.createEl('p', { 
+                text: `...외 ${results.length - 10}개 결과`,
+                attr: { style: 'text-align: center; font-size: 0.9em; color: var(--text-muted); padding: 0.5rem;' }
+            });
         }
     }
     
@@ -362,54 +459,72 @@ export class NoteRefactoringModal extends Modal {
         
         const confirmContainer = this.stepContainer.createDiv({ cls: 'split-confirmation' });
         
-        confirmContainer.createEl('h3', { text: '노트 분할', attr: { style: 'margin-bottom: 15px;' } });
-        
-        confirmContainer.createEl('p', { 
-            text: '현재 노트를 분할하시겠습니까?', 
-            attr: { style: 'margin-bottom: 10px;' } 
+        confirmContainer.createEl('h3', { 
+            text: '노트 분할',
+            attr: { style: 'margin: 0 0 1.5rem 0; font-size: 1.2em; text-align: center; font-weight: 600;' }
         });
         
-        confirmContainer.createEl('p', { 
-            text: `"${this.options.title}" 노트의 내용을 분석하여 주제별로 분할하고 새로운 노트들을 생성합니다.`,
-            attr: { style: 'margin-bottom: 20px;' } 
+        const splitInfoCard = confirmContainer.createDiv({
+            attr: { 
+                style: 'background-color: var(--background-secondary); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;' 
+            }
         });
         
-        const infoBox = confirmContainer.createDiv({
-            cls: 'info-box',
-            attr: { style: 'background-color: var(--background-modifier-form-field); padding: 10px; border-radius: 5px; margin-bottom: 20px;' }
+        splitInfoCard.createEl('p', { 
+            text: `"${this.options.title}" 노트의 내용을 분석하여 아래와 같이 처리합니다:`,
+            attr: { style: 'margin-top: 0; margin-bottom: 1rem; font-weight: 500;' } 
         });
         
-        infoBox.createEl('p', { 
-            text: '• 현재 노트의 제목과 관련된 내용만 유지합니다.',
-            attr: { style: 'margin-bottom: 5px;' } 
+        const benefitsList = splitInfoCard.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
+        
+        benefitsList.createEl('li', { 
+            text: '주제별로 내용을 분류하고 분석합니다',
+            attr: { style: 'margin-bottom: 0.5rem;' } 
         });
         
-        infoBox.createEl('p', { 
-            text: '• 다른 주제의 내용은 새로운 노트로 분할됩니다.',
-            attr: { style: 'margin-bottom: 5px;' } 
+        benefitsList.createEl('li', { 
+            text: '분류된 내용을 기반으로 새 노트를 생성합니다',
+            attr: { style: 'margin-bottom: 0.5rem;' } 
         });
         
-        infoBox.createEl('p', { 
-            text: '• 분할된 노트들은 서로 링크됩니다.',
-            attr: { style: 'margin-bottom: 5px;' } 
+        benefitsList.createEl('li', { 
+            text: '생성된 노트들 간에 자동으로 링크를 설정합니다',
+            attr: { style: 'margin-bottom: 0.5rem;' } 
+        });
+        
+        benefitsList.createEl('li', { 
+            text: '현재 노트에는 핵심 주제 관련 내용만 남깁니다',
+        });
+        
+        // 주의사항 카드
+        const warningBox = confirmContainer.createDiv({
+            cls: 'warning-box',
+            attr: { 
+                style: 'background-color: rgba(var(--background-modifier-error-rgb), 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;' 
+            }
+        });
+        
+        warningBox.createEl('p', { 
+            text: '이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?',
+            attr: { style: 'margin: 0; font-weight: 500; text-align: center;' } 
         });
         
         // 버튼 컨테이너
         const buttonContainer = confirmContainer.createDiv({
-            attr: { style: 'display: flex; justify-content: space-between; margin-top: 20px;' }
+            attr: { style: 'display: flex; justify-content: space-between; gap: 1rem;' }
         });
         
         // 이전 버튼
         const backButton = buttonContainer.createEl('button', {
             text: '이전',
-            attr: { style: 'padding: 8px 16px;' }
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
         // 실행 버튼
         const executeButton = buttonContainer.createEl('button', {
             text: '분할 실행',
             cls: 'mod-cta',
-            attr: { style: 'padding: 8px 16px;' }
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
         backButton.addEventListener('click', () => this.showOptionSelection());
@@ -427,22 +542,36 @@ export class NoteRefactoringModal extends Modal {
         
         // 헤더
         const operationTitle = this.selectedOption === 'merge' ? '노트 통합' : '노트 조정';
-        this.previewContainer.createEl('h3', { text: operationTitle, attr: { style: 'margin-bottom: 15px;' } });
-        
-        // 선택된 노트 정보
-        const selectionInfo = this.previewContainer.createDiv({ cls: 'selection-info' });
-        
-        selectionInfo.createEl('h4', { 
-            text: '처리할 노트들', 
-            attr: { style: 'margin-bottom: 10px;' } 
+        this.previewContainer.createEl('h3', { 
+            text: operationTitle,
+            attr: { style: 'margin: 0 0 1.5rem 0; font-size: 1.2em; text-align: center; font-weight: 600;' }
         });
         
-        const notesList = selectionInfo.createEl('ul', { attr: { style: 'margin-bottom: $2px; padding-left: 20px;' } });
+        // 작업 정보 카드
+        const operationInfoCard = this.previewContainer.createDiv({
+            attr: { 
+                style: 'background-color: var(--background-secondary); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;' 
+            }
+        });
+        
+        operationInfoCard.createEl('h4', { 
+            text: '처리할 노트',
+            attr: { style: 'margin-top: 0; margin-bottom: 1rem; font-weight: 500;' } 
+        });
+        
+        const notesList = operationInfoCard.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0 0 1.5rem 0;' } });
         
         // 현재 노트 추가
-        notesList.createEl('li', { 
-            text: `${this.options.title} (현재 노트)`,
-            attr: { style: 'font-weight: bold;' } 
+        const currentNoteItem = notesList.createEl('li');
+        
+        currentNoteItem.createSpan({ 
+            text: this.options.title,
+            attr: { style: 'font-weight: 600;' } 
+        });
+        
+        currentNoteItem.createSpan({ 
+            text: ' (현재 노트)',
+            attr: { style: 'color: var(--text-muted);' } 
         });
         
         // 선택된 다른 노트들
@@ -451,50 +580,57 @@ export class NoteRefactoringModal extends Modal {
         });
         
         // 작업 설명
-        const operationDescription = this.previewContainer.createDiv({ 
-            cls: 'operation-description',
-            attr: { style: 'margin-top: 20px; margin-bottom: 20px;' } 
-        });
-        
         if (this.selectedOption === 'merge') {
-            operationDescription.createEl('p', { 
-                text: '선택한 노트들의 내용이 현재 노트에 통합되어 체계적으로 재구성됩니다.',
-                attr: { style: 'margin-bottom: 10px;' } 
+            operationInfoCard.createEl('h4', { 
+                text: '통합 방식',
+                attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 500;' } 
             });
             
-            operationDescription.createEl('p', { 
-                text: '• 현재 노트와 선택한 노트들의 내용이 모두 병합됩니다.',
-                attr: { style: 'margin-bottom: 5px;' } 
+            const mergeList = operationInfoCard.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
+            
+            mergeList.createEl('li', { 
+                text: '모든 노트의 내용이 현재 노트에 통합됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
             });
             
-            operationDescription.createEl('p', { 
-                text: '• 중복된 내용은 자동으로 제거되고 관련 내용끼리 그룹화됩니다.',
-                attr: { style: 'margin-bottom: 5px;' } 
+            mergeList.createEl('li', { 
+                text: '중복된 내용은 자동으로 정리됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
             });
             
-            operationDescription.createEl('p', { 
-                text: '• 통합된 내용은 논리적으로 재구성되어 현재 노트에 저장됩니다.',
-                attr: { style: 'margin-bottom: 5px;' } 
+            mergeList.createEl('li', { 
+                text: '주제별로 내용이 체계적으로 재구성됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            mergeList.createEl('li', { 
+                text: '원본 노트들은 변경되지 않고 그대로 유지됩니다',
             });
         } else { // adjust
-            operationDescription.createEl('p', { 
-                text: '선택한 노트들의 내용이 주제별로 재분배됩니다.',
-                attr: { style: 'margin-bottom: 10px;' } 
+            operationInfoCard.createEl('h4', { 
+                text: '조정 방식',
+                attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 500;' } 
             });
             
-            operationDescription.createEl('p', { 
-                text: '• 각 노트의 제목과 관련된 내용만 해당 노트에 유지됩니다.',
-                attr: { style: 'margin-bottom: 5px;' } 
+            const adjustList = operationInfoCard.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
+            
+            adjustList.createEl('li', { 
+                text: '각 노트의 제목과 관련된 내용만 해당 노트에 유지됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
             });
             
-            operationDescription.createEl('p', { 
-                text: '• 다른 주제에 관련된 내용은 적절한 노트로 이동됩니다.',
-                attr: { style: 'margin-bottom: 5px;' } 
+            adjustList.createEl('li', { 
+                text: '관련 없는 내용은 적절한 다른 노트로 이동됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
             });
             
-            operationDescription.createEl('p', { 
-                text: '• 새로운 내용은 추가되지 않고 기존 내용만 재분배됩니다.',
-                attr: { style: 'margin-bottom: 5px;' } 
+            adjustList.createEl('li', { 
+                text: '모든 노트의 내용이 재분배되어 구조가 개선됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            adjustList.createEl('li', { 
+                text: '조정된 노트들은 서로 연결되어 관계가 유지됩니다',
             });
         }
         
@@ -502,31 +638,31 @@ export class NoteRefactoringModal extends Modal {
         const warningBox = this.previewContainer.createDiv({
             cls: 'warning-box',
             attr: { 
-                style: 'background-color: var(--background-modifier-error-rgb); opacity: 0.2; padding: 10px; border-radius: 5px; margin-bottom: 20px;' 
+                style: 'background-color: rgba(var(--background-modifier-error-rgb), 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;' 
             }
         });
         
         warningBox.createEl('p', { 
             text: '이 작업은 선택한 노트들의 내용을 변경합니다. 계속하시겠습니까?',
-            attr: { style: 'font-weight: bold; margin-bottom: 0;' } 
+            attr: { style: 'margin: 0; font-weight: 500; text-align: center;' } 
         });
         
         // 버튼 컨테이너
         const buttonContainer = this.previewContainer.createDiv({
-            attr: { style: 'display: flex; justify-content: space-between; margin-top: 20px;' }
+            attr: { style: 'display: flex; justify-content: space-between; gap: 1rem;' }
         });
         
         // 이전 버튼
         const backButton = buttonContainer.createEl('button', {
             text: '이전',
-            attr: { style: 'padding: 8px 16px;' }
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
         // 실행 버튼
         const executeButton = buttonContainer.createEl('button', {
             text: this.selectedOption === 'merge' ? '통합 실행' : '조정 실행',
             cls: 'mod-cta',
-            attr: { style: 'padding: 8px 16px;' }
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
         backButton.addEventListener('click', () => {
