@@ -182,6 +182,7 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('o1-mini', 'o1-mini')
                 .addOption('o3-mini', 'o3-mini')
                 .addOption('o1', 'o1')
+                .addOption('o1-pro', 'o1-pro')
                 .setValue(this.plugin.settings.openAIModel)
                 .onChange(async (value) => {
                     this.plugin.settings.openAIModel = value;
