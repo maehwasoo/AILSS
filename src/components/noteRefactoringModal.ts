@@ -84,7 +84,7 @@ export class NoteRefactoringModal extends Modal {
         // ID (하단에 작게)
         if (this.options.id) {
             headerContainer.createEl('div', { 
-                text: `ID: ${this.options.id}`,
+                text: `${this.options.id}`,
                 attr: { style: "font-size: 0.9em; color: var(--text-muted); text-align: center;" }
             });
         }
@@ -683,15 +683,17 @@ export class NoteRefactoringModal extends Modal {
     
     private executeMerge() {
         // AI 통합 로직 실행
-        new Notice('노트 통합 처리 중...');
+        const loadingNotice = new Notice('노트 통합 처리 중...', 0); // 0 duration for persistent notice
         this.close();
         
         // 통합 처리 실행 - AINoteRefactor 클래스 사용
         this.plugin.noteRefactoringManager.mergeNotes(this.options.file, this.selectedNotes)
             .then(() => {
+                loadingNotice.hide(); // Hide the persistent notice
                 new Notice('노트 통합이 완료되었습니다.');
             })
             .catch(error => {
+                loadingNotice.hide(); // Hide the persistent notice on error too
                 new Notice(`노트 통합 중 오류가 발생했습니다: ${error.message}`);
                 console.error('노트 통합 오류:', error);
             });
@@ -699,15 +701,17 @@ export class NoteRefactoringModal extends Modal {
     
     private executeSplit() {
         // AI 분할 로직 실행
-        new Notice('노트 분할 처리 중...');
+        const loadingNotice = new Notice('노트 분할 처리 중...', 0); // 0 duration for persistent notice
         this.close();
         
         // 분할 처리 실행 - AINoteRefactor 클래스 사용
         this.plugin.noteRefactoringManager.splitNote(this.options.file)
             .then(() => {
+                loadingNotice.hide(); // Hide the persistent notice
                 new Notice('노트 분할이 완료되었습니다.');
             })
             .catch(error => {
+                loadingNotice.hide(); // Hide the persistent notice on error too
                 new Notice(`노트 분할 중 오류가 발생했습니다: ${error.message}`);
                 console.error('노트 분할 오류:', error);
             });
@@ -715,15 +719,17 @@ export class NoteRefactoringModal extends Modal {
     
     private executeAdjust() {
         // AI 조정 로직 실행
-        new Notice('노트 조정 처리 중...');
+        const loadingNotice = new Notice('노트 조정 처리 중...', 0); // 0 duration for persistent notice
         this.close();
         
         // 조정 처리 실행 - AINoteRefactor 클래스 사용
         this.plugin.noteRefactoringManager.adjustNotes(this.options.file, this.selectedNotes)
             .then(() => {
+                loadingNotice.hide(); // Hide the persistent notice
                 new Notice('노트 조정이 완료되었습니다.');
             })
             .catch(error => {
+                loadingNotice.hide(); // Hide the persistent notice on error too
                 new Notice(`노트 조정 중 오류가 발생했습니다: ${error.message}`);
                 console.error('노트 조정 오류:', error);
             });
