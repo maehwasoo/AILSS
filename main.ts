@@ -1,4 +1,4 @@
-import { Plugin, Editor, MarkdownView } from 'obsidian';
+import { Plugin, Editor, MarkdownView, TFile, Notice } from 'obsidian';
 import { NewNote } from './src/modules/command/create/newNote';
 import { LinkNote } from './src/modules/command/create/linkNote';
 import { UpdateTags } from './src/modules/command/update/updateTags';
@@ -28,6 +28,9 @@ import { UnlinkNotes } from './src/modules/command/update/unlinkNotes';
 import { OpenAITTS } from './src/modules/ai/audio/openai_tts';
 import { EmbedNote } from './src/modules/command/create/embedNote';
 import { AINoteRestructure } from './src/modules/ai/text/aiNoteRestructure';
+import { NoteRefactoringManager } from './src/modules/ai/text/noteRefactoringManager';
+import { NoteRefactoringModal } from './src/components/noteRefactoringModal';
+import { FrontmatterManager } from './src/modules/maintenance/utils/frontmatterManager';
 
 
 
@@ -64,6 +67,7 @@ export default class AILSSPlugin extends Plugin {
 	private unlinkNotesManager: UnlinkNotes;
 	private embedNoteManager: EmbedNote;
 	private aiNoteRestructure: AINoteRestructure;
+	noteRefactoringManager: NoteRefactoringManager;
 
 
 
@@ -126,6 +130,14 @@ export default class AILSSPlugin extends Plugin {
 
 		// AI 노트 재구조화 초기화
 		this.aiNoteRestructure = new AINoteRestructure(this.app, this);
+
+		// 노트 리팩토링 매니저 초기화
+		this.noteRefactoringManager = new NoteRefactoringManager(this.app, this);
+
+		// 노트 리팩토링 리본 추가
+		this.addRibbonIcon('git-graph', '노트 리팩토링', () => {
+			NoteRefactoringModal.openForActiveNote(this.app, this);
+		});
 
 		// 리본 메뉴 아이콘들 업데이트
 		this.addRibbonIcon('plus', '노트 생성', () => {
@@ -407,6 +419,14 @@ export default class AILSSPlugin extends Plugin {
 			editorCallback: () => this.unlinkNotesManager.unlinkSelectedNotes()
 		});
 
+		// 노트 리팩토링 명령 추가
+		this.addCommand({
+			id: 'note-refactoring',
+			name: '노트 리팩토링',
+			icon: 'git-graph',
+			callback: () => NoteRefactoringModal.openForActiveNote(this.app, this)
+		});
+
 		// 노트 재구조화 명령 추가
 		this.addCommand({
 			id: 'restructure-note',
@@ -426,6 +446,7 @@ export default class AILSSPlugin extends Plugin {
 			}
 		});
 	}
+
 
 	onunload() {
 		if (this.renameTimeout) {
