@@ -875,7 +875,7 @@ export class NoteRefactoringModal extends Modal {
     private buildSplitPreview(container: HTMLElement, result: any) {
         // 정보 박스
         const infoBox = container.createDiv({
-            attr: { style: 'background-color: var(--background-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;' }
+            attr: { style: 'background-color: var(--background-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;' }
         });
         
         infoBox.createEl('h4', {
@@ -885,22 +885,11 @@ export class NoteRefactoringModal extends Modal {
         
         infoBox.createEl('p', {
             text: `"${result.originalFile.title}" 노트가 ${result.newNotes.length}개의 새 노트로 분할됩니다.`,
-            attr: { style: 'margin: 0 0 0.5rem 0;' }
+            attr: { style: 'margin: 0;' }
         });
-        
-        // 원본 노트 변경사항 미리보기
-        this.createContentDiffPreview(
-            container, 
-            '원본 노트 내용', 
-            '분할 후 원본 노트 내용', 
-            result.originalFile.originalContent, 
-            result.originalFile.newContent
-        );
         
         // 새로 생성될 노트 미리보기
-        const newNotesContainer = container.createDiv({
-            attr: { style: 'margin-top: 2rem;' }
-        });
+        const newNotesContainer = container.createDiv();
         
         newNotesContainer.createEl('h4', {
             text: '새로 생성될 노트 목록',
