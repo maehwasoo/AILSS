@@ -46,7 +46,7 @@ export class NoteRefactoringModal extends Modal {
 
     private options: NoteRefactoringModalOptions;
     private plugin: AILSSPlugin;
-    private currentStep: 'selection' | 'search' | 'preview' = 'selection';
+    private currentStep: 'selection' | 'search' | 'preview' | 'aiResult' = 'selection';
     private selectedOption: 'merge' | 'split' | 'adjust' | null = null;
     private selectedNotes: TFile[] = [];
     private searchInput: HTMLInputElement;
@@ -681,58 +681,417 @@ export class NoteRefactoringModal extends Modal {
         });
     }
     
-    private executeMerge() {
-        // AI 통합 로직 실행
-        const loadingNotice = new Notice('노트 통합 처리 중...', 0); // 0 duration for persistent notice
-        this.close();
-        
-        // 통합 처리 실행 - AINoteRefactor 클래스 사용
-        this.plugin.noteRefactoringManager.mergeNotes(this.options.file, this.selectedNotes)
-            .then(() => {
-                loadingNotice.hide(); // Hide the persistent notice
-                new Notice('노트 통합이 완료되었습니다.');
-            })
-            .catch(error => {
-                loadingNotice.hide(); // Hide the persistent notice on error too
-                new Notice(`노트 통합 중 오류가 발생했습니다: ${error.message}`);
-                console.error('노트 통합 오류:', error);
-            });
+    private async executeMerge() {
+        try {
+            // AI 통합 로직 실행 (미리보기 요청)
+            const loadingNotice = new Notice('노트 통합 처리 중...', 0); // 0 duration for persistent notice
+            
+            // AINoteRefactor 클래스 사용 (applyChanges=false로 설정하여 변경사항 적용하지 않고 미리보기만 생성)
+            const aiRefactor = new AINoteRefactor(this.app, this.plugin);
+            const mergeResult = await aiRefactor.mergeNotes(this.options.file, this.selectedNotes, false);
+            
+            loadingNotice.hide();
+            
+            // 결과 미리보기 모달 표시
+            this.showAiResultPreview('merge', mergeResult);
+        } catch (error: any) {
+            new Notice(`노트 통합 준비 중 오류가 발생했습니다: ${error.message}`);
+            console.error('노트 통합 준비 오류:', error);
+        }
     }
     
-    private executeSplit() {
-        // AI 분할 로직 실행
-        const loadingNotice = new Notice('노트 분할 처리 중...', 0); // 0 duration for persistent notice
-        this.close();
-        
-        // 분할 처리 실행 - AINoteRefactor 클래스 사용
-        this.plugin.noteRefactoringManager.splitNote(this.options.file)
-            .then(() => {
-                loadingNotice.hide(); // Hide the persistent notice
-                new Notice('노트 분할이 완료되었습니다.');
-            })
-            .catch(error => {
-                loadingNotice.hide(); // Hide the persistent notice on error too
-                new Notice(`노트 분할 중 오류가 발생했습니다: ${error.message}`);
-                console.error('노트 분할 오류:', error);
-            });
+    private async executeSplit() {
+        try {
+            // AI 분할 로직 실행 (미리보기 요청)
+            const loadingNotice = new Notice('노트 분할 처리 중...', 0); // 0 duration for persistent notice
+            
+            // AINoteRefactor 클래스 사용 (applyChanges=false로 설정하여 변경사항 적용하지 않고 미리보기만 생성)
+            const aiRefactor = new AINoteRefactor(this.app, this.plugin);
+            const splitResult = await aiRefactor.splitNote(this.options.file, false);
+            
+            loadingNotice.hide();
+            
+            // 결과 미리보기 모달 표시
+            this.showAiResultPreview('split', splitResult);
+        } catch (error: any) {
+            new Notice(`노트 분할 준비 중 오류가 발생했습니다: ${error.message}`);
+            console.error('노트 분할 준비 오류:', error);
+        }
     }
     
-    private executeAdjust() {
-        // AI 조정 로직 실행
-        const loadingNotice = new Notice('노트 조정 처리 중...', 0); // 0 duration for persistent notice
-        this.close();
+    private async executeAdjust() {
+        try {
+            // AI 조정 로직 실행 (미리보기 요청)
+            const loadingNotice = new Notice('노트 조정 처리 중...', 0); // 0 duration for persistent notice
+            
+            // AINoteRefactor 클래스 사용 (applyChanges=false로 설정하여 변경사항 적용하지 않고 미리보기만 생성)
+            const aiRefactor = new AINoteRefactor(this.app, this.plugin);
+            const adjustResult = await aiRefactor.adjustNotes(this.options.file, this.selectedNotes, false);
+            
+            loadingNotice.hide();
+            
+            // 결과 미리보기 모달 표시
+            this.showAiResultPreview('adjust', adjustResult);
+        } catch (error: any) {
+            new Notice(`노트 조정 준비 중 오류가 발생했습니다: ${error.message}`);
+            console.error('노트 조정 준비 오류:', error);
+        }
+    }
+
+    /**
+     * AI 처리 결과 미리보기 UI를 표시합니다.
+     * @param mode 리팩토링 모드 (merge, split, adjust)
+     * @param result AI 처리 결과 데이터
+     */
+    private showAiResultPreview(
+        mode: 'merge' | 'split' | 'adjust', 
+        result: any
+    ) {
+        this.currentStep = 'aiResult';
+        this.stepContainer.empty();
         
-        // 조정 처리 실행 - AINoteRefactor 클래스 사용
-        this.plugin.noteRefactoringManager.adjustNotes(this.options.file, this.selectedNotes)
-            .then(() => {
-                loadingNotice.hide(); // Hide the persistent notice
-                new Notice('노트 조정이 완료되었습니다.');
-            })
-            .catch(error => {
-                loadingNotice.hide(); // Hide the persistent notice on error too
-                new Notice(`노트 조정 중 오류가 발생했습니다: ${error.message}`);
-                console.error('노트 조정 오류:', error);
+        // 제목 설정
+        let title = '';
+        switch (mode) {
+            case 'merge': title = '노트 통합 결과 미리보기'; break;
+            case 'split': title = '노트 분할 결과 미리보기'; break;
+            case 'adjust': title = '노트 조정 결과 미리보기'; break;
+        }
+        
+        // 헤더
+        this.stepContainer.createEl('h3', { 
+            text: title,
+            attr: { style: 'margin: 0 0 1.5rem 0; font-size: 1.2em; text-align: center; font-weight: 600;' }
+        });
+        
+        // 미리보기 컨테이너
+        const previewContainer = this.stepContainer.createDiv({
+            cls: 'ai-result-preview',
+            attr: { style: 'margin-bottom: 1.5rem;' }
+        });
+        
+        // 모드별 미리보기 UI 구성
+        if (mode === 'merge') {
+            this.buildMergePreview(previewContainer, result);
+        } else if (mode === 'split') {
+            this.buildSplitPreview(previewContainer, result);
+        } else if (mode === 'adjust') {
+            this.buildAdjustPreview(previewContainer, result);
+        }
+        
+        // 버튼 컨테이너
+        const buttonContainer = this.stepContainer.createDiv({
+            attr: { style: 'display: flex; justify-content: space-between; gap: 1rem;' }
+        });
+        
+        // 이전 버튼
+        const backButton = buttonContainer.createEl('button', {
+            text: '이전',
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
+        });
+        
+        // 적용 버튼
+        const applyButton = buttonContainer.createEl('button', {
+            text: '변경사항 적용',
+            cls: 'mod-cta',
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
+        });
+        
+        // 취소 버튼
+        const cancelButton = buttonContainer.createEl('button', {
+            text: '취소',
+            attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
+        });
+        
+        // 이벤트 리스너
+        backButton.addEventListener('click', () => {
+            if (mode === 'merge' || mode === 'adjust') {
+                this.showNoteSearch(
+                    mode === 'merge' ? '통합할 노트를 검색하세요' : '조정할 노트를 검색하세요', 
+                    true
+                );
+            } else if (mode === 'split') {
+                this.showSplitConfirmation();
+            }
+        });
+        
+        applyButton.addEventListener('click', async () => {
+            const loadingNotice = new Notice('변경사항 적용 중...', 0);
+            
+            try {
+                const aiRefactor = new AINoteRefactor(this.app, this.plugin);
+                
+                if (mode === 'merge') {
+                    await aiRefactor.mergeNotes(this.options.file, this.selectedNotes, true);
+                    new Notice('노트 통합이 완료되었습니다.');
+                } else if (mode === 'split') {
+                    await aiRefactor.splitNote(this.options.file, true);
+                    new Notice(`노트 분할이 완료되었습니다. ${result.newNotes.length}개의 새 노트가 생성되었습니다.`);
+                } else if (mode === 'adjust') {
+                    await aiRefactor.adjustNotes(this.options.file, this.selectedNotes, true);
+                    new Notice(`노트 조정이 완료되었습니다. ${result.length}개의 노트가 업데이트되었습니다.`);
+                }
+                
+                this.close();
+            } catch (error: any) {
+                new Notice(`변경사항 적용 중 오류가 발생했습니다: ${error.message}`);
+                console.error('변경사항 적용 오류:', error);
+            } finally {
+                loadingNotice.hide();
+            }
+        });
+        
+        cancelButton.addEventListener('click', () => {
+            this.close();
+        });
+    }
+    
+    /**
+     * 노트 통합 결과 미리보기 UI 구성
+     */
+    private buildMergePreview(container: HTMLElement, result: any) {
+        // 정보 박스
+        const infoBox = container.createDiv({
+            attr: { style: 'background-color: var(--background-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;' }
+        });
+        
+        infoBox.createEl('h4', {
+            text: '통합 결과',
+            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
+        });
+        
+        infoBox.createEl('p', {
+            text: `"${result.title}" 노트에 ${this.selectedNotes.length}개의 노트 내용이 통합되었습니다.`,
+            attr: { style: 'margin: 0 0 0.5rem 0;' }
+        });
+        
+        // 변경사항 미리보기
+        this.createContentDiffPreview(container, '원본 내용', '통합 후 내용', result.originalContent, result.newContent);
+    }
+    
+    /**
+     * 노트 분할 결과 미리보기 UI 구성
+     */
+    private buildSplitPreview(container: HTMLElement, result: any) {
+        // 정보 박스
+        const infoBox = container.createDiv({
+            attr: { style: 'background-color: var(--background-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;' }
+        });
+        
+        infoBox.createEl('h4', {
+            text: '분할 결과',
+            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
+        });
+        
+        infoBox.createEl('p', {
+            text: `"${result.originalFile.title}" 노트가 ${result.newNotes.length}개의 새 노트로 분할됩니다.`,
+            attr: { style: 'margin: 0 0 0.5rem 0;' }
+        });
+        
+        // 원본 노트 변경사항 미리보기
+        this.createContentDiffPreview(
+            container, 
+            '원본 노트 내용', 
+            '분할 후 원본 노트 내용', 
+            result.originalFile.originalContent, 
+            result.originalFile.newContent
+        );
+        
+        // 새로 생성될 노트 미리보기
+        const newNotesContainer = container.createDiv({
+            attr: { style: 'margin-top: 2rem;' }
+        });
+        
+        newNotesContainer.createEl('h4', {
+            text: '새로 생성될 노트 목록',
+            attr: { style: 'margin: 0 0 1rem 0; font-weight: 600;' }
+        });
+        
+        // 새 노트 아코디언 목록
+        const notesAccordion = newNotesContainer.createDiv({
+            attr: { style: 'display: flex; flex-direction: column; gap: 0.5rem;' }
+        });
+        
+        result.newNotes.forEach((newNote: any, index: number) => {
+            const notePreview = notesAccordion.createDiv({
+                attr: { style: 'border: 1px solid var(--background-modifier-border); border-radius: 8px; overflow: hidden;' }
             });
+            
+            // 접기/펼치기 헤더
+            const noteHeader = notePreview.createDiv({
+                attr: { 
+                    style: 'background-color: var(--background-secondary); padding: 0.8rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center;'
+                }
+            });
+            
+            noteHeader.createEl('span', {
+                text: `${index + 1}. ${newNote.title}`,
+                attr: { style: 'font-weight: 600;' }
+            });
+            
+            const toggleIcon = noteHeader.createSpan({
+                text: '▼',
+                attr: { style: 'font-size: 0.8em;' }
+            });
+            
+            // 내용 컨테이너 (기본적으로 접혀있음)
+            const noteContent = notePreview.createDiv({
+                attr: { style: 'padding: 0.8rem; display: none; max-height: 300px; overflow-y: auto; background-color: var(--background-primary-alt);' }
+            });
+            
+            // 내용 렌더링 (마크다운 파싱하지 않고 텍스트로 표시)
+            noteContent.createEl('pre', {
+                text: newNote.content,
+                attr: { style: 'white-space: pre-wrap; word-break: break-word; margin: 0; font-family: var(--font-monospace);' }
+            });
+            
+            // 클릭 이벤트
+            noteHeader.addEventListener('click', () => {
+                const currentDisplay = noteContent.style.display;
+                noteContent.style.display = currentDisplay === 'none' ? 'block' : 'none';
+                toggleIcon.textContent = currentDisplay === 'none' ? '▲' : '▼';
+            });
+        });
+    }
+    
+    /**
+     * 노트 조정 결과 미리보기 UI 구성
+     */
+    private buildAdjustPreview(container: HTMLElement, results: any[]) {
+        // 정보 박스
+        const infoBox = container.createDiv({
+            attr: { style: 'background-color: var(--background-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;' }
+        });
+        
+        infoBox.createEl('h4', {
+            text: '조정 결과',
+            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
+        });
+        
+        infoBox.createEl('p', {
+            text: `${results.length}개의 노트 내용이 주제별로 재조정되었습니다.`,
+            attr: { style: 'margin: 0 0 0.5rem 0;' }
+        });
+        
+        // 각 노트별 변경사항 미리보기 (아코디언 형식)
+        const notesAccordion = container.createDiv({
+            attr: { style: 'display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;' }
+        });
+        
+        results.forEach((noteResult, index) => {
+            const notePreview = notesAccordion.createDiv({
+                attr: { style: 'border: 1px solid var(--background-modifier-border); border-radius: 8px; overflow: hidden;' }
+            });
+            
+            // 접기/펼치기 헤더
+            const noteHeader = notePreview.createDiv({
+                attr: { 
+                    style: 'background-color: var(--background-secondary); padding: 0.8rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center;'
+                }
+            });
+            
+            noteHeader.createEl('span', {
+                text: `${index + 1}. ${noteResult.title}`,
+                attr: { style: 'font-weight: 600;' }
+            });
+            
+            const toggleIcon = noteHeader.createSpan({
+                text: '▼',
+                attr: { style: 'font-size: 0.8em;' }
+            });
+            
+            // 내용 컨테이너 (기본적으로 접혀있음)
+            const noteContent = notePreview.createDiv({
+                attr: { style: 'padding: 0.8rem; display: none; background-color: var(--background-primary-alt);' }
+            });
+            
+            // 내용 비교
+            this.createContentDiffPreview(
+                noteContent, 
+                '원본 내용', 
+                '조정 후 내용', 
+                noteResult.originalContent, 
+                // newContent에서 frontmatter 제외
+                noteResult.newContent.replace(/---\n[\s\S]*?\n---\n\n/, ''),
+                true
+            );
+            
+            // 클릭 이벤트
+            noteHeader.addEventListener('click', () => {
+                const currentDisplay = noteContent.style.display;
+                noteContent.style.display = currentDisplay === 'none' ? 'block' : 'none';
+                toggleIcon.textContent = currentDisplay === 'none' ? '▲' : '▼';
+            });
+        });
+    }
+    
+    /**
+     * 내용 비교 미리보기 UI 생성
+     */
+    private createContentDiffPreview(
+        container: HTMLElement, 
+        originalTitle: string, 
+        newTitle: string, 
+        originalContent: string, 
+        newContent: string,
+        compact: boolean = false
+    ) {
+        const diffContainer = container.createDiv({
+            attr: { style: 'display: flex; flex-direction: column; gap: 1rem;' }
+        });
+        
+        // 원본 내용과 새 내용 비교
+        const contentContainer = diffContainer.createDiv({
+            attr: { style: `display: flex; flex-direction: ${compact ? 'column' : 'row'}; gap: 1rem;` }
+        });
+        
+        // 원본 내용
+        const originalContainer = contentContainer.createDiv({
+            attr: { style: `flex: 1; ${compact ? '' : 'max-width: 50%;'}` }
+        });
+        
+        originalContainer.createEl('h5', {
+            text: originalTitle,
+            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
+        });
+        
+        const originalContentBox = originalContainer.createDiv({
+            attr: { 
+                style: 'background-color: var(--background-secondary); padding: 0.8rem; border-radius: 4px; max-height: 300px; overflow-y: auto;'
+            }
+        });
+        
+        // frontmatter 제외
+        const cleanOriginalContent = originalContent.replace(/---\n[\s\S]*?\n---\n\n/, '');
+        
+        originalContentBox.createEl('pre', {
+            text: cleanOriginalContent,
+            attr: { style: 'white-space: pre-wrap; word-break: break-word; margin: 0; font-family: var(--font-monospace); font-size: 0.9em;' }
+        });
+        
+        // 새 내용
+        const newContainer = contentContainer.createDiv({
+            attr: { style: `flex: 1; ${compact ? '' : 'max-width: 50%;'}` }
+        });
+        
+        newContainer.createEl('h5', {
+            text: newTitle,
+            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
+        });
+        
+        const newContentBox = newContainer.createDiv({
+            attr: { 
+                style: 'background-color: var(--background-secondary); padding: 0.8rem; border-radius: 4px; max-height: 300px; overflow-y: auto;'
+            }
+        });
+        
+        // frontmatter 제외 (이미 파라미터로 받은 newContent에서 처리했을 수도 있음)
+        const cleanNewContent = newContent.replace(/---\n[\s\S]*?\n---\n\n/, '');
+        
+        newContentBox.createEl('pre', {
+            text: cleanNewContent,
+            attr: { style: 'white-space: pre-wrap; word-break: break-word; margin: 0; font-family: var(--font-monospace); font-size: 0.9em;' }
+        });
     }
 
     onClose() {
