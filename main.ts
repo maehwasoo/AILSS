@@ -28,7 +28,7 @@ import { UnlinkNotes } from './src/modules/command/update/unlinkNotes';
 import { OpenAITTS } from './src/modules/ai/audio/openai_tts';
 import { EmbedNote } from './src/modules/command/create/embedNote';
 import { AINoteRestructure } from './src/modules/ai/text/aiNoteRestructure';
-import { NoteRefactoringManager } from './src/modules/ai/text/noteRefactoringManager';
+import { AINoteRefactor } from './src/modules/ai/text/aiNoteRefactor';
 import { NoteRefactoringModal } from './src/components/noteRefactoringModal';
 import { FrontmatterManager } from './src/modules/maintenance/utils/frontmatterManager';
 
@@ -67,7 +67,7 @@ export default class AILSSPlugin extends Plugin {
 	private unlinkNotesManager: UnlinkNotes;
 	private embedNoteManager: EmbedNote;
 	private aiNoteRestructure: AINoteRestructure;
-	noteRefactoringManager: NoteRefactoringManager;
+	noteRefactoringManager: AINoteRefactor;
 
 
 
@@ -132,7 +132,7 @@ export default class AILSSPlugin extends Plugin {
 		this.aiNoteRestructure = new AINoteRestructure(this.app, this);
 
 		// 노트 리팩토링 매니저 초기화
-		this.noteRefactoringManager = new NoteRefactoringManager(this.app, this);
+		this.noteRefactoringManager = new AINoteRefactor(this.app, this);
 
 		// 노트 리팩토링 리본 추가
 		this.addRibbonIcon('git-graph', '노트 리팩토링', () => {

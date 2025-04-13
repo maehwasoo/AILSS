@@ -1,6 +1,7 @@
 import { App, Modal, TFile, Notice, setIcon } from 'obsidian';
 import AILSSPlugin from '../../main';
 import { FrontmatterManager } from '../modules/maintenance/utils/frontmatterManager';
+import { AINoteRefactor } from '../modules/ai/text/aiNoteRefactor';
 
 interface NoteRefactoringModalOptions {
     file: TFile;
@@ -123,17 +124,25 @@ export class NoteRefactoringModal extends Modal {
     
     private createOptionButton(container: HTMLElement, option: 'merge' | 'split' | 'adjust', text: string, iconName: string) {
         const button = container.createEl('button', {
-            text: text,
             cls: 'mod-cta',
             attr: {
-                style: 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; flex: 1;'
+                style: 'display: flex; align-items: center; justify-content: center; padding: 25px 20px; min-height: 80px; flex: 1;'
             }
         });
         
-        const iconContainer = button.createDiv({
-            attr: { style: 'margin-bottom: 10px; font-size: 24px;' }
+        // 아이콘과 텍스트를 하나의 컨테이너로 묶음
+        const contentContainer = button.createDiv({
+            attr: { style: 'display: flex; align-items: center; justify-content: center; gap: 8px;' }
+        });
+        
+        // 아이콘 컨테이너
+        const iconContainer = contentContainer.createDiv({
+            attr: { style: 'font-size: 24px;' }
         });
         setIcon(iconContainer, iconName);
+        
+        // 텍스트 추가
+        contentContainer.createSpan({ text: text });
         
         button.addEventListener('click', () => {
             this.selectedOption = option;
@@ -541,7 +550,7 @@ export class NoteRefactoringModal extends Modal {
         new Notice('노트 통합 처리 중...');
         this.close();
         
-        // 통합 처리 실행
+        // 통합 처리 실행 - AINoteRefactor 클래스 사용
         this.plugin.noteRefactoringManager.mergeNotes(this.options.file, this.selectedNotes)
             .then(() => {
                 new Notice('노트 통합이 완료되었습니다.');
@@ -557,7 +566,7 @@ export class NoteRefactoringModal extends Modal {
         new Notice('노트 분할 처리 중...');
         this.close();
         
-        // 분할 처리 실행
+        // 분할 처리 실행 - AINoteRefactor 클래스 사용
         this.plugin.noteRefactoringManager.splitNote(this.options.file)
             .then(() => {
                 new Notice('노트 분할이 완료되었습니다.');
@@ -573,7 +582,7 @@ export class NoteRefactoringModal extends Modal {
         new Notice('노트 조정 처리 중...');
         this.close();
         
-        // 조정 처리 실행
+        // 조정 처리 실행 - AINoteRefactor 클래스 사용
         this.plugin.noteRefactoringManager.adjustNotes(this.options.file, this.selectedNotes)
             .then(() => {
                 new Notice('노트 조정이 완료되었습니다.');

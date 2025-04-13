@@ -5,10 +5,22 @@ import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
 import { PathSettings } from '../../maintenance/settings/pathSettings';
 import { getContentWithoutFrontmatter } from '../../maintenance/utils/contentUtils';
 
-export class NoteRefactoringManager {
+export class AINoteRefactor {
     private app: App;
     private plugin: AILSSPlugin;
     private frontmatterManager: FrontmatterManager;
+    
+    // 포맷팅 규칙 상수 (다른 AI 모듈에서 공통으로 사용하는 규칙)
+    private static readonly FORMATTING_RULES = `
+포맷팅 규칙:
+- 주요 섹션은 # 또는 ## 헤더로 명확히 구분
+- 소제목과 중요 개념은 ### 또는 #### 수준의 헤더로 구분
+- 중요 개념이나 키워드는 **볼드체**로 강조
+- 정의나 특별한 용어는 *이탤릭체*로 표시
+- 핵심 아이디어나 중요 포인트는 ==하이라이트==로 강조
+- 목록이 필요한 경우 불릿 포인트(-) 또는 번호 목록(1., 2.)을 적절히 활용
+- 복잡한 정보는 표 형식으로 구조화
+- 인용이 필요한 경우 > 블록인용구 활용`;
 
     constructor(app: App, plugin: AILSSPlugin) {
         this.app = app;
@@ -274,6 +286,7 @@ export class NoteRefactoringManager {
 
     /**
      * 노트 통합을 위한 AI 처리를 수행합니다.
+     * AIReformat 모듈의 구조화 원칙과 포맷팅 규칙을 참고하여 구성했습니다.
      */
     private async mergingAIProcess(
         targetTitle: string,
@@ -292,16 +305,7 @@ export class NoteRefactoringManager {
 - 통합된 내용의 일관성과 응집성 유지
 - 각 섹션과 하위 섹션 간의 균형 유지
 - 모든 출처의 핵심 내용이 보존되었는지 확인
-
-포맷팅 규칙:
-- 주요 섹션은 # 또는 ## 헤더로 명확히 구분
-- 소제목과 중요 개념은 ### 또는 #### 수준의 헤더로 구분
-- 중요 개념이나 키워드는 **볼드체**로 강조
-- 정의나 특별한 용어는 *이탤릭체*로 표시
-- 핵심 아이디어나 중요 포인트는 ==하이라이트==로 강조
-- 목록이 필요한 경우 불릿 포인트(-) 또는 번호 목록(1., 2.)을 적절히 활용
-- 복잡한 정보는 표 형식으로 구조화
-- 인용이 필요한 경우 > 블록인용구 활용`;
+${AINoteRefactor.FORMATTING_RULES}`;
 
         // 소스 내용 결합
         let sourcesDescription = '';
@@ -329,6 +333,7 @@ ${targetContent}
 
     /**
      * 노트 분할을 위한 AI 처리를 수행합니다.
+     * AILinkNote 모듈의 분석 방법론을 일부 적용했습니다.
      */
     private async splittingAIProcess(
         sourceTitle: string,
@@ -344,7 +349,6 @@ ${targetContent}
 문서의 내용을 분석하여 주제별로 분할하고, 원본 문서는 주제에 맞게 정리합니다.
 
 분할 원칙:
-- 원본 문서의
 - 원본 문서의 제목과 직접 관련된 내용만 원본에 유지
 - 다른 주제는 별도 문서로 분할하여 추출
 - 분할된 각 문서는 명확한 주제와 체계적인 구조를 가짐
@@ -352,16 +356,7 @@ ${targetContent}
 - 분할 과정에서 중요 정보 손실 방지
 - 원본 문서와 분할 문서 간의 논리적 연결성 유지
 - 각 문서의 독립성과 완결성 보장
-
-포맷팅 규칙:
-- 주요 섹션은 # 또는 ## 헤더로 명확히 구분
-- 소제목과 중요 개념은 ### 또는 #### 수준의 헤더로 구분
-- 중요 개념이나 키워드는 **볼드체**로 강조
-- 정의나 특별한 용어는 *이탤릭체*로 표시
-- 핵심 아이디어나 중요 포인트는 ==하이라이트==로 강조
-- 목록이 필요한 경우 불릿 포인트(-) 또는 번호 목록(1., 2.)을 적절히 활용
-- 복잡한 정보는 표 형식으로 구조화
-- 인용이 필요한 경우 > 블록인용구 활용`;
+${AINoteRefactor.FORMATTING_RULES}`;
 
         const userPrompt = `${systemPrompt}
 
@@ -401,10 +396,10 @@ ${sourceContent}
         try {
             // JSON 형식 추출
             const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/) || 
-                             response.match(/```\n([\s\S]*?)\n```/) ||
-                             [null, response];
+                             response.match(/```\n([\s\S]*?)\n```/);
             
-            const jsonContent = jsonMatch ? jsonMatch[1] : response;
+            // jsonMatch가 있으면 그 안의 내용 사용, 없으면 전체 응답 사용
+            const jsonContent = jsonMatch && jsonMatch[1] ? jsonMatch[1] : response;
             const parsedResult = JSON.parse(jsonContent);
             
             return {
@@ -419,6 +414,7 @@ ${sourceContent}
 
     /**
      * 노트 조정을 위한 AI 처리를 수행합니다.
+     * AINoteRestructure 모듈의 처리 방법을 일부 적용했습니다.
      */
     private async adjustingAIProcess(
         notes: Array<{
@@ -441,16 +437,7 @@ ${sourceContent}
 - 각 문서 내용의 논리적 흐름과 일관성 유지
 - 문서 간 내용 이동 시 맥락 유지
 - 새로운 내용은 추가하지 않고 기존 내용만 재배치
-
-포맷팅 규칙:
-- 주요 섹션은 # 또는 ## 헤더로 명확히 구분
-- 소제목과 중요 개념은 ### 또는 #### 수준의 헤더로 구분
-- 중요 개념이나 키워드는 **볼드체**로 강조
-- 정의나 특별한 용어는 *이탤릭체*로 표시
-- 핵심 아이디어나 중요 포인트는 ==하이라이트==로 강조
-- 목록이 필요한 경우 불릿 포인트(-) 또는 번호 목록(1., 2.)을 적절히 활용
-- 복잡한 정보는 표 형식으로 구조화
-- 인용이 필요한 경우 > 블록인용구 활용`;
+${AINoteRefactor.FORMATTING_RULES}`;
 
         // 노트 내용 결합
         let notesDescription = '';
@@ -490,10 +477,10 @@ ${notes[i].content}`;
         try {
             // JSON 형식 추출
             const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/) || 
-                             response.match(/```\n([\s\S]*?)\n```/) ||
-                             [null, response];
+                             response.match(/```\n([\s\S]*?)\n```/);
             
-            const jsonContent = jsonMatch ? jsonMatch[1] : response;
+            // jsonMatch가 있으면 그 안의 내용 사용, 없으면 전체 응답 사용
+            const jsonContent = jsonMatch && jsonMatch[1] ? jsonMatch[1] : response;
             const parsedResult = JSON.parse(jsonContent);
             
             return {
