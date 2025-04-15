@@ -1,7 +1,17 @@
-import { App, Editor, MarkdownView, Notice, TFile, getAllTags } from 'obsidian';
+import { App, Editor, MarkdownView, Notice, TFile } from 'obsidian';
 import AILSSPlugin from '../../../../main';
 import { requestToAI } from '../ai_utils/aiUtils';
 import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
+
+interface AITagAliasResponse {
+    tagsToKeep: string[];
+    tagsToAdd: string[];
+    tagsToRemove: string[];
+    aliasesToKeep: string[];
+    aliasesToAdd: string[];
+    aliasesToRemove: string[];
+    explanation: string;
+}
 
 export class AITagAliasRefactor {
     private app: App;
@@ -60,8 +70,8 @@ export class AITagAliasRefactor {
                 allAliases
             );
             
-            // 결과 표시
-            this.displayResults(editor, response);
+            // 프론트매터에 변경사항 적용
+            await this.applyFrontmatterChanges(file, content, frontmatterManager, response);
             
         } catch (error) {
             console.error('태그 및 별칭 분석 중 오류 발생:', error);
@@ -151,7 +161,7 @@ export class AITagAliasRefactor {
         currentAliases: string[],
         allTags: string[],
         allAliases: string[]
-    ): Promise<string> {
+    ): Promise<AITagAliasResponse> {
         const systemPrompt = `당신은 문서 메타데이터 전문가입니다.
 주어진 노트 내용을 분석하여 적절한 태그와 별칭(aliases)을 제안합니다.
 
@@ -162,13 +172,19 @@ export class AITagAliasRefactor {
 4. 새로운 태그나 별칭이 필요하다면 추가 제안합니다.
 5. 제거해야 할 부적절한 태그나 별칭이 있다면 그 이유와 함께 제안합니다.
 
-결과는 다음 형식으로 제공해 주세요:
-1. 현재 설정의 적절성 평가
-2. 태그 제안 (유지, 추가, 제거)
-3. 별칭 제안 (유지, 추가, 제거)
-4. 종합적인 권장사항
+결과는 다음 JSON 형식으로 제공해 주세요:
+{
+  "tagsToKeep": ["유지할 태그1", "유지할 태그2"],
+  "tagsToAdd": ["추가할 태그1", "추가할 태그2"],
+  "tagsToRemove": ["제거할 태그1", "제거할 태그2"],
+  "aliasesToKeep": ["유지할 별칭1", "유지할 별칭2"],
+  "aliasesToAdd": ["추가할 별칭1", "추가할 별칭2"],
+  "aliasesToRemove": ["제거할 별칭1", "제거할 별칭2"],
+  "explanation": "변경 사항에 대한 간단한 설명"
+}
 
-각 제안은 근거와 함께 제시해주시고, 볼트의 기존 태그와 별칭과의 일관성을 고려해주세요.`;
+각 배열은 비어있을 수 있지만, 모든 키는 반드시 포함되어야 합니다.
+특히 "Inbox"와 같은 기본 태그도 적절한 카테고리(keep/add/remove)에 포함시키세요.`;
 
         const userPrompt = `${systemPrompt}
 
@@ -192,7 +208,52 @@ ${allAliases.join(', ')}`;
                 userPrompt
             });
             
-            return response;
+            // AI 응답을 JSON으로 파싱
+            let parsedResponse: AITagAliasResponse;
+            try {
+                // 응답이 JSON 형식인지 확인
+                if (response.trim().startsWith('{') && response.trim().endsWith('}')) {
+                    parsedResponse = JSON.parse(response);
+                } else {
+                    // JSON 블록 추출 시도
+                    const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/) || 
+                                     response.match(/```\n([\s\S]*?)\n```/) ||
+                                     response.match(/\{[\s\S]*?\}/);
+                    
+                    if (jsonMatch) {
+                        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                    } else {
+                        throw new Error('응답에서 JSON 형식을 찾을 수 없습니다.');
+                    }
+                }
+                
+                // 필수 필드 확인
+                const requiredFields = ['tagsToKeep', 'tagsToAdd', 'tagsToRemove', 
+                                       'aliasesToKeep', 'aliasesToAdd', 'aliasesToRemove', 
+                                       'explanation'];
+                
+                const missingFields = requiredFields.filter(field => !(field in parsedResponse));
+                
+                if (missingFields.length > 0) {
+                    throw new Error(`응답에 필수 필드가 누락되었습니다: ${missingFields.join(', ')}`);
+                }
+                
+                return parsedResponse;
+            } catch (error) {
+                console.error('AI 응답 파싱 중 오류:', error);
+                console.log('원본 응답:', response);
+                
+                // 기본 응답 반환 (현재 값 유지)
+                return {
+                    tagsToKeep: currentTags,
+                    tagsToAdd: [],
+                    tagsToRemove: [],
+                    aliasesToKeep: currentAliases,
+                    aliasesToAdd: [],
+                    aliasesToRemove: [],
+                    explanation: '응답 파싱 중 오류가 발생했습니다. 현재 값을 유지합니다.'
+                };
+            }
         } catch (error) {
             console.error('AI 요청 중 오류 발생:', error);
             throw error;
@@ -200,16 +261,86 @@ ${allAliases.join(', ')}`;
     }
     
     /**
-     * 결과를 편집기에 표시
+     * 프론트매터 변경사항 적용
      */
-    private displayResults(editor: Editor, response: string) {
-        const currentPos = editor.getCursor();
-        const endOfContent = {
-            line: editor.lineCount(),
-            ch: editor.getLine(editor.lineCount() - 1).length
-        };
-        
-        editor.replaceRange(`\n\n## 태그 및 별칭 분석 결과\n${response}\n`, endOfContent);
-        new Notice('태그 및 별칭 분석이 완료되었습니다.');
+    private async applyFrontmatterChanges(
+        file: TFile, 
+        content: string, 
+        frontmatterManager: FrontmatterManager, 
+        changes: AITagAliasResponse
+    ) {
+        try {
+            // 현재 프론트매터 가져오기
+            const currentFrontmatter = frontmatterManager.parseFrontmatter(content);
+            
+            if (!currentFrontmatter) {
+                new Notice('프론트매터를 찾을 수 없습니다.');
+                return;
+            }
+            
+            // 태그 업데이트
+            const updatedTags = [
+                ...changes.tagsToKeep,
+                ...changes.tagsToAdd
+            ].filter(tag => !changes.tagsToRemove.includes(tag));
+            
+            // 별칭 업데이트
+            const updatedAliases = [
+                ...changes.aliasesToKeep,
+                ...changes.aliasesToAdd
+            ].filter(alias => !changes.aliasesToRemove.includes(alias));
+            
+            // 고유한 값만 유지
+            const uniqueTags = [...new Set(updatedTags)];
+            const uniqueAliases = [...new Set(updatedAliases)];
+            
+            // 프론트매터 업데이트
+            const updates = {
+                tags: uniqueTags,
+                aliases: uniqueAliases,
+                // updated 필드 현재 시간으로 업데이트
+                updated: new Date().toISOString().split('.')[0]
+            };
+            
+            // 프론트매터 업데이트
+            const updatedContent = frontmatterManager.updateFrontmatter(content, updates);
+            
+            // 파일에 변경사항 저장
+            await this.app.vault.modify(file, updatedContent);
+            
+            // 성공 메시지 표시
+            const tagsAdded = changes.tagsToAdd.length;
+            const tagsRemoved = changes.tagsToRemove.length;
+            const aliasesAdded = changes.aliasesToAdd.length;
+            const aliasesRemoved = changes.aliasesToRemove.length;
+            
+            const changeCount = tagsAdded + tagsRemoved + aliasesAdded + aliasesRemoved;
+            
+            if (changeCount > 0) {
+                let message = '메타데이터 업데이트 완료: ';
+                const changes = [];
+                
+                if (tagsAdded > 0) changes.push(`태그 ${tagsAdded}개 추가`);
+                if (tagsRemoved > 0) changes.push(`태그 ${tagsRemoved}개 제거`);
+                if (aliasesAdded > 0) changes.push(`별칭 ${aliasesAdded}개 추가`);
+                if (aliasesRemoved > 0) changes.push(`별칭 ${aliasesRemoved}개 제거`);
+                
+                message += changes.join(', ');
+                new Notice(message);
+            } else {
+                new Notice('메타데이터가 이미 최적화되어 있습니다.');
+            }
+            
+            // 상세 변경 내용 콘솔에 출력
+            console.log('메타데이터 변경 내용:', changes.explanation);
+            console.log('추가된 태그:', changes.tagsToAdd);
+            console.log('제거된 태그:', changes.tagsToRemove);
+            console.log('추가된 별칭:', changes.aliasesToAdd);
+            console.log('제거된 별칭:', changes.aliasesToRemove);
+            
+        } catch (error) {
+            console.error('프론트매터 업데이트 중 오류:', error);
+            new Notice('프론트매터 업데이트 중 오류가 발생했습니다.');
+        }
     }
 }
