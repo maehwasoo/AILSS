@@ -53,10 +53,7 @@ export class AITagAliasRefactor {
             }
             
             // 볼트에 있는 모든 태그 수집
-            const allTags = await this.getAllTagsInVault();
-            
-            // 볼트에 있는 모든 별칭 수집
-            const allAliases = await this.getAllAliasesInVault();
+            const allTags = this.getAllTagsInVault();
             
             // 현재 노트의 내용만 추출 (프론트매터 제외)
             const noteContent = this.extractContentWithoutFrontmatter(content);
@@ -67,7 +64,7 @@ export class AITagAliasRefactor {
                 frontmatter.tags || [],
                 frontmatter.aliases || [],
                 allTags,
-                allAliases
+                [] // 볼트의 모든 별칭 수집 대신 빈 배열 전달
             );
             
             // 프론트매터에 변경사항 적용
@@ -80,68 +77,43 @@ export class AITagAliasRefactor {
     }
     
     /**
-     * 볼트에 있는 모든 태그를 수집하는 메서드
+     * 볼트에 있는 모든 태그를 수집하는 메서드 - 옵시디언 API 직접 사용
      */
-    private async getAllTagsInVault(): Promise<string[]> {
+    private getAllTagsInVault(): string[] {
         const allTags = new Set<string>();
         
         // 모든 마크다운 파일을 순회하며 태그 수집
         const markdownFiles = this.app.vault.getMarkdownFiles();
         
         for (const file of markdownFiles) {
-            try {
-                const content = await this.app.vault.read(file);
+            // 파일의 메타데이터 캐시 가져오기
+            const fileCache = this.app.metadataCache.getFileCache(file);
+            
+            if (fileCache) {
+                // 태그 정보 처리
+                if (fileCache.tags) {
+                    // 인라인 태그 처리 (#태그 형식)
+                    fileCache.tags.forEach(tagObj => {
+                        if (tagObj.tag) {
+                            allTags.add(tagObj.tag);
+                        }
+                    });
+                }
                 
-                // 텍스트 내의 #태그 패턴 추출 (정규식 사용)
-                const tagRegex = /#([a-zA-Z가-힣0-9_\-/]+)/g;
-                let match;
-                while ((match = tagRegex.exec(content)) !== null) {
-                    if (match[1]) {
-                        allTags.add(match[1]);
+                // 프론트매터 태그 처리
+                if (fileCache.frontmatter && fileCache.frontmatter.tags) {
+                    const fmTags = fileCache.frontmatter.tags;
+                    if (Array.isArray(fmTags)) {
+                        fmTags.forEach(tag => allTags.add(tag));
+                    } else if (typeof fmTags === 'string') {
+                        // 태그가 단일 문자열인 경우
+                        allTags.add(fmTags);
                     }
                 }
-                
-                // 프론트매터에서도 태그 확인
-                const frontmatterManager = new FrontmatterManager();
-                const frontmatter = frontmatterManager.parseFrontmatter(content);
-                
-                if (frontmatter && frontmatter.tags && Array.isArray(frontmatter.tags)) {
-                    frontmatter.tags.forEach(tag => allTags.add(tag));
-                }
-            } catch (error) {
-                console.error(`파일 ${file.path}에서 태그 추출 중 오류:`, error);
             }
         }
         
         return Array.from(allTags);
-    }
-    
-    /**
-     * 볼트에 있는 모든 별칭을 수집하는 메서드
-     */
-    private async getAllAliasesInVault(): Promise<string[]> {
-        const allAliases = new Set<string>();
-        
-        // 모든 마크다운 파일을 순회하며 별칭 수집
-        const markdownFiles = this.app.vault.getMarkdownFiles();
-        
-        for (const file of markdownFiles) {
-            try {
-                const content = await this.app.vault.read(file);
-                
-                // 프론트매터에서 별칭 확인
-                const frontmatterManager = new FrontmatterManager();
-                const frontmatter = frontmatterManager.parseFrontmatter(content);
-                
-                if (frontmatter && frontmatter.aliases && Array.isArray(frontmatter.aliases)) {
-                    frontmatter.aliases.forEach(alias => allAliases.add(alias));
-                }
-            } catch (error) {
-                console.error(`파일 ${file.path}에서 별칭 추출 중 오류:`, error);
-            }
-        }
-        
-        return Array.from(allAliases);
     }
     
     /**
