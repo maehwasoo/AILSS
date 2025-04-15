@@ -162,45 +162,47 @@ export class AITagAliasRefactor {
         allTags: string[],
         allAliases: string[]
     ): Promise<AITagAliasResponse> {
-        const systemPrompt = `당신은 문서 메타데이터 전문가입니다.
-주어진 노트 내용을 분석하여 적절한 태그와 별칭(aliases)을 제안합니다.
+        const systemPrompt = `You are a document metadata expert.
+Analyze the given note content and suggest appropriate tags and aliases.
 
-다음 지침을 따라주세요:
-1. 노트 내용을 철저히 분석하여 핵심 주제와 개념을 파악합니다.
-2. 현재 설정된 태그와 별칭이 적절한지 평가합니다.
-3. 볼트에 있는 기존 태그와 별칭 목록을 참고하여 일관성 있는 제안을 합니다.
-4. 새로운 태그나 별칭이 필요하다면 추가 제안합니다.
-5. 제거해야 할 부적절한 태그나 별칭이 있다면 그 이유와 함께 제안합니다.
+Please follow these guidelines:
+1. Thoroughly analyze the note content to identify key topics and concepts.
+2. Evaluate whether the current tags and aliases are appropriate.
+3. Refer to the existing tags and aliases in the vault for consistency.
+4. Suggest new tags or aliases if needed.
+5. Suggest removing inappropriate tags or aliases with reasons.
 
-결과는 다음 JSON 형식으로 제공해 주세요:
+Please provide your results in the following JSON format:
 {
-  "tagsToKeep": ["유지할 태그1", "유지할 태그2"],
-  "tagsToAdd": ["추가할 태그1", "추가할 태그2"],
-  "tagsToRemove": ["제거할 태그1", "제거할 태그2"],
-  "aliasesToKeep": ["유지할 별칭1", "유지할 별칭2"],
-  "aliasesToAdd": ["추가할 별칭1", "추가할 별칭2"],
-  "aliasesToRemove": ["제거할 별칭1", "제거할 별칭2"],
-  "explanation": "변경 사항에 대한 간단한 설명"
+  "tagsToKeep": ["tag1", "tag2"],
+  "tagsToAdd": ["newTag1", "newTag2"],
+  "tagsToRemove": ["oldTag1", "oldTag2"],
+  "aliasesToKeep": ["alias1", "alias2"],
+  "aliasesToAdd": ["newAlias1", "newAlias2"],
+  "aliasesToRemove": ["oldAlias1", "oldAlias2"],
+  "explanation": "Brief explanation of changes"
 }
 
-각 배열은 비어있을 수 있지만, 모든 키는 반드시 포함되어야 합니다.
-특히 "Inbox"와 같은 기본 태그도 적절한 카테고리(keep/add/remove)에 포함시키세요.`;
+Each array can be empty, but all keys must be included.
+Also include default tags like "Inbox" in the appropriate category (keep/add/remove).
+
+Important: Always respond in English. Tag and alias names should be in English where possible, or use clear transliterations for non-English concepts.`;
 
         const userPrompt = `${systemPrompt}
 
-노트 내용:
+Note content:
 ${content}
 
-현재 태그:
+Current tags:
 ${currentTags.join(', ')}
 
-현재 별칭:
+Current aliases:
 ${currentAliases.join(', ')}
 
-볼트의 기존 태그 목록:
+Existing tags in the vault:
 ${allTags.join(', ')}
 
-볼트의 기존 별칭 목록:
+Existing aliases in the vault:
 ${allAliases.join(', ')}`;
 
         try {
@@ -223,7 +225,7 @@ ${allAliases.join(', ')}`;
                     if (jsonMatch) {
                         parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
                     } else {
-                        throw new Error('응답에서 JSON 형식을 찾을 수 없습니다.');
+                        throw new Error('Unable to find JSON format in response.');
                     }
                 }
                 
@@ -235,13 +237,13 @@ ${allAliases.join(', ')}`;
                 const missingFields = requiredFields.filter(field => !(field in parsedResponse));
                 
                 if (missingFields.length > 0) {
-                    throw new Error(`응답에 필수 필드가 누락되었습니다: ${missingFields.join(', ')}`);
+                    throw new Error(`Required fields missing in response: ${missingFields.join(', ')}`);
                 }
                 
                 return parsedResponse;
             } catch (error) {
-                console.error('AI 응답 파싱 중 오류:', error);
-                console.log('원본 응답:', response);
+                console.error('Error parsing AI response:', error);
+                console.log('Original response:', response);
                 
                 // 기본 응답 반환 (현재 값 유지)
                 return {
@@ -251,11 +253,11 @@ ${allAliases.join(', ')}`;
                     aliasesToKeep: currentAliases,
                     aliasesToAdd: [],
                     aliasesToRemove: [],
-                    explanation: '응답 파싱 중 오류가 발생했습니다. 현재 값을 유지합니다.'
+                    explanation: 'Error parsing response. Keeping current values.'
                 };
             }
         } catch (error) {
-            console.error('AI 요청 중 오류 발생:', error);
+            console.error('Error during AI request:', error);
             throw error;
         }
     }
