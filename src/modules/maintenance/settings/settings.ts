@@ -135,6 +135,7 @@ export class AILSSSettingTab extends PluginSettingTab {
             .addDropdown(dropdown => dropdown
                 .addOption('tts-1', 'TTS-1 (표준)')
                 .addOption('tts-1-hd', 'TTS-1-HD (고품질)')
+                .addOption('gpt-4o-mini-tts', 'GPT-4o Mini TTS')
                 .setValue(this.plugin.settings.ttsModel)
                 .onChange(async (value: 'tts-1' | 'tts-1-hd') => {
                     this.plugin.settings.ttsModel = value;
@@ -182,6 +183,7 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('o1-mini', 'o1-mini')
                 .addOption('o3-mini', 'o3-mini')
                 .addOption('o1', 'o1')
+                .addOption('o1-pro', 'o1-pro')
                 .setValue(this.plugin.settings.openAIModel)
                 .onChange(async (value) => {
                     this.plugin.settings.openAIModel = value;

@@ -31,6 +31,7 @@ import { AINoteRestructure } from './src/modules/ai/text/aiNoteRestructure';
 import { AINoteRefactor } from './src/modules/ai/text/aiNoteRefactor';
 import { NoteRefactoringModal } from './src/components/noteRefactoringModal';
 import { FrontmatterManager } from './src/modules/maintenance/utils/frontmatterManager';
+import { AITagAliasRefactor } from './src/modules/ai/text/aiTagAliasRefactor';
 
 
 
@@ -68,6 +69,7 @@ export default class AILSSPlugin extends Plugin {
 	private embedNoteManager: EmbedNote;
 	private aiNoteRestructure: AINoteRestructure;
 	noteRefactoringManager: AINoteRefactor;
+	private aiTagAliasRefactor: AITagAliasRefactor;
 
 
 
@@ -95,6 +97,7 @@ export default class AILSSPlugin extends Plugin {
 		this.aiLinkNote = new AILinkNote(this.app, this);
 		this.aiLatexMath = new AILatexMath(this.app, this);
 		this.aiVisualizer = new AIVisualizer(this.app, this);
+		this.aiTagAliasRefactor = new AITagAliasRefactor(this.app, this);
 
 		// FileCountManager 초기화
 		this.fileCountManager = FileCountManager.getInstance(this.app, this);
@@ -248,6 +251,11 @@ export default class AILSSPlugin extends Plugin {
 				const tts = new OpenAITTS(this);
 				tts.convertTextToSpeech(view.editor);
 			}
+		});
+
+		 // 태그 별칭 리팩토링 리본 메뉴 추가
+		this.addRibbonIcon('tag', '태그/별칭 분석', () => {
+			this.aiTagAliasRefactor.main();
 		});
 
 		// 명령어 추가
@@ -444,6 +452,14 @@ export default class AILSSPlugin extends Plugin {
 				const tts = new OpenAITTS(this);
 				tts.convertTextToSpeech(editor);
 			}
+		});
+
+		// 태그 별칭 리팩토링 명령어 추가
+		this.addCommand({
+			id: 'analyze-tags-aliases',
+			name: '태그/별칭 분석',
+			icon: 'tag',
+			editorCallback: () => this.aiTagAliasRefactor.main()
 		});
 	}
 

@@ -32,8 +32,20 @@ export class AINoteRefactor {
      * 여러 노트들의 내용을 하나의 노트로 통합합니다.
      * @param targetFile 통합의 대상이 되는 메인 노트
      * @param sourcesFiles 내용을 제공할 소스 노트들
+     * @param applyChanges 변경사항을 즉시 적용할지 여부 (기본값: false)
+     * @returns 변경될 노트 내용과 메타데이터
      */
-    async mergeNotes(targetFile: TFile, sourcesFiles: TFile[]): Promise<void> {
+    async mergeNotes(
+        targetFile: TFile, 
+        sourcesFiles: TFile[], 
+        applyChanges: boolean = false
+    ): Promise<{
+        file: TFile;
+        title: string;
+        originalContent: string;
+        newContent: string;
+        frontmatter: Record<string, any>;
+    }> {
         try {
             // 타겟 노트 읽기
             const targetContent = await this.app.vault.read(targetFile);
@@ -123,10 +135,22 @@ export class AINoteRefactor {
             
             const finalContent = this.frontmatterManager.generateFrontmatter(updatedFrontmatter) + '\n\n' + result.trim();
 
-            // 타겟 노트 업데이트
-            await this.app.vault.modify(targetFile, finalContent);
+            // 결과 반환
+            const resultObj = {
+                file: targetFile,
+                title: targetFrontmatter.title || targetFile.basename,
+                originalContent: targetContent,
+                newContent: finalContent,
+                frontmatter: updatedFrontmatter
+            };
             
-            new Notice('노트 통합이 완료되었습니다.');
+            // 변경사항 즉시 적용 옵션이 활성화된 경우에만 적용
+            if (applyChanges) {
+                await this.app.vault.modify(targetFile, finalContent);
+                new Notice('노트 통합이 완료되었습니다.');
+            }
+            
+            return resultObj;
         } catch (error: any) {
             console.error('노트 통합 중 오류 발생:', error);
             throw new Error(`노트 통합 중 오류 발생: ${error.message}`);
@@ -136,8 +160,26 @@ export class AINoteRefactor {
     /**
      * 노트의 내용을 분석하여 여러 개의 노트로 분할합니다.
      * @param sourceFile 분할할 소스 노트
+     * @param applyChanges 변경사항을 즉시 적용할지 여부 (기본값: false)
+     * @returns 변경될 노트 내용과 생성될 새 노트들의 정보
      */
-    async splitNote(sourceFile: TFile): Promise<void> {
+    async splitNote(
+        sourceFile: TFile, 
+        applyChanges: boolean = false
+    ): Promise<{
+        originalFile: {
+            file: TFile;
+            title: string;
+            originalContent: string;
+            newContent: string;
+            frontmatter: Record<string, any>;
+        };
+        newNotes: Array<{
+            title: string;
+            content: string;
+            frontmatter: Record<string, any>;
+        }>;
+    }> {
         try {
             // 노트 개수 제한 확인
             if (!(await PathSettings.checkNoteLimit(this.app, this.plugin))) {
@@ -163,7 +205,7 @@ export class AINoteRefactor {
                 throw new Error('AI 처리 결과가 유효하지 않습니다.');
             }
 
-            // 1. 소스 노트 업데이트
+            // 소스 노트의 새 내용 생성
             const updatedSourceFrontmatter = {
                 ...sourceFrontmatter,
                 updated: new Date().toISOString().split('.')[0]
@@ -172,32 +214,57 @@ export class AINoteRefactor {
             const updatedSourceContent = this.frontmatterManager.generateFrontmatter(updatedSourceFrontmatter) +
                 '\n\n' + result.mainContent.trim();
             
-            await this.app.vault.modify(sourceFile, updatedSourceContent);
-
-            // 2. 분할된 노트들 생성
-            const createdNotes: TFile[] = [];
-            
-            for (const splitItem of result.splitContents) {
-                if (!splitItem.title || !splitItem.content) continue;
-                
-                // 새 노트 생성
-                const { file } = await PathSettings.createNote({
-                    app: this.app,
-                    frontmatterConfig: {
+            // 분할된 새 노트들 정보 준비
+            const newNotes = result.splitContents
+                .filter(item => item.title && item.content)
+                .map(splitItem => ({
+                    title: splitItem.title,
+                    content: splitItem.content.trim(),
+                    frontmatter: {
                         title: splitItem.title,
                         tags: sourceFrontmatter.tags || [],
-                        aliases: [splitItem.title]
-                    },
-                    content: splitItem.content.trim(),
-                    isInherited: false
-                });
-                
-                createdNotes.push(file);
-            }
-
-            new Notice(`노트 분할이 완료되었습니다. ${createdNotes.length}개의 새 노트가 생성되었습니다.`);
+                        aliases: [splitItem.title],
+                        created: new Date().toISOString().split('.')[0],
+                        updated: new Date().toISOString().split('.')[0]
+                    }
+                }));
             
-            return;
+            // 결과 객체 생성
+            const resultObj = {
+                originalFile: {
+                    file: sourceFile,
+                    title: sourceTitle,
+                    originalContent: sourceContent,
+                    newContent: updatedSourceContent,
+                    frontmatter: updatedSourceFrontmatter
+                },
+                newNotes
+            };
+            
+            // 변경사항 즉시 적용 옵션이 활성화된 경우에만 적용
+            if (applyChanges) {
+                // 소스 노트 업데이트
+                await this.app.vault.modify(sourceFile, updatedSourceContent);
+                
+                // 분할된 노트들 생성
+                const createdNotes: TFile[] = [];
+                
+                for (const noteInfo of newNotes) {
+                    // 새 노트 생성
+                    const { file } = await PathSettings.createNote({
+                        app: this.app,
+                        frontmatterConfig: noteInfo.frontmatter,
+                        content: noteInfo.content,
+                        isInherited: false
+                    });
+                    
+                    createdNotes.push(file);
+                }
+                
+                new Notice(`노트 분할이 완료되었습니다. ${createdNotes.length}개의 새 노트가 생성되었습니다.`);
+            }
+            
+            return resultObj;
         } catch (error: any) {
             console.error('노트 분할 중 오류 발생:', error);
             throw new Error(`노트 분할 중 오류 발생: ${error.message}`);
@@ -208,8 +275,20 @@ export class AINoteRefactor {
      * 여러 노트 간의 내용을 주제에 따라 재조정합니다.
      * @param mainFile 메인 노트
      * @param otherFiles 다른 노트들
+     * @param applyChanges 변경사항을 즉시 적용할지 여부 (기본값: false)
+     * @returns 변경될 노트들의 정보
      */
-    async adjustNotes(mainFile: TFile, otherFiles: TFile[]): Promise<void> {
+    async adjustNotes(
+        mainFile: TFile, 
+        otherFiles: TFile[], 
+        applyChanges: boolean = false
+    ): Promise<Array<{
+        file: TFile;
+        title: string;
+        originalContent: string;
+        newContent: string;
+        frontmatter: Record<string, any>;
+    }>> {
         try {
             // 모든 노트의 내용 및 메타데이터 수집
             const allNotes: {
@@ -254,7 +333,9 @@ export class AINoteRefactor {
             // AI 처리를 위한 프롬프트 생성
             const result = await this.adjustingAIProcess(allNotes);
             
-            // 각 노트 업데이트
+            // 노트 업데이트 정보 수집
+            const updatedNotes = [];
+            
             for (let i = 0; i < allNotes.length; i++) {
                 const note = allNotes[i];
                 const updatedContent = result.noteContents[i];
@@ -271,13 +352,27 @@ export class AINoteRefactor {
                 const finalContent = this.frontmatterManager.generateFrontmatter(updatedFrontmatter) +
                     '\n\n' + updatedContent.trim();
                 
-                // 노트 업데이트
-                await this.app.vault.modify(note.file, finalContent);
+                // 업데이트 정보 저장
+                updatedNotes.push({
+                    file: note.file,
+                    title: note.title,
+                    originalContent: note.content,
+                    newContent: finalContent,
+                    frontmatter: updatedFrontmatter
+                });
             }
             
-            new Notice(`노트 조정이 완료되었습니다. ${allNotes.length}개의 노트가 업데이트되었습니다.`);
+            // 변경사항 즉시 적용 옵션이 활성화된 경우에만 적용
+            if (applyChanges) {
+                // 각 노트 업데이트
+                for (const note of updatedNotes) {
+                    await this.app.vault.modify(note.file, note.newContent);
+                }
+                
+                new Notice(`노트 조정이 완료되었습니다. ${updatedNotes.length}개의 노트가 업데이트되었습니다.`);
+            }
             
-            return;
+            return updatedNotes;
         } catch (error: any) {
             console.error('노트 조정 중 오류 발생:', error);
             throw new Error(`노트 조정 중 오류 발생: ${error.message}`);
@@ -305,6 +400,15 @@ export class AINoteRefactor {
 - 통합된 내용의 일관성과 응집성 유지
 - 각 섹션과 하위 섹션 간의 균형 유지
 - 모든 출처의 핵심 내용이 보존되었는지 확인
+
+용어 분석 및 통합 원칙:
+- 각 문서에서 동일한 용어가 어떤 맥락과 관점에서 사용되었는지 분석
+- 동일 용어의 각기 다른 정의나 설명을 비교하고 차이점을 명시
+- 용어의 공통적인 의미와 특수한 활용 패턴을 구분하여 정리
+- 상충되는 용어 정의가 있을 경우, 각 관점을 보존하면서 통합된 이해를 제공
+- 용어 사용의 일관성을 유지하되 다양한 해석 가능성을 문서화
+- 주요 용어에 대해서는 각 문서의 독특한 관점이나 접근 방식을 요약 제시
+- 학문 분야나 이론적 배경에 따른 용어 해석 차이를 명확히 구분
 ${AINoteRefactor.FORMATTING_RULES}`;
 
         // 소스 내용 결합
@@ -322,7 +426,15 @@ ${targetContent}
 
 다음은 통합할 다른 문서들입니다:${sourcesDescription}
 
-위 모든 문서의 내용을 분석하여 하나의 체계적이고 포괄적인 문서로 통합해주세요. 주요 개념은 적절한 헤더로 구분하고, 논리적 흐름을 가진 일관된 문서를 생성해주세요. 중복 내용은 제거하고, 모든 문서의 중요한 정보가 손실되지 않도록 해주세요.`;
+위 모든 문서의 내용을 분석하여 하나의 체계적이고 포괄적인 문서로 통합해주세요. 주요 개념은 적절한 헤더로 구분하고, 논리적 흐름을 가진 일관된 문서를 생성해주세요. 중복 내용은 제거하고, 모든 문서의 중요한 정보가 손실되지 않도록 해주세요.
+
+문서들 사이에 공통으로 등장하는 주요 용어나 개념을 찾아 분석해주세요:
+1. 각 문서에서 동일 용어가 어떻게 다르게 정의되거나 사용되었는지 비교하세요.
+2. 용어의 공통 의미와 각 문서별 특수한 의미를 구분하여 설명하세요.
+3. 용어에 대한 다양한 관점과 해석을 종합하여 보다 풍부한 이해를 제공하세요.
+4. 필요한 경우 "다양한 관점" 또는 "용어 분석" 섹션을 만들어 중요 용어의 여러 해석을 비교하세요.
+
+통합된 문서는 모든 원본 문서의 중요 정보를 포함하되, 특히 동일 주제나 용어에 대한 다양한 관점과 해석을 명확히 드러내도록 해주세요.`;
 
         const response = await requestToAI(this.plugin, {
             userPrompt

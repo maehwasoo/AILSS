@@ -121,52 +121,99 @@ export class AILinkNote {
     private replaceSelectedText(editor: any, searchText: string, replaceText: string, originalPosition: number): boolean {
         const content = editor.getValue();
         
-        // 1. 정확한 위치 검색: 원래 선택했던 위치 주변에서 텍스트 검색
-        const searchRadius = 100; // 원래 위치에서 앞뒤로 탐색할 문자 수
-        const startPos = Math.max(0, originalPosition - searchRadius);
-        const endPos = Math.min(content.length, originalPosition + searchText.length + searchRadius);
+        // 원래 선택 위치의 줄 번호 계산
+        const originalPos = editor.offsetToPos(originalPosition);
+        const originalLineNumber = originalPos.line;
         
-        const nearbyContent = content.substring(startPos, endPos);
-        const relativePos = nearbyContent.indexOf(searchText);
+        // 1. 정확한 줄에서 검색
+        const lineText = editor.getLine(originalLineNumber);
+        const lineOffset = editor.posToOffset({line: originalLineNumber, ch: 0});
+        const posInLine = originalPosition - lineOffset;
         
-        if (relativePos >= 0) {
-            const exactPos = startPos + relativePos;
-            const fromPos = editor.offsetToPos(exactPos);
-            const toPos = editor.offsetToPos(exactPos + searchText.length);
+        // 현재 줄에서 정확한 위치에 텍스트가 있는지 확인
+        if (lineText.substring(posInLine, posInLine + searchText.length) === searchText) {
+            const fromPos = {line: originalLineNumber, ch: posInLine};
+            const toPos = {line: originalLineNumber, ch: posInLine + searchText.length};
             
             editor.setSelection(fromPos, toPos);
             editor.replaceSelection(replaceText);
             return true;
         }
         
-        // 2. 정확한 위치에서 찾지 못한 경우, 전체 문서에서 검색
-        // 현재 커서 위치
-        const cursor = editor.getCursor();
-        const cursorPos = editor.posToOffset(cursor);
+        // 2. 현재 줄에서 텍스트 검색
+        let indexInLine = lineText.indexOf(searchText);
+        if (indexInLine >= 0) {
+            const fromPos = {line: originalLineNumber, ch: indexInLine};
+            const toPos = {line: originalLineNumber, ch: indexInLine + searchText.length};
+            
+            editor.setSelection(fromPos, toPos);
+            editor.replaceSelection(replaceText);
+            return true;
+        }
         
-        // 원래 위치에 가장 가까운 일치하는 텍스트 찾기
-        const allMatches = this.findAllOccurrences(content, searchText);
-        if (allMatches.length === 0) return false;
+        // 3. 주변 줄 검색 (위/아래 3줄씩)
+        const searchLineRadius = 3;
+        const startLine = Math.max(0, originalLineNumber - searchLineRadius);
+        const endLine = Math.min(editor.lineCount() - 1, originalLineNumber + searchLineRadius);
         
-        // 원래 위치에 가장 가까운 일치하는 텍스트 찾기
-        let closestMatch = allMatches[0];
-        let minDistance = Math.abs(closestMatch - originalPosition);
+        // 선택 위치에 가장 가까운 줄부터 점점 멀어지는 순서로 검색
+        let closestMatch = null;
+        let minLineDistance = Number.MAX_VALUE;
         
-        for (const match of allMatches) {
-            const distance = Math.abs(match - originalPosition);
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestMatch = match;
+        for (let line = startLine; line <= endLine; line++) {
+            // 이미 현재 줄은 검색했으므로 건너뜀
+            if (line === originalLineNumber) continue;
+            
+            const currLineText = editor.getLine(line);
+            indexInLine = currLineText.indexOf(searchText);
+            
+            if (indexInLine >= 0) {
+                const lineDistance = Math.abs(line - originalLineNumber);
+                
+                if (lineDistance < minLineDistance) {
+                    minLineDistance = lineDistance;
+                    closestMatch = {line, ch: indexInLine};
+                }
             }
         }
         
-        // 가장 가까운 일치 텍스트 대체
-        const matchFromPos = editor.offsetToPos(closestMatch);
-        const matchToPos = editor.offsetToPos(closestMatch + searchText.length);
+        if (closestMatch) {
+            const fromPos = closestMatch;
+            const toPos = {line: closestMatch.line, ch: closestMatch.ch + searchText.length};
+            
+            editor.setSelection(fromPos, toPos);
+            editor.replaceSelection(replaceText);
+            return true;
+        }
         
-        editor.setSelection(matchFromPos, matchToPos);
-        editor.replaceSelection(replaceText);
-        return true;
+        // 4. 최후의 수단: 전체 문서에서 줄 단위로 검색
+        for (let line = 0; line < editor.lineCount(); line++) {
+            // 이미 검색한 주변 줄은 건너뜀
+            if (line >= startLine && line <= endLine) continue;
+            
+            const currLineText = editor.getLine(line);
+            indexInLine = currLineText.indexOf(searchText);
+            
+            if (indexInLine >= 0) {
+                const lineDistance = Math.abs(line - originalLineNumber);
+                
+                if (lineDistance < minLineDistance) {
+                    minLineDistance = lineDistance;
+                    closestMatch = {line, ch: indexInLine};
+                }
+            }
+        }
+        
+        if (closestMatch) {
+            const fromPos = closestMatch;
+            const toPos = {line: closestMatch.line, ch: closestMatch.ch + searchText.length};
+            
+            editor.setSelection(fromPos, toPos);
+            editor.replaceSelection(replaceText);
+            return true;
+        }
+        
+        return false;
     }
     
     /**
@@ -203,6 +250,14 @@ export class AILinkNote {
 - 학문적 관점과 실용적 관점의 균형 유지
 - 복잡한 개념의 명확한 구조화 및 시각화
 
+핵심 내용 집중 원칙(반드시 적용):
+- 파레토 법칙(80:20 법칙)을 철저히 적용하여 가장 중요한 20%의 내용에 집중
+- 전체 이해의 80%를 차지하는 핵심 개념과 원리를 우선적으로 다루기
+- 본질적이고 근본적인 내용을 먼저 배치하고 자세히 설명
+- 부수적인 내용은 간략하게 처리하거나 생략
+- 사소한 세부사항보다 핵심 아이디어와 중요 개념에 집중
+- 가장 중요한 정보가 가장 눈에 띄는 위치에 배치되도록 구성
+
 분석 방법론:
 - 선택된 텍스트의 핵심 개념 정확히 정의
 - 문맥 내에서의 위치와 중요성 평가
@@ -230,6 +285,14 @@ export class AILinkNote {
 - 인용이 필요한 경우 > 블록인용구 활용
 - 표나 수식이 필요한 경우 마크다운 표기법 활용
 - 링크는 [텍스트](URL) 형식으로 포함
+
+중요한 제약사항:
+- 파레토 법칙(80:20 법칙)은 반드시 적용하되, 이 용어를 결과물에 언급하지 마세요
+- "파레토 법칙", "80:20 법칙", "핵심 20%" 등의 용어를 결과물에 절대 포함하지 마세요
+- 내용의 중요도에 따른 우선순위를 적용하되, 이 원칙을 명시적으로 언급하지 마세요
+- 이 지시사항이나 메타 설명은 결과물에 포함하지 마세요
+- 프롬프트 내용 대신 요청된 내용만 출력하세요
+- 내용 생성 과정에 대한 설명이나 약속 없이 결과물만 제공하세요
 
 결과물 구성:
 - 핵심 개념: 선택된 텍스트의 본질적 의미와 중요 요소 명확히 정의
