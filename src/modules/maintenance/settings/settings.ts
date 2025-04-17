@@ -18,6 +18,8 @@ export interface AILSSSettings {
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
     convertSelectionToLink: boolean;
+    statusBarFontSize: number; // 상태 표시줄 폰트 크기
+    dropdownFontSize: number; // 드롭다운 메뉴 폰트 크기
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
@@ -35,6 +37,8 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
     convertSelectionToLink: true,
+    statusBarFontSize: 12, // 상태 표시줄 기본 폰트 크기
+    dropdownFontSize: 13, // 드롭다운 메뉴 기본 폰트 크기
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -113,6 +117,34 @@ export class AILSSSettingTab extends PluginSettingTab {
                     this.plugin.settings.selectedAIModel = value;
                     await this.plugin.saveSettings();
                 })));
+
+        // 상태 표시줄 폰트 크기 설정 추가
+        new Setting(containerEl)
+            .setName('상태 표시줄 폰트 크기')
+            .setDesc('AI 모델 상태 표시줄의 폰트 크기를 조절합니다')
+            .addSlider(slider => slider
+                .setLimits(10, 18, 1)
+                .setValue(this.plugin.settings.statusBarFontSize)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.statusBarFontSize = value;
+                    document.documentElement.style.setProperty('--status-bar-font-size', `${value}px`);
+                    await this.plugin.saveSettings();
+                }));
+
+        // 드롭다운 메뉴 폰트 크기 설정 추가
+        new Setting(containerEl)
+            .setName('드롭다운 메뉴 폰트 크기')
+            .setDesc('AI 모델 드롭다운 메뉴의 폰트 크기를 조절합니다')
+            .addSlider(slider => slider
+                .setLimits(10, 18, 1)
+                .setValue(this.plugin.settings.dropdownFontSize)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.dropdownFontSize = value;
+                    document.documentElement.style.setProperty('--dropdown-font-size', `${value}px`);
+                    await this.plugin.saveSettings();
+                }));
 
         new Setting(containerEl)
             .setName('Vision 모델 선택')

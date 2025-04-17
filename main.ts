@@ -33,6 +33,7 @@ import { NoteRefactoringModal } from './src/components/noteRefactoringModal';
 import { FrontmatterManager } from './src/modules/maintenance/utils/frontmatterManager';
 import { AITagAliasRefactor } from './src/modules/ai/text/aiTagAliasRefactor';
 import { DuplicateNote } from './src/modules/command/create/duplicateNote';
+import { AIModelStatusBar } from './src/components/aiModelStatusBar';
 
 
 export default class AILSSPlugin extends Plugin {
@@ -72,7 +73,8 @@ export default class AILSSPlugin extends Plugin {
 	private aiTagAliasRefactor: AITagAliasRefactor;
 	private duplicateNoteManager: DuplicateNote;
 
-
+	// AI 모델 상태 표시줄 관리자
+	private aiModelStatusBar: AIModelStatusBar;
 
 	async onload() {
 		await this.loadSettings();
@@ -264,7 +266,11 @@ export default class AILSSPlugin extends Plugin {
 		 // 태그 별칭 리팩토링 리본 메뉴 추가
 		this.addRibbonIcon('tag', '태그/별칭 분석', () => {
 			this.aiTagAliasRefactor.main();
-		});
+		 });
+
+		// AI 모델 상태 표시줄 초기화
+		this.aiModelStatusBar = new AIModelStatusBar(this.app, this, this.settings);
+		this.aiModelStatusBar.init();
 
 		// 명령어 추가
 		this.addCommand({
@@ -478,10 +484,14 @@ export default class AILSSPlugin extends Plugin {
 		});
 	}
 
-
 	onunload() {
 		if (this.renameTimeout) {
 			window.clearTimeout(this.renameTimeout);
+		}
+		
+		// AI 모델 상태 표시줄 정리
+		if (this.aiModelStatusBar) {
+			this.aiModelStatusBar.unload();
 		}
 	}
 
