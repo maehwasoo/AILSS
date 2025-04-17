@@ -77,7 +77,7 @@ export interface AILSSSettings {
     claudeModel: string;
     perplexityModel: string;
     googleAIModel: string;
-    dalleModel: 'dall-e-2' | 'dall-e-3';
+    imageGenerationModel: 'dall-e-2' | 'dall-e-3' | 'imagen-3.0-generate-002';
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
     convertSelectionToLink: boolean;
@@ -94,7 +94,7 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     claudeModel: 'claude-3-5-sonnet-20241022',
     perplexityModel: 'sonar-pro',
     googleAIModel: 'gemini-2.5-pro-preview-03-25', 
-    dalleModel: 'dall-e-3',
+    imageGenerationModel: 'dall-e-3',
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
     convertSelectionToLink: true,
@@ -192,14 +192,15 @@ export class AILSSSettingTab extends PluginSettingTab {
                 })));
 
         new Setting(containerEl)
-            .setName('DALL-E 모델')
-            .setDesc('이미지 생성에 사용할 DALL-E 모델을 선택하세요')
+            .setName('이미지 생성 모델')
+            .setDesc('이미지 생성에 사용할 모델을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
                 .addOption('dall-e-2', 'DALL-E 2')
                 .addOption('dall-e-3', 'DALL-E 3')
-                .setValue(this.plugin.settings.dalleModel)
-                .onChange(async (value: 'dall-e-2' | 'dall-e-3') => {
-                    this.plugin.settings.dalleModel = value;
+                .addOption('imagen-3.0-generate-002', 'Google Imagen 3.0 Generate')
+                .setValue(this.plugin.settings.imageGenerationModel)
+                .onChange(async (value: 'dall-e-2' | 'dall-e-3' | 'imagen-3.0-generate-002') => {
+                    this.plugin.settings.imageGenerationModel = value;
                     await this.plugin.saveSettings();
                 })));
 
