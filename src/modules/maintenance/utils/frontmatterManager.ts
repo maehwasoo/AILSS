@@ -124,7 +124,7 @@ export class FrontmatterManager {
     }
 
     // 텍스트에서 시작과 끝의 작은따옴표 제거
-    private removeQuotes(text: any): string {
+    public removeQuotes(text: any): string {
         if (typeof text !== 'string') return String(text);
         return text.replace(/^'|'$/g, '');
     }
@@ -218,4 +218,4 @@ export class FrontmatterManager {
     static getNonDefaultTags(tags: string[]): string[] {
         return tags.filter(tag => !this.DEFAULT_TAGS.includes(tag));
     }
-} 
+}
