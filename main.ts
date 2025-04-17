@@ -32,7 +32,7 @@ import { AINoteRefactor } from './src/modules/ai/text/aiNoteRefactor';
 import { NoteRefactoringModal } from './src/components/noteRefactoringModal';
 import { FrontmatterManager } from './src/modules/maintenance/utils/frontmatterManager';
 import { AITagAliasRefactor } from './src/modules/ai/text/aiTagAliasRefactor';
-
+import { DuplicateNote } from './src/modules/command/create/duplicateNote';
 
 
 export default class AILSSPlugin extends Plugin {
@@ -70,6 +70,7 @@ export default class AILSSPlugin extends Plugin {
 	private aiNoteRestructure: AINoteRestructure;
 	noteRefactoringManager: AINoteRefactor;
 	private aiTagAliasRefactor: AITagAliasRefactor;
+	private duplicateNoteManager: DuplicateNote;
 
 
 
@@ -118,6 +119,9 @@ export default class AILSSPlugin extends Plugin {
 		this.copyNoteManager = new CopyNote(this.app, this);
 		this.recoverNoteManager = new RecoverNote(this.app, this);
 		this.embedNoteManager = new EmbedNote(this.app, this);
+		
+		// DuplicateNote 초기화
+		this.duplicateNoteManager = new DuplicateNote(this.app, this);
 
 		// AI 이미지 생성기 초기화
 		this.aiImageCreator = new AIImageCreator(this);
@@ -221,6 +225,10 @@ export default class AILSSPlugin extends Plugin {
 
 		this.addRibbonIcon('rotate-ccw', '노트 복구', () => {
 			this.recoverNoteManager.recoverNote();
+		});
+		
+		this.addRibbonIcon('copy', '노트 복제', () => {
+			this.duplicateNoteManager.duplicateCurrentNote();
 		});
 
 		this.addRibbonIcon('image-plus', 'AI 이미지 생성', () => {
@@ -383,6 +391,13 @@ export default class AILSSPlugin extends Plugin {
 			name: '노트 복사',
 			icon: 'copy-plus',
 			editorCallback: () => this.copyNoteManager.createCopyNote()
+		});
+		
+		this.addCommand({
+			id: 'duplicate-note',
+			name: '노트 복제',
+			icon: 'copy',
+			callback: () => this.duplicateNoteManager.duplicateCurrentNote()
 		});
 
 		this.addCommand({
