@@ -194,6 +194,15 @@ export class RibbonRegistry {
                 tts.convertTextToSpeech(view.editor);
             }
         });
+        
+        // 자연스러운 TTS 변환
+        this.plugin.addRibbonIcon('message-square-text', '자연스러운 TTS 변환', () => {
+            const view = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+            if (view && view.editor) {
+                const naturalTTS = this.services.createNaturalTTSInstance();
+                naturalTTS.convertTextToNaturalSpeech(view.editor);
+            }
+        });
     }
     
     /**

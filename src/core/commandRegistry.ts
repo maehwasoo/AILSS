@@ -278,6 +278,17 @@ export class CommandRegistry {
                 tts.convertTextToSpeech(editor);
             }
         });
+        
+        // 자연스러운 TTS 변환
+        this.plugin.addCommand({
+            id: 'convert-text-to-natural-speech',
+            name: '자연스러운 TTS 변환',
+            icon: 'message-square-text',
+            editorCallback: (editor: Editor) => {
+                const naturalTTS = this.services.createNaturalTTSInstance();
+                naturalTTS.convertTextToNaturalSpeech(editor);
+            }
+        });
     }
     
     /**

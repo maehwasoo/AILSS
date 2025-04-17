@@ -29,6 +29,7 @@ import { AIProcess } from '../modules/ai/text/aiProcess';
 import { AIReformat } from '../modules/ai/text/aiReformat';
 import { UnlinkNotes } from '../modules/command/update/unlinkNotes';
 import { OpenAITTS } from '../modules/ai/audio/openai_tts';
+import { NaturalTTS } from '../modules/ai/audio/natural_tts';
 import { EmbedNote } from '../modules/command/create/embedNote';
 import { AINoteRestructure } from '../modules/ai/text/aiNoteRestructure';
 import { AINoteRefactor } from '../modules/ai/text/aiNoteRefactor';
@@ -312,5 +313,13 @@ export class ServiceRegistry {
     // 유틸리티 메소드들
     public createTTSInstance(): OpenAITTS {
         return new OpenAITTS(this.plugin);
+    }
+    
+    /**
+     * NaturalTTS 인스턴스 생성
+     * 자연스러운 대화체로 변환 후 TTS 적용
+     */
+    public createNaturalTTSInstance(): NaturalTTS {
+        return new NaturalTTS(this.plugin);
     }
 }
