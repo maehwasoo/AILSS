@@ -3,6 +3,46 @@ import AILSSPlugin from '../../../../main';
 import { FileCountManager } from '../utils/fileCountManager';
 import { PathSettings } from './pathSettings';
 
+// AI 제공자별 모델 리스트 정의
+export interface AIModelOption {
+    id: string;
+    name: string;
+}
+
+export const OPENAI_MODELS: AIModelOption[] = [
+    { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
+    { id: 'o1-mini', name: 'o1-mini' },
+    { id: 'o3-mini', name: 'o3-mini' },
+    { id: 'o1', name: 'o1' },
+    { id: 'o1-pro', name: 'o1-pro' },
+    { id: 'gpt-4o-search-preview', name: 'GPT-4o Search Preview' },
+    { id: 'gpt-4o-mini-search-preview', name: 'GPT-4o Mini Search Preview' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
+    { id: 'gpt-4.1', name: 'GPT-4.1' },
+    { id: 'o4-mini', name: 'o4-mini' }
+];
+
+export const CLAUDE_MODELS: AIModelOption[] = [
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet' }
+];
+
+export const PERPLEXITY_MODELS: AIModelOption[] = [
+    { id: 'sonar-reasoning-pro', name: 'Sonar Reasoning Pro' },
+    { id: 'sonar-reasoning', name: 'Sonar Reasoning' },
+    { id: 'sonar-pro', name: 'Sonar Pro' },
+    { id: 'sonar', name: 'Sonar' }
+];
+
+export const GOOGLE_MODELS: AIModelOption[] = [
+    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
+];
+
 export interface AILSSSettings {
     openAIAPIKey: string;
     claudeAPIKey: string;
@@ -18,8 +58,6 @@ export interface AILSSSettings {
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
     convertSelectionToLink: boolean;
-    statusBarFontSize: number; // 상태 표시줄 폰트 크기
-    dropdownFontSize: number; // 드롭다운 메뉴 폰트 크기
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
@@ -37,8 +75,6 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
     convertSelectionToLink: true,
-    statusBarFontSize: 12, // 상태 표시줄 기본 폰트 크기
-    dropdownFontSize: 13, // 드롭다운 메뉴 기본 폰트 크기
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -118,34 +154,6 @@ export class AILSSSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })));
 
-        // 상태 표시줄 폰트 크기 설정 추가
-        new Setting(containerEl)
-            .setName('상태 표시줄 폰트 크기')
-            .setDesc('AI 모델 상태 표시줄의 폰트 크기를 조절합니다')
-            .addSlider(slider => slider
-                .setLimits(10, 18, 1)
-                .setValue(this.plugin.settings.statusBarFontSize)
-                .setDynamicTooltip()
-                .onChange(async (value) => {
-                    this.plugin.settings.statusBarFontSize = value;
-                    document.documentElement.style.setProperty('--status-bar-font-size', `${value}px`);
-                    await this.plugin.saveSettings();
-                }));
-
-        // 드롭다운 메뉴 폰트 크기 설정 추가
-        new Setting(containerEl)
-            .setName('드롭다운 메뉴 폰트 크기')
-            .setDesc('AI 모델 드롭다운 메뉴의 폰트 크기를 조절합니다')
-            .addSlider(slider => slider
-                .setLimits(10, 18, 1)
-                .setValue(this.plugin.settings.dropdownFontSize)
-                .setDynamicTooltip()
-                .onChange(async (value) => {
-                    this.plugin.settings.dropdownFontSize = value;
-                    document.documentElement.style.setProperty('--dropdown-font-size', `${value}px`);
-                    await this.plugin.saveSettings();
-                }));
-
         new Setting(containerEl)
             .setName('Vision 모델 선택')
             .setDesc('이미지 분석에 사용할 AI 모델을 선택하세요')
@@ -219,19 +227,10 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setName('OpenAI 모델')
             .setDesc('사용할 OpenAI 모델을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
-                .addOption('gpt-4o', 'GPT-4o')
-                .addOption('gpt-4.5-preview', 'GPT-4.5 Preview')
-                .addOption('gpt-4o-mini', 'GPT-4o mini')
-                .addOption('o1-mini', 'o1-mini')
-                .addOption('o3-mini', 'o3-mini')
-                .addOption('o1', 'o1')
-                .addOption('o1-pro', 'o1-pro')
-                .addOption('gpt-4o-search-preview', 'GPT-4o Search Preview')
-                .addOption('gpt-4o-mini-search-preview', 'GPT-4o Mini Search Preview')
-                .addOption('gpt-4.1-nano', 'GPT-4.1 Nano')
-                .addOption('gpt-4.1-mini', 'GPT-4.1 Mini')
-                .addOption('gpt-4.1', 'GPT-4.1')
-                .addOption('o4-mini', 'o4-mini')
+                .addOptions(OPENAI_MODELS.reduce((options, model) => {
+                    options[model.id] = model.name;
+                    return options;
+                }, {} as Record<string, string>))
                 .setValue(this.plugin.settings.openAIModel)
                 .onChange(async (value) => {
                     this.plugin.settings.openAIModel = value;
@@ -243,9 +242,10 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setName('Claude 모델')
             .setDesc('사용할 Claude 모델을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
-                .addOption('claude-3-5-sonnet-20241022', 'Claude 3.5 Sonnet')
-                .addOption('claude-3-5-haiku-20241022', 'Claude 3.5 Haiku')
-                .addOption('claude-3-7-sonnet-20250219', 'Claude 3.7 Sonnet')
+                .addOptions(CLAUDE_MODELS.reduce((options, model) => {
+                    options[model.id] = model.name;
+                    return options;
+                }, {} as Record<string, string>))
                 .setValue(this.plugin.settings.claudeModel)
                 .onChange(async (value) => {
                     this.plugin.settings.claudeModel = value;
@@ -257,10 +257,10 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setName('Perplexity 모델')
             .setDesc('사용할 Perplexity 모델을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
-                .addOption('sonar-reasoning-pro', 'Sonar Reasoning Pro')
-                .addOption('sonar-reasoning', 'Sonar Reasoning')
-                .addOption('sonar-pro', 'Sonar Pro')
-                .addOption('sonar', 'Sonar')
+                .addOptions(PERPLEXITY_MODELS.reduce((options, model) => {
+                    options[model.id] = model.name;
+                    return options;
+                }, {} as Record<string, string>))
                 .setValue(this.plugin.settings.perplexityModel)
                 .onChange(async (value) => {
                     this.plugin.settings.perplexityModel = value;
@@ -272,9 +272,10 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setName('Google AI 모델')
             .setDesc('사용할 Google AI 모델을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
-                .addOption('gemini-2.5-pro-preview-03-25', 'Gemini 2.5 Pro Preview')
-                .addOption('gemini-2.0-flash', 'Gemini 2.0 Flash')
-                // 필요에 따라 다른 Google AI 모델 추가
+                .addOptions(GOOGLE_MODELS.reduce((options, model) => {
+                    options[model.id] = model.name;
+                    return options;
+                }, {} as Record<string, string>))
                 .setValue(this.plugin.settings.googleAIModel)
                 .onChange(async (value) => {
                     this.plugin.settings.googleAIModel = value;

@@ -1,5 +1,5 @@
 import { App, Notice, Plugin } from 'obsidian';
-import { AILSSSettings } from '../modules/maintenance/settings/settings';
+import { AILSSSettings, OPENAI_MODELS, CLAUDE_MODELS, PERPLEXITY_MODELS, GOOGLE_MODELS } from '../modules/maintenance/settings/settings';
 
 export class AIModelStatusBar {
     private aiModelStatusBarItem: HTMLElement;
@@ -19,19 +19,8 @@ export class AIModelStatusBar {
      * 상태 표시줄에 AI 모델 선택기 초기화 및 추가
      */
     public init(): void {
-        // 폰트 크기 CSS 변수 설정
-        this.applyFontSizeSettings();
-        
         // 상태 표시줄 추가
         this.addAIModelStatusBarItem();
-    }
-
-    /**
-     * 폰트 크기 설정을 CSS 변수에 적용
-     */
-    private applyFontSizeSettings(): void {
-        document.documentElement.style.setProperty('--status-bar-font-size', `${this.settings.statusBarFontSize}px`);
-        document.documentElement.style.setProperty('--dropdown-font-size', `${this.settings.dropdownFontSize}px`);
     }
 
     /**
@@ -107,12 +96,6 @@ export class AIModelStatusBar {
         this.aiModelDropdown = document.createElement('div');
         this.aiModelDropdown.addClass('ailss-ai-model-dropdown');
         
-        // 드롭다운 위치 조정
-        const rect = this.aiModelStatusBarItem.getBoundingClientRect();
-        this.aiModelDropdown.style.position = 'absolute';
-        this.aiModelDropdown.style.bottom = (window.innerHeight - rect.top) + 'px';
-        this.aiModelDropdown.style.left = rect.left + 'px';
-        
         // AI 제공자 리스트 생성
         this.createAIProviderOptions();
         
@@ -121,6 +104,28 @@ export class AIModelStatusBar {
         
         // 드롭다운 추가
         document.body.appendChild(this.aiModelDropdown);
+        
+        // 드롭다운 위치 조정 (상태바 기준 오른쪽에서 시작하고 60픽셀 왼쪽으로 이동)
+        const rect = this.aiModelStatusBarItem.getBoundingClientRect();
+        const dropdownWidth = this.aiModelDropdown.offsetWidth;
+        
+        this.aiModelDropdown.style.position = 'absolute';
+        this.aiModelDropdown.style.bottom = (window.innerHeight - rect.top) + 'px';
+        
+        // 드롭다운 메뉴가 오른쪽에서 시작하되 60픽셀 왼쪽으로 이동
+        let leftPosition = rect.right - dropdownWidth - 60; // 60픽셀 추가로 왼쪽으로 이동
+        
+        // 왼쪽으로 너무 치우치면 최소한 상태바 아이템의 왼쪽 경계에 맞춤
+        if (leftPosition < rect.left) {
+            leftPosition = rect.left;
+        }
+        
+        // 왼쪽 화면 경계를 벗어나면 왼쪽 경계에 맞춤
+        if (leftPosition < 0) {
+            leftPosition = 0;
+        }
+        
+        this.aiModelDropdown.style.left = leftPosition + 'px';
         this.aiModelDropdownVisible = true;
     }
     
@@ -174,39 +179,19 @@ export class AIModelStatusBar {
         // 선택된 제공자에 따라 모델 리스트 설정
         switch (this.settings.selectedAIModel) {
             case 'openai':
-                models = [
-                    { id: 'gpt-4o', name: 'GPT-4o' },
-                    { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview' },
-                    { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
-                    { id: 'o1-mini', name: 'o1-mini' },
-                    { id: 'o3-mini', name: 'o3-mini' },
-                    { id: 'o1', name: 'o1' },
-                    { id: 'o1-pro', name: 'o1-pro' }
-                ];
+                models = OPENAI_MODELS;
                 currentModelKey = 'openAIModel';
                 break;
             case 'claude':
-                models = [
-                    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
-                    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
-                    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet' }
-                ];
+                models = CLAUDE_MODELS;
                 currentModelKey = 'claudeModel';
                 break;
             case 'perplexity':
-                models = [
-                    { id: 'sonar-reasoning-pro', name: 'Sonar Reasoning Pro' },
-                    { id: 'sonar-reasoning', name: 'Sonar Reasoning' },
-                    { id: 'sonar-pro', name: 'Sonar Pro' },
-                    { id: 'sonar', name: 'Sonar' }
-                ];
+                models = PERPLEXITY_MODELS;
                 currentModelKey = 'perplexityModel';
                 break;
             case 'google':
-                models = [
-                    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview' },
-                    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
-                ];
+                models = GOOGLE_MODELS;
                 currentModelKey = 'googleAIModel';
                 break;
         }
