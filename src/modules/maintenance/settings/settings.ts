@@ -43,13 +43,36 @@ export const GOOGLE_MODELS: AIModelOption[] = [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
 ];
 
+export const VISION_MODELS: AIModelOption[] = [
+    // OpenAI 비전 모델
+    { id: 'o4-mini', name: 'o4 Mini Vision' },
+    { id: 'gpt-4.1', name: 'GPT-4.1 Vision' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini Vision' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano Vision' },
+    { id: 'gpt-4o', name: 'GPT-4o Vision' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini Vision' },
+    { id: 'o1-pro', name: 'o1 Pro Vision' },
+    { id: 'o1', name: 'o1 Vision' },
+    { id: 'o3', name: 'o3 Vision' },
+    
+    // Claude 비전 모델
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet Vision' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku Vision' },
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet Vision' },
+    
+    // Google 비전 모델
+    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview Vision' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash Vision' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite Vision' }
+];
+
 export interface AILSSSettings {
     openAIAPIKey: string;
     claudeAPIKey: string;
     perplexityAPIKey: string;
     googleAIAPIKey: string;
     selectedAIModel: 'openai' | 'claude' | 'perplexity' | 'google';
-    selectedVisionModel: 'claude' | 'openai' | 'google';
+    visionModel: string; // 새로운 Vision 모델 세부 선택 설정
     openAIModel: string;
     claudeModel: string;
     perplexityModel: string;
@@ -66,11 +89,11 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     perplexityAPIKey: '',
     googleAIAPIKey: '',
     selectedAIModel: 'claude',
-    selectedVisionModel: 'claude',
+    visionModel: 'claude-3-5-sonnet-20241022', // 기본값은 Claude 3.5 Sonnet Vision
     openAIModel: 'gpt-4o',
     claudeModel: 'claude-3-5-sonnet-20241022',
     perplexityModel: 'sonar-pro',
-    googleAIModel: 'gemini-2.5-pro-preview-03-25', // 기본 Google AI 모델 설정
+    googleAIModel: 'gemini-2.5-pro-preview-03-25', 
     dalleModel: 'dall-e-3',
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
@@ -147,7 +170,7 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('openai', 'OpenAI')
                 .addOption('claude', 'Claude')
                 .addOption('perplexity', 'Perplexity')
-                .addOption('google', 'Google AI') // Google AI 옵션 추가
+                .addOption('google', 'Google AI') 
                 .setValue(this.plugin.settings.selectedAIModel)
                 .onChange(async (value: 'openai' | 'claude' | 'perplexity' | 'google') => {
                     this.plugin.settings.selectedAIModel = value;
@@ -155,15 +178,16 @@ export class AILSSSettingTab extends PluginSettingTab {
                 })));
 
         new Setting(containerEl)
-            .setName('Vision 모델 선택')
-            .setDesc('이미지 분석에 사용할 AI 모델을 선택하세요')
+            .setName('Vision 모델')
+            .setDesc('이미지 분석에 사용할 비전 모델을 직접 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
-                .addOption('claude', 'Claude Vision')
-                .addOption('openai', 'GPT-4 Vision')
-                .addOption('google', 'Google AI Vision') // Google AI Vision 옵션 추가
-                .setValue(this.plugin.settings.selectedVisionModel)
-                .onChange(async (value: 'claude' | 'openai' | 'google') => {
-                    this.plugin.settings.selectedVisionModel = value;
+                .addOptions(VISION_MODELS.reduce((options, model) => {
+                    options[model.id] = model.name;
+                    return options;
+                }, {} as Record<string, string>))
+                .setValue(this.plugin.settings.visionModel)
+                .onChange(async (value) => {
+                    this.plugin.settings.visionModel = value;
                     await this.plugin.saveSettings();
                 })));
 
