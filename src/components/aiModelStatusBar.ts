@@ -105,27 +105,13 @@ export class AIModelStatusBar {
         // 드롭다운 추가
         document.body.appendChild(this.aiModelDropdown);
         
-        // 드롭다운 위치 조정 (상태바 기준 오른쪽에서 시작하고 60픽셀 왼쪽으로 이동)
+        // 드롭다운 위치 조정 (오른쪽 경계를 상태바에 맞춤)
         const rect = this.aiModelStatusBarItem.getBoundingClientRect();
-        const dropdownWidth = this.aiModelDropdown.offsetWidth;
         
         this.aiModelDropdown.style.position = 'absolute';
         this.aiModelDropdown.style.bottom = (window.innerHeight - rect.top) + 'px';
+        this.aiModelDropdown.style.right = (window.innerWidth - rect.right) + 'px';
         
-        // 드롭다운 메뉴가 오른쪽에서 시작하되 60픽셀 왼쪽으로 이동
-        let leftPosition = rect.right - dropdownWidth - 60; // 60픽셀 추가로 왼쪽으로 이동
-        
-        // 왼쪽으로 너무 치우치면 최소한 상태바 아이템의 왼쪽 경계에 맞춤
-        if (leftPosition < rect.left) {
-            leftPosition = rect.left;
-        }
-        
-        // 왼쪽 화면 경계를 벗어나면 왼쪽 경계에 맞춤
-        if (leftPosition < 0) {
-            leftPosition = 0;
-        }
-        
-        this.aiModelDropdown.style.left = leftPosition + 'px';
         this.aiModelDropdownVisible = true;
     }
     
