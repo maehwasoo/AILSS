@@ -6,3 +6,83 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+/* 기존 스타일 */
+
+/* AI 모델 상태 표시줄 스타일 */
+.ailss-ai-model-status {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  transition: background-color 0.2s ease;
+}
+
+.ailss-ai-model-status:hover {
+  background-color: var(--interactive-hover);
+}
+
+/* AI 모델 드롭다운 스타일 */
+.ailss-ai-model-dropdown {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+/* 제공자 섹션 스타일 */
+.ailss-provider-section {
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding: 5px 0;
+}
+
+/* 모델 섹션 스타일 */
+.ailss-model-section {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 5px 0;
+}
+
+/* 제공자 옵션 스타일 */
+.ailss-provider-option {
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ailss-provider-option:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.ailss-selected-provider {
+  font-weight: bold;
+  background-color: var(--background-primary-alt);
+}
+
+/* 모델 옵션 스타일 */
+.ailss-model-option {
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  word-wrap: break-word;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.ailss-model-option:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.ailss-selected-model {
+  font-weight: bold;
+  background-color: var(--background-primary-alt);
+}
+
+/* 설정 드롭다운 스타일 수정 */
+.ailss-dropdown {
+  min-width: 200px;
+}

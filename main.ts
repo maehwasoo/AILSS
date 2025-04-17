@@ -32,7 +32,8 @@ import { AINoteRefactor } from './src/modules/ai/text/aiNoteRefactor';
 import { NoteRefactoringModal } from './src/components/noteRefactoringModal';
 import { FrontmatterManager } from './src/modules/maintenance/utils/frontmatterManager';
 import { AITagAliasRefactor } from './src/modules/ai/text/aiTagAliasRefactor';
-
+import { DuplicateNote } from './src/modules/command/create/duplicateNote';
+import { AIModelStatusBar } from './src/components/aiModelStatusBar';
 
 
 export default class AILSSPlugin extends Plugin {
@@ -70,8 +71,10 @@ export default class AILSSPlugin extends Plugin {
 	private aiNoteRestructure: AINoteRestructure;
 	noteRefactoringManager: AINoteRefactor;
 	private aiTagAliasRefactor: AITagAliasRefactor;
+	private duplicateNoteManager: DuplicateNote;
 
-
+	// AI 모델 상태 표시줄 관리자
+	private aiModelStatusBar: AIModelStatusBar;
 
 	async onload() {
 		await this.loadSettings();
@@ -118,6 +121,9 @@ export default class AILSSPlugin extends Plugin {
 		this.copyNoteManager = new CopyNote(this.app, this);
 		this.recoverNoteManager = new RecoverNote(this.app, this);
 		this.embedNoteManager = new EmbedNote(this.app, this);
+		
+		// DuplicateNote 초기화
+		this.duplicateNoteManager = new DuplicateNote(this.app, this);
 
 		// AI 이미지 생성기 초기화
 		this.aiImageCreator = new AIImageCreator(this);
@@ -222,6 +228,10 @@ export default class AILSSPlugin extends Plugin {
 		this.addRibbonIcon('rotate-ccw', '노트 복구', () => {
 			this.recoverNoteManager.recoverNote();
 		});
+		
+		this.addRibbonIcon('copy', '노트 복제', () => {
+			this.duplicateNoteManager.duplicateCurrentNote();
+		});
 
 		this.addRibbonIcon('image-plus', 'AI 이미지 생성', () => {
 			this.aiImageCreator.main();
@@ -256,7 +266,11 @@ export default class AILSSPlugin extends Plugin {
 		 // 태그 별칭 리팩토링 리본 메뉴 추가
 		this.addRibbonIcon('tag', '태그/별칭 분석', () => {
 			this.aiTagAliasRefactor.main();
-		});
+		 });
+
+		// AI 모델 상태 표시줄 초기화
+		this.aiModelStatusBar = new AIModelStatusBar(this.app, this, this.settings);
+		this.aiModelStatusBar.init();
 
 		// 명령어 추가
 		this.addCommand({
@@ -384,6 +398,13 @@ export default class AILSSPlugin extends Plugin {
 			icon: 'copy-plus',
 			editorCallback: () => this.copyNoteManager.createCopyNote()
 		});
+		
+		this.addCommand({
+			id: 'duplicate-note',
+			name: '노트 복제',
+			icon: 'copy',
+			callback: () => this.duplicateNoteManager.duplicateCurrentNote()
+		});
 
 		this.addCommand({
 			id: 'recover-note',
@@ -463,10 +484,14 @@ export default class AILSSPlugin extends Plugin {
 		});
 	}
 
-
 	onunload() {
 		if (this.renameTimeout) {
 			window.clearTimeout(this.renameTimeout);
+		}
+		
+		// AI 모델 상태 표시줄 정리
+		if (this.aiModelStatusBar) {
+			this.aiModelStatusBar.unload();
 		}
 	}
 
