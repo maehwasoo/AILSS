@@ -184,6 +184,12 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('o3-mini', 'o3-mini')
                 .addOption('o1', 'o1')
                 .addOption('o1-pro', 'o1-pro')
+                .addOption('gpt-4o-search-preview', 'GPT-4o Search Preview')
+                .addOption('gpt-4o-mini-search-preview', 'GPT-4o Mini Search Preview')
+                .addOption('gpt-4.1-nano', 'GPT-4.1 Nano')
+                .addOption('gpt-4.1-mini', 'GPT-4.1 Mini')
+                .addOption('gpt-4.1', 'GPT-4.1')
+                .addOption('o4-mini', 'o4-mini')
                 .setValue(this.plugin.settings.openAIModel)
                 .onChange(async (value) => {
                     this.plugin.settings.openAIModel = value;
