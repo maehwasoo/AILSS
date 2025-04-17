@@ -44,6 +44,13 @@ export class DuplicateNote {
                 tags = ['copy'];
             }
             
+            // 현재 제목 가져오기 및 'copy' 접미사 추가
+            let title = currentFrontmatter.title || '';
+            if (typeof title === 'string') {
+                // 이미 따옴표로 감싸져 있을 수 있으므로 제거 후 'copy' 추가
+                title = frontmatterManager.removeQuotes(title) + ' copy';
+            }
+            
             // 새 프론트매터 속성 구성
             const updatedFrontmatter = {
                 ...currentFrontmatter,
@@ -51,7 +58,8 @@ export class DuplicateNote {
                 date: koreanTime,
                 updated: koreanTime,
                 potentiation: FrontmatterManager.INITIAL_POTENTIATION,
-                tags: tags
+                tags: tags,
+                title: title // 'copy'가 추가된 제목 설정
             };
             
             // 본문 내용 추출 (프론트매터 제외)

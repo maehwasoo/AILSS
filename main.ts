@@ -7,6 +7,7 @@ import { DeleteAttachment } from './src/modules/command/delete/deleteAttachments
 import { DeleteCurrentNote } from './src/modules/command/delete/deleteCurrentNote';
 import { DeactivateNotes } from './src/modules/command/move/deactivateNotes';
 import { ActivateNotes } from './src/modules/command/move/activateNotes';
+import { ExportNotes } from './src/modules/command/move/exportNotes';
 import { GraphManager } from './src/modules/maintenance/utils/graph/graphManager';
 import { AILSSSettings, DEFAULT_SETTINGS, AILSSSettingTab } from './src/modules/maintenance/settings/settings';
 import { AIImageAnalyzer } from './src/modules/ai/image/aiImageAnalyzer';
@@ -48,6 +49,7 @@ export default class AILSSPlugin extends Plugin {
 	
 	private deactivateNotesManager: DeactivateNotes;
 	private activateNotesManager: ActivateNotes;
+	private exportNotesManager: ExportNotes;
 	private pendingRename: boolean = false;
 	private renameTimeout: number | null = null;
 	private graphManager: GraphManager;
@@ -90,6 +92,7 @@ export default class AILSSPlugin extends Plugin {
 		
 		this.deactivateNotesManager = new DeactivateNotes(this.app, this);
 		this.activateNotesManager = new ActivateNotes(this.app, this);
+		this.exportNotesManager = new ExportNotes(this.app, this);
 
 		// GraphManager 초기화
 		this.graphManager = new GraphManager(this.app, this);
@@ -179,6 +182,10 @@ export default class AILSSPlugin extends Plugin {
 
 		this.addRibbonIcon('heart-pulse', '노트 활성화', () => {
 			this.activateNotesManager.activateNotes();
+		});
+
+		this.addRibbonIcon('file-output', '노트 내보내기', () => {
+			this.exportNotesManager.exportNotesByTag();
 		});
 
 		this.addRibbonIcon('scan-search', '이미지 분석', () => {
@@ -320,6 +327,13 @@ export default class AILSSPlugin extends Plugin {
 			name: '노트 활성화',
 			icon: 'heart-pulse',
 			callback: () => this.activateNotesManager.activateNotes()
+		});
+
+		this.addCommand({
+			id: 'export-notes',
+			name: '노트 내보내기',
+			icon: 'file-output',
+			callback: () => this.exportNotesManager.exportNotesByTag()
 		});
 
 		this.addCommand({
