@@ -12,7 +12,7 @@ type SupportedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp
 export class AIVisionAPI {
     // 모델 제공자를 모델 ID로부터 결정하는 함수
     static getProviderFromModelId(modelId: string): 'openai' | 'claude' | 'google' {
-        if (modelId.startsWith('gpt-')) {
+        if (modelId.startsWith('gpt-') || modelId.startsWith('o1') || modelId.startsWith('o3') || modelId.startsWith('o4')) {
             return 'openai';
         } else if (modelId.startsWith('claude-')) {
             return 'claude';
@@ -78,28 +78,67 @@ export class AIVisionAPI {
 
         // 프롬프트 구성
         const userPrompt = ocr ? 
-            `${systemPrompt}\n\n이미지에서 모든 텍스트를 추출해주세요. 수식은 LaTeX로 변환하고, 줄바꿈과 단락 구분을 유지해주세요. 원본 텍스트만 출력하고 다른 설명은 추가하지 마세요.` : 
-            `${systemPrompt}\n\n다음 지시사항에 따라 이미지를 분석해주세요:\n${instruction}\n\n분석 결과만 출력하고 다른 설명은 추가하지 마세요.`;
+            "이미지에서 모든 텍스트를 추출해주세요. 수식은 LaTeX로 변환하고, 줄바꿈과 단락 구분을 유지해주세요." : 
+            `다음 지시사항에 따라 이미지를 분석해주세요:\n${instruction}`;
 
-        const data = {
-            model: modelId,
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: userPrompt },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: `data:image/jpeg;base64,${base64Image}`
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens: 4000,
-            temperature: 0.3
+        // 이미지 데이터 준비 - detail: high 추가
+        const imageData = {
+            type: "image",
+            image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`,
+                detail: "high" // 이미지 detail 수준을 high로 설정
+            }
         };
+
+        // 요청 데이터 구성 - 모델별로 다른 형식 사용
+        let data: any;
+        if (modelId.startsWith('o')) {
+            // o1, o3, o4 시리즈 모델은 다른 형식 사용
+            data = {
+                model: modelId,
+                messages: [
+                    {
+                        role: "system",
+                        content: systemPrompt
+                    },
+                    {
+                        role: "user", 
+                        content: [
+                            { type: "text", text: userPrompt },
+                            imageData
+                        ]
+                    }
+                ],
+                max_tokens: 4000,
+                temperature: 0.3
+            };
+        } else {
+            // 기존 GPT 모델 형식
+            data = {
+                model: modelId,
+                messages: [
+                    {
+                        role: "system",
+                        content: systemPrompt
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: userPrompt },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: `data:image/jpeg;base64,${base64Image}`,
+                                    detail: "high" // 이미지 detail 수준을 high로 설정
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens: 4000,
+                temperature: 0.3
+            };
+        }
 
         try {
             const response = await requestUrl({
@@ -113,10 +152,20 @@ export class AIVisionAPI {
                 return response.json.choices[0].message.content.trim();
             }
 
-            throw new Error(`OpenAI API 응답 오류: ${response.status}`);
-        } catch (error) {
+            // 상세한 오류 정보 확인
+            let errorDetail = '';
+            try {
+                if (response.json && response.json.error) {
+                    errorDetail = `: ${JSON.stringify(response.json.error)}`;
+                }
+            } catch (e) {
+                // JSON 파싱 실패 무시
+            }
+
+            throw new Error(`OpenAI API 응답 오류: ${response.status}${errorDetail}`);
+        } catch (error: any) {
             console.error('OpenAI 이미지 분석 오류:', error);
-            throw new Error('OpenAI API 응답을 받지 못했습니다.');
+            throw new Error(`OpenAI API 응답을 받지 못했습니다: ${error.message}`);
         }
     }
 
