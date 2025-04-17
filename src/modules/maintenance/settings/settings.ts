@@ -256,9 +256,9 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setDesc(`${name}를 입력하세요`)
             .addText(text => text
                 .setPlaceholder('새 값 입력')
-                .setValue(this.plugin.settings[settingKey] ? '•••••••••••••' : '')
+                .setValue(this.plugin.settings[settingKey] ? '•••••••••••••••••' : '')
                 .onChange(async (value) => {
-                    if (value && value !== '•••••••••••••') {
+                    if (value && value !== '•••••••••••••••••') {
                         // Google AI API 키는 특정 접두사 요구사항이 없을 수 있으므로, 해당 검증 로직은 제거하거나 수정합니다.
                         // if ((settingKey === 'openAIAPIKey' || settingKey === 'claudeAPIKey') && !value.startsWith('sk-')) {
                         //     new Notice(`유효하지 않은 ${name} 형식입니다. "sk-"로 시작해야 합니다`);
@@ -266,7 +266,7 @@ export class AILSSSettingTab extends PluginSettingTab {
                         // }
                         (this.plugin.settings[settingKey] as string) = value;
                         await this.plugin.saveSettings();
-                        text.setValue('•••••••••••••');
+                        text.setValue('•••••••••••••••••');
                     }
                 }));
     }
