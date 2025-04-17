@@ -87,8 +87,8 @@ export class ExportNotes {
         // 프론트매터 제거
         const contentWithoutFrontmatter = this.removeFrontmatter(content);
         
-        // 새 파일 경로
-        const newPath = `${exportPath}/${note.basename}`;
+        // 새 파일 경로 (확장자 .md 추가)
+        const newPath = `${exportPath}/${note.basename}.md`;
         
         // 내용만 내보내기
         await this.app.vault.create(newPath, contentWithoutFrontmatter);
