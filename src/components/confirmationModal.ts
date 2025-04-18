@@ -5,6 +5,7 @@ interface ConfirmationModalOptions {
     message: string;
     confirmText?: string;
     cancelText?: string;
+    type?: 'default' | 'danger';  // 모달 타입 추가: 기본 또는 위험
 }
 
 export class ConfirmationModal extends Modal {
@@ -17,6 +18,7 @@ export class ConfirmationModal extends Modal {
             title: '확인',
             confirmText: 'Yes',
             cancelText: 'No',
+            type: 'default',  // 기본 타입
             ...options
         };
         this.resolve = resolve;
@@ -25,18 +27,27 @@ export class ConfirmationModal extends Modal {
     onOpen() {
         const {contentEl} = this;
         
+        // 모달 타입에 따른 배경색 설정
+        let containerStyle = "padding: 2rem;";
+        if (this.options.type === 'danger') {
+            containerStyle += " background-color: rgba(255, 200, 200, 0.9); border-radius: 8px;";
+        }
+        
         const container = contentEl.createDiv({
             cls: "confirmation-modal-container",
-            attr: { style: "padding: 2rem;" }
+            attr: { style: containerStyle }
         });
 
         if (this.options.title) {
+            let titleStyle = "margin: 0 0 1.5rem 0; font-size: 1.3em; font-weight: 600;";
+            if (this.options.type === 'danger') {
+                titleStyle += " color: rgb(175, 40, 40);";
+            }
+            
             container.createEl("h3", {
                 text: this.options.title,
                 cls: "modal-title",
-                attr: { 
-                    style: "margin: 0 0 1.5rem 0; font-size: 1.3em; font-weight: 600;" 
-                }
+                attr: { style: titleStyle }
             });
         }
 
@@ -69,12 +80,16 @@ export class ConfirmationModal extends Modal {
             this.resolve(false);
         });
 
+        // 삭제 버튼 스타일 수정
+        let confirmButtonStyle = "padding: 0.6rem 1.2rem; border-radius: 4px;";
+        if (this.options.type === 'danger' && this.options.confirmText === '삭제') {
+            confirmButtonStyle += " background-color: rgb(200, 60, 60); color: white; font-weight: 600;";
+        }
+        
         const confirmButton = buttonContainer.createEl("button", {
             text: this.options.confirmText,
             cls: "mod-cta",
-            attr: { 
-                style: "padding: 0.6rem 1.2rem; border-radius: 4px;" 
-            }
+            attr: { style: confirmButtonStyle }
         });
         confirmButton.addEventListener("click", () => {
             this.close();
@@ -92,4 +107,4 @@ export function showConfirmationDialog(app: App, options: ConfirmationModalOptio
     return new Promise(resolve => {
         new ConfirmationModal(app, options, resolve).open();
     });
-} 
+}

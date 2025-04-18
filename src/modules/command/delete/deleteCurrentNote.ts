@@ -63,7 +63,8 @@ export class DeleteCurrentNote {
                 title: "노트 삭제",
                 message: confirmMessage,
                 confirmText: "삭제",
-                cancelText: "취소"
+                cancelText: "취소",
+                type: "danger"  // 위험 작업 타입으로 지정
             });
 
             if (!shouldDelete) {
