@@ -63,7 +63,7 @@ export class RibbonRegistry {
     private addNoteUpdateRibbons() {
         // 태그 동기화
         this.plugin.addRibbonIcon('tags', '태그 동기화', () => {
-            this.services.getUpdateTagsManager().updateCurrentNoteTags();
+            this.services.getUpdateTagsManager().openTagSyncModal();
         });
         
         // 노트 강화

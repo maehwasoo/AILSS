@@ -1,7 +1,9 @@
-import { App, Notice, MarkdownView, moment } from 'obsidian';
+import { App, Notice, MarkdownView, moment, TFile } from 'obsidian';
 import type AILSSPlugin from 'main';
 import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
 import { PathSettings } from '../../maintenance/settings/pathSettings';
+import { FrontmatterSearchUtils } from '../../maintenance/utils/frontmatterSearchUtils';
+import { showTitleSearchModal } from '../../../components/titleSearchModal';
 
 export class CopyNote {
     constructor(
@@ -46,7 +48,8 @@ export class CopyNote {
             
             // 선택된 텍스트가 없는지 확인
             if (!selectedText) {
-                throw new Error("선택된 텍스트가 없습니다.");
+                new Notice("텍스트를 선택해주세요.");
+                return;
             }
             
             // 실제 에디터에서 선택된 텍스트 가져오기
@@ -76,6 +79,29 @@ export class CopyNote {
             // 기본 태그를 제외한 태그만 가져오기
             const nonDefaultTags = FrontmatterManager.getNonDefaultTags(currentTags);
 
+            // 중복 노트 검색 및 모달 표시
+            const modalResult = await FrontmatterSearchUtils.searchAndShowModal(
+                this.app,
+                cleanedTitleText
+            );
+
+            // 모달 결과에 따라 처리
+            if (modalResult) {
+                if (modalResult.action === 'select' && modalResult.selectedFile) {
+                    // 기존 노트 선택 시 링크만 생성
+                    return await this.createLinkToExistingNote(
+                        editor, 
+                        selection || cleanedTitleText,
+                        modalResult.selectedFile
+                    );
+                } else if (modalResult.action === 'cancel') {
+                    // 취소 선택 시 종료
+                    return;
+                }
+                // 'create' 액션은 아래로 진행해서 새 노트 생성
+            }
+
+            // 4. 새 노트 생성 진행
             const now = moment();
             const folderPath = PathSettings.getTimestampedPath(now);
             
@@ -111,12 +137,17 @@ export class CopyNote {
             });
 
             // 선택된 텍스트만 링크로 변경
-            const cleanedSelection = selection.replace(/^[-*+]\s+/, '');  // 리스트 마커 제거
+            const cleanedSelection = selection ? selection.replace(/^[-*+]\s+/, '') : cleanedTitleText;  // 리스트 마커 제거
             
             const fileNameWithoutExtension = createdFileName.replace(PathSettings.DEFAULT_FILE_EXTENSION, '');
             const newLink = `[[${fileNameWithoutExtension}|${cleanedSelection}]]`;
             
-            editor.replaceSelection(newLink);
+            if (selection) {
+                editor.replaceSelection(newLink);
+            } else {
+                // 선택이 없는 경우 커서 위치에 링크 삽입
+                editor.replaceRange(newLink, cursor);
+            }
 
             new Notice(`새 노트가 생성되었습니다: ${file.path}`);
             return file;
@@ -125,5 +156,25 @@ export class CopyNote {
             console.error('Error creating new note:', error);
             throw error;
         }
+    }
+
+    /**
+     * 기존 노트로 링크 생성
+     */
+    private async createLinkToExistingNote(editor: any, selectedText: string, existingFile: TFile): Promise<TFile> {
+        const fileNameWithoutExtension = existingFile.basename;
+        const newLink = `[[${fileNameWithoutExtension}|${selectedText}]]`;
+        
+        const selection = editor.getSelection();
+        if (selection) {
+            editor.replaceSelection(newLink);
+        } else {
+            // 선택이 없는 경우 커서 위치에 링크 삽입
+            const cursor = editor.getCursor('from');
+            editor.replaceRange(newLink, cursor);
+        }
+        
+        new Notice(`기존 노트로 링크가 생성되었습니다: ${existingFile.path}`);
+        return existingFile;
     }
 }

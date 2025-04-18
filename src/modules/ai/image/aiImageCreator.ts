@@ -205,36 +205,36 @@ export class AIImageCreator {
 
         new Notice('Google Imagen으로 이미지 생성 시작...');
 
-        // Google Imagen API 엔드포인트
-        const url = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateContent';
+        // Google Imagen API 엔드포인트 (공식 문서 기반으로 수정)
+        const url = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict';
         
-        // 크기 설정 변환
-        let sampleImageSize: {width: number, height: number};
+        // 크기 설정 변환 (가로세로 비율로 변경)
+        let aspectRatio: string;
         
         switch (size) {
             case '1024x1024':
-                sampleImageSize = { width: 1024, height: 1024 };
+                aspectRatio = "1:1";
                 break;
             case '1792x1024':
-                sampleImageSize = { width: 1792, height: 1024 };
+                aspectRatio = "16:9";
                 break;
             case '1024x1792':
-                sampleImageSize = { width: 1024, height: 1792 };
+                aspectRatio = "9:16";
                 break;
             default:
-                sampleImageSize = { width: 1024, height: 1024 };
+                aspectRatio = "1:1";
         }
 
-        // Google Imagen API 요청 본문
+        // Google Imagen API 요청 본문 (공식 문서 기반으로 수정)
         const data = {
-            contents: [{
-                parts: [{
-                    text: prompt
-                }]
-            }],
-            generation_config: {
-                sample_image_size: sampleImageSize,
-                candidates_count: 3  // 3개의 이미지 생성
+            "instances": [
+                {
+                    "prompt": prompt
+                }
+            ],
+            "parameters": {
+                "sampleCount": 1,  // 생성할 이미지 개수 (1~4)
+                "aspectRatio": aspectRatio  // 이미지 비율
             }
         };
 
@@ -251,21 +251,17 @@ export class AIImageCreator {
             });
             
             if (response.status === 200) {
+                console.log('Google Imagen 응답 성공', response.json);
                 const responseData = response.json;
+                const images = [];
                 
-                if (responseData.candidates && responseData.candidates.length > 0) {
-                    const images = [];
-                    
-                    // 생성된 각 이미지에 대해 처리
-                    for (const candidate of responseData.candidates) {
-                        if (candidate.content && candidate.content.parts) {
-                            for (const part of candidate.content.parts) {
-                                if (part.inlineData && part.inlineData.data) {
-                                    // Base64 이미지 데이터를 임시 data:URI로 변환
-                                    const imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-                                    images.push(imageUrl);
-                                }
-                            }
+                // 응답 구조 처리 (새로운 API 응답 형식에 맞춰 수정)
+                if (responseData.predictions) {
+                    for (const prediction of responseData.predictions) {
+                        if (prediction.bytesBase64Encoded) {
+                            // Base64 이미지 데이터를 임시 data:URI로 변환
+                            const imageUrl = `data:image/png;base64,${prediction.bytesBase64Encoded}`;
+                            images.push(imageUrl);
                         }
                     }
                     
@@ -275,9 +271,20 @@ export class AIImageCreator {
                     }
                 }
                 
+                // 응답은 성공했지만 이미지 데이터가 없는 경우
+                console.error('Google Imagen 응답에 이미지 데이터가 없습니다:', responseData);
                 throw new Error('이미지 데이터를 찾을 수 없습니다.');
             } else {
-                throw new Error(`API 응답 오류: ${response.status}`);
+                console.error('Google Imagen API 응답 오류:', response.status, response.text);
+                // 오류 응답의 본문을 로깅하여 구체적인 오류 이유를 확인
+                try {
+                    const errorResponse = JSON.parse(response.text);
+                    console.error('Google Imagen 오류 세부 정보:', errorResponse);
+                } catch (e) {
+                    // JSON 파싱에 실패하면 원본 텍스트를 로그
+                    console.error('Google Imagen 오류 응답 원문:', response.text);
+                }
+                throw new Error(`API 응답 오류: ${response.status} - ${response.text}`);
             }
         } catch (error) {
             console.error('Google Imagen API 요청 오류:', error);

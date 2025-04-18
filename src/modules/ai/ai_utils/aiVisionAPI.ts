@@ -65,6 +65,7 @@ export class AIVisionAPI {
         ocr: boolean = false,
         modelId: string = 'gpt-4o'
     ): Promise<string> {
+        // 모든 모델은 동일한 엔드포인트 사용
         let url = 'https://api.openai.com/v1/chat/completions';
         const headers = {
             'Authorization': `Bearer ${plugin.settings.openAIAPIKey}`,
@@ -89,62 +90,31 @@ export class AIVisionAPI {
         // 요청 데이터 구성 - 모델별로 다른 형식 사용
         let data: any;
         
-        // o 시리즈 모델 (o1, o3, o4) 처리
+        // o 시리즈 모델 (o1, o3, o4) 처리 - chat/completions 엔드포인트 사용
         if (modelId.startsWith('o')) {
-            try {
-                // o 시리즈는 기존 엔드포인트 사용 (chat/completions)
-                url = 'https://api.openai.com/v1/chat/completions';
-                data = {
-                    model: modelId,
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                { type: "text", text: combinedPrompt },
-                                {
-                                    type: "image_url",
-                                    image_url: {
-                                        url: `data:image/jpeg;base64,${base64Image}`
-                                    }
+            // 일반 GPT 모델과 동일한 요청 형식 사용
+            data = {
+                model: modelId,
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: combinedPrompt },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: `data:image/jpeg;base64,${base64Image}`,
+                                    detail: "high" // 이미지 detail 수준
                                 }
-                            ]
-                        }
-                    ],
-                    temperature: 0.3,
-                    max_tokens: 4000
-                };
-                
-                console.log('O 시리즈 요청 형식:', JSON.stringify(data).substring(0, 200) + '...');
-                const response = await requestUrl({
-                    url: url,
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(data)
-                });
-
-                console.log('응답 상태 코드:', response.status);
-                
-                if (response.status === 200) {
-                    return response.json.choices[0].message.content.trim();
-                }
-
-                // 오류 정보 확인
-                let errorDetail = '';
-                try {
-                    if (response.json && response.json.error) {
-                        errorDetail = `: ${JSON.stringify(response.json.error)}`;
+                            }
+                        ]
                     }
-                    console.log('오류 응답:', JSON.stringify(response.json));
-                } catch (e) {
-                    // JSON 파싱 실패 무시
-                    console.log('응답 파싱 실패');
-                }
-
-                throw new Error(`OpenAI API 응답 오류: ${response.status}${errorDetail}`);
-            } catch (error: any) {
-                console.error('OpenAI 이미지 분석 오류:', error);
-                throw new Error(`OpenAI API 응답을 받지 못했습니다: ${error.message}`);
-            }
+                ],
+                temperature: 0.3,
+                max_tokens: 4000
+            };
+                
+            console.log('O 시리즈 요청 형식:', JSON.stringify(data).substring(0, 200) + '...');
         } else {
             // 기존 GPT 모델 형식 (chat/completions API)
             data = {
@@ -162,7 +132,7 @@ export class AIVisionAPI {
                                 type: "image_url",
                                 image_url: {
                                     url: `data:image/jpeg;base64,${base64Image}`,
-                                    detail: "high" // 이미지 detail 수준을 high로 설정
+                                    detail: "high" // 이미지 detail 수준
                                 }
                             }
                         ]
@@ -171,34 +141,36 @@ export class AIVisionAPI {
                 max_tokens: 4000,
                 temperature: 0.3
             };
-            
-            try {
-                const response = await requestUrl({
-                    url: url,
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(data)
-                });
+        }
+        
+        try {
+            const response = await requestUrl({
+                url: url,
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(data)
+            });
 
-                if (response.status === 200) {
-                    return response.json.choices[0].message.content.trim();
-                }
-
-                // 상세한 오류 정보 확인
-                let errorDetail = '';
-                try {
-                    if (response.json && response.json.error) {
-                        errorDetail = `: ${JSON.stringify(response.json.error)}`;
-                    }
-                } catch (e) {
-                    // JSON 파싱 실패 무시
-                }
-
-                throw new Error(`OpenAI API 응답 오류: ${response.status}${errorDetail}`);
-            } catch (error: any) {
-                console.error('OpenAI 이미지 분석 오류:', error);
-                throw new Error(`OpenAI API 응답을 받지 못했습니다: ${error.message}`);
+            if (response.status === 200) {
+                // 모든 모델에 대해 동일한 응답 처리
+                return response.json.choices[0].message.content.trim();
             }
+
+            // 상세한 오류 정보 확인
+            let errorDetail = '';
+            try {
+                console.log('전체 응답:', JSON.stringify(response.json));
+                if (response.json && response.json.error) {
+                    errorDetail = `: ${JSON.stringify(response.json.error)}`;
+                }
+            } catch (e) {
+                console.log('응답 파싱 실패:', e);
+            }
+
+            throw new Error(`OpenAI API 응답 오류: ${response.status}${errorDetail}`);
+        } catch (error: any) {
+            console.error('OpenAI 이미지 분석 오류:', error);
+            throw new Error(`OpenAI API 응답을 받지 못했습니다: ${error.message}`);
         }
     }
 

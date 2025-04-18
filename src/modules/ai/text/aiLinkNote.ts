@@ -1,9 +1,11 @@
-import { App, Notice, MarkdownView, moment } from 'obsidian';
+import { App, Notice, MarkdownView, moment, TFile } from 'obsidian';
 import type AILSSPlugin from '../../../../main';
 import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
 import { PathSettings } from '../../maintenance/settings/pathSettings';
 import { requestToAI } from '../ai_utils/aiUtils';
 import { getContentWithoutFrontmatter } from '../../maintenance/utils/contentUtils';
+import { FrontmatterSearchUtils } from '../../maintenance/utils/frontmatterSearchUtils';
+import { showTitleSearchModal } from '../../../components/titleSearchModal';
 
 export class AILinkNote {
     constructor(
@@ -34,7 +36,8 @@ export class AILinkNote {
             };
             
             if (!selectedText) {
-                throw new Error("선택된 텍스트가 없습니다.");
+                new Notice("텍스트를 선택해주세요.");
+                return;
             }
 
             // 현재 문서의 전체 내용 가져오기
@@ -56,6 +59,29 @@ export class AILinkNote {
             const fileContent = await this.app.vault.read(activeFile);
             const frontmatterManager = new FrontmatterManager();
             const currentFrontmatter = frontmatterManager.parseFrontmatter(fileContent);
+
+            // 중복 노트 검색 및 모달 표시
+            const modalResult = await FrontmatterSearchUtils.searchAndShowModal(
+                this.app,
+                selectedText
+            );
+
+            // 모달 결과에 따라 처리
+            if (modalResult) {
+                if (modalResult.action === 'select' && modalResult.selectedFile) {
+                    // 기존 노트 선택 시 링크만 생성
+                    return await this.createLinkToExistingNote(
+                        editor, 
+                        selectedText, 
+                        modalResult.selectedFile,
+                        selectionStartPos
+                    );
+                } else if (modalResult.action === 'cancel') {
+                    // 취소 선택 시 종료
+                    return;
+                }
+                // 'create' 액션은 아래로 진행해서 새 노트 생성
+            }
 
             // AI 분석 요청
             new Notice("AI 분석 중...");
@@ -108,6 +134,28 @@ export class AILinkNote {
             console.error('Error creating AI note:', error);
             throw error;
         }
+    }
+
+    /**
+     * 기존 노트로 링크 생성
+     */
+    private async createLinkToExistingNote(
+        editor: any, 
+        selectedText: string, 
+        existingFile: TFile, 
+        originalPosition: number
+    ): Promise<TFile> {
+        const fileNameWithoutExtension = existingFile.basename;
+        const linkText = `[[${fileNameWithoutExtension}|${selectedText}]]`;
+        
+        // 텍스트 검색 및 대체 (원래 선택했던 위치 정보 활용)
+        if (this.replaceSelectedText(editor, selectedText, linkText, originalPosition)) {
+            new Notice(`기존 노트로 링크가 생성되었습니다: ${existingFile.path}`);
+        } else {
+            new Notice(`링크 삽입에 실패했습니다. 수동으로 링크를 삽입해주세요: ${existingFile.path}`);
+        }
+        
+        return existingFile;
     }
 
     /**

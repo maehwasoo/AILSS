@@ -1,7 +1,9 @@
-import { App, Notice, MarkdownView, moment } from 'obsidian';
+import { App, Notice, MarkdownView, moment, TFile } from 'obsidian';
 import type AILSSPlugin from 'main';
 import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
 import { PathSettings } from '../../maintenance/settings/pathSettings';
+import { FrontmatterSearchUtils } from '../../maintenance/utils/frontmatterSearchUtils';
+import { showTitleSearchModal } from '../../../components/titleSearchModal';
 
 export class EmbedNote {
     constructor(
@@ -49,7 +51,8 @@ export class EmbedNote {
             
             // 선택된 텍스트가 없는지 확인
             if (!selectedText) {
-                throw new Error("선택된 텍스트가 없습니다.");
+                new Notice("텍스트를 선택해주세요.");
+                return;
             }
             
             // 선택된 텍스트의 첫 줄을 제목으로 사용
@@ -76,6 +79,31 @@ export class EmbedNote {
 
             // 기본 태그를 제외한 태그만 가져오기
             const nonDefaultTags = FrontmatterManager.getNonDefaultTags(currentTags);
+
+            // 중복 노트 검색 및 모달 표시
+            const modalResult = await FrontmatterSearchUtils.searchAndShowModal(
+                this.app,
+                cleanedTitleText
+            );
+
+            // 모달 결과에 따라 처리
+            if (modalResult) {
+                if (modalResult.action === 'select' && modalResult.selectedFile) {
+                    // 기존 노트 선택 시 임베드 생성
+                    return await this.createEmbedToExistingNote(
+                        editor, 
+                        cursor.line,
+                        lastLineNum,
+                        baseIndentLength,
+                        cleanedTitleText,
+                        modalResult.selectedFile
+                    );
+                } else if (modalResult.action === 'cancel') {
+                    // 취소 선택 시 종료
+                    return;
+                }
+                // 'create' 액션은 아래로 진행해서 새 노트 생성
+            }
 
             const now = moment();
             const folderPath = PathSettings.getTimestampedPath(now);
@@ -134,5 +162,34 @@ export class EmbedNote {
             console.error('Error embedding note:', error);
             throw error;
         }
+    }
+
+    /**
+     * 기존 노트로 임베드 링크 생성
+     */
+    private async createEmbedToExistingNote(
+        editor: any, 
+        startLine: number, 
+        endLine: number,
+        baseIndentLength: number, 
+        displayText: string, 
+        existingFile: TFile
+    ): Promise<TFile> {
+        const fileNameWithoutExtension = existingFile.basename;
+        const embedLink = `![[${fileNameWithoutExtension}|${displayText}]]`;
+        
+        // 첫 번째 라인에 임베드 링크 삽입
+        const firstLine = editor.getLine(startLine);
+        editor.setLine(startLine, firstLine.substring(0, baseIndentLength) + embedLink);
+        
+        // 나머지 라인들 삭제
+        if (endLine > startLine) {
+            const startDeletePos = { line: startLine + 1, ch: 0 };
+            const endDeletePos = { line: endLine + 1, ch: 0 };
+            editor.replaceRange('', startDeletePos, endDeletePos);
+        }
+        
+        new Notice(`기존 노트로 임베드 링크가 생성되었습니다: ${existingFile.path}`);
+        return existingFile;
     }
 }
