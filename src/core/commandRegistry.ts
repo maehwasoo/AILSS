@@ -85,7 +85,7 @@ export class CommandRegistry {
             id: 'sync-neuron-tags',
             name: '태그 동기화',
             icon: 'tags',
-            callback: () => this.services.getUpdateTagsManager().updateCurrentNoteTags()
+            callback: () => this.services.getUpdateTagsManager().openTagSyncModal()
         });
         
         // 노트 강화
