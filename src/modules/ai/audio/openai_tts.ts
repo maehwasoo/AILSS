@@ -103,10 +103,10 @@ export class OpenAITTS {
             // Notice에 더 자세한 정보 표시
             const ttsInfo = `
 💬 TTS 변환 완료:
-- 모델: ${mergedOptions.model}
-- 음성: ${mergedOptions.voice} 
-- 파일: ${fileName}
-- 길이: ${Math.round(selectedText.length / 30)}초 (약)
+모델: ${mergedOptions.model}
+음성: ${mergedOptions.voice} 
+파일: ${fileName}
+길이: ${Math.round(selectedText.length / 30)}초 (약)
 `;
             new Notice(ttsInfo, 5000);
         } catch (error) {

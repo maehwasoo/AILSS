@@ -43,20 +43,43 @@ export const GOOGLE_MODELS: AIModelOption[] = [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
 ];
 
+export const VISION_MODELS: AIModelOption[] = [
+    // OpenAI 비전 모델
+    { id: 'o4-mini', name: 'o4 Mini Vision' },
+    { id: 'gpt-4.1', name: 'GPT-4.1 Vision' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini Vision' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano Vision' },
+    { id: 'gpt-4o', name: 'GPT-4o Vision' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini Vision' },
+    { id: 'o1-pro', name: 'o1 Pro Vision' },
+    { id: 'o1', name: 'o1 Vision' },
+    { id: 'o3', name: 'o3 Vision' },
+    
+    // Claude 비전 모델
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet Vision' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku Vision' },
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet Vision' },
+    
+    // Google 비전 모델
+    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview Vision' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash Vision' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite Vision' }
+];
+
 export interface AILSSSettings {
     openAIAPIKey: string;
     claudeAPIKey: string;
     perplexityAPIKey: string;
     googleAIAPIKey: string;
     selectedAIModel: 'openai' | 'claude' | 'perplexity' | 'google';
-    selectedVisionModel: 'claude' | 'openai' | 'google';
+    visionModel: string; // 새로운 Vision 모델 세부 선택 설정
     openAIModel: string;
     claudeModel: string;
     perplexityModel: string;
     googleAIModel: string;
-    dalleModel: 'dall-e-2' | 'dall-e-3';
+    imageGenerationModel: 'dall-e-2' | 'dall-e-3' | 'imagen-3.0-generate-002';
     ttsModel: 'tts-1' | 'tts-1-hd';
-    ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    ttsVoice: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
     convertSelectionToLink: boolean;
 }
 
@@ -66,12 +89,12 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     perplexityAPIKey: '',
     googleAIAPIKey: '',
     selectedAIModel: 'claude',
-    selectedVisionModel: 'claude',
+    visionModel: 'claude-3-5-sonnet-20241022', // 기본값은 Claude 3.5 Sonnet Vision
     openAIModel: 'gpt-4o',
     claudeModel: 'claude-3-5-sonnet-20241022',
     perplexityModel: 'sonar-pro',
-    googleAIModel: 'gemini-2.5-pro-preview-03-25', // 기본 Google AI 모델 설정
-    dalleModel: 'dall-e-3',
+    googleAIModel: 'gemini-2.5-pro-preview-03-25', 
+    imageGenerationModel: 'dall-e-3',
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
     convertSelectionToLink: true,
@@ -147,7 +170,7 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('openai', 'OpenAI')
                 .addOption('claude', 'Claude')
                 .addOption('perplexity', 'Perplexity')
-                .addOption('google', 'Google AI') // Google AI 옵션 추가
+                .addOption('google', 'Google AI') 
                 .setValue(this.plugin.settings.selectedAIModel)
                 .onChange(async (value: 'openai' | 'claude' | 'perplexity' | 'google') => {
                     this.plugin.settings.selectedAIModel = value;
@@ -155,27 +178,29 @@ export class AILSSSettingTab extends PluginSettingTab {
                 })));
 
         new Setting(containerEl)
-            .setName('Vision 모델 선택')
-            .setDesc('이미지 분석에 사용할 AI 모델을 선택하세요')
+            .setName('Vision 모델')
+            .setDesc('이미지 분석에 사용할 비전 모델을 직접 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
-                .addOption('claude', 'Claude Vision')
-                .addOption('openai', 'GPT-4 Vision')
-                .addOption('google', 'Google AI Vision') // Google AI Vision 옵션 추가
-                .setValue(this.plugin.settings.selectedVisionModel)
-                .onChange(async (value: 'claude' | 'openai' | 'google') => {
-                    this.plugin.settings.selectedVisionModel = value;
+                .addOptions(VISION_MODELS.reduce((options, model) => {
+                    options[model.id] = model.name;
+                    return options;
+                }, {} as Record<string, string>))
+                .setValue(this.plugin.settings.visionModel)
+                .onChange(async (value) => {
+                    this.plugin.settings.visionModel = value;
                     await this.plugin.saveSettings();
                 })));
 
         new Setting(containerEl)
-            .setName('DALL-E 모델')
-            .setDesc('이미지 생성에 사용할 DALL-E 모델을 선택하세요')
+            .setName('이미지 생성 모델')
+            .setDesc('이미지 생성에 사용할 모델을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
                 .addOption('dall-e-2', 'DALL-E 2')
                 .addOption('dall-e-3', 'DALL-E 3')
-                .setValue(this.plugin.settings.dalleModel)
-                .onChange(async (value: 'dall-e-2' | 'dall-e-3') => {
-                    this.plugin.settings.dalleModel = value;
+                .addOption('imagen-3.0-generate-002', 'Google Imagen 3.0 Generate')
+                .setValue(this.plugin.settings.imageGenerationModel)
+                .onChange(async (value: 'dall-e-2' | 'dall-e-3' | 'imagen-3.0-generate-002') => {
+                    this.plugin.settings.imageGenerationModel = value;
                     await this.plugin.saveSettings();
                 })));
 
@@ -197,13 +222,18 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setDesc('기본 음성 타입을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
                 .addOption('alloy', 'Alloy')
+                .addOption('ash', 'Ash')
+                .addOption('ballad', 'Ballad')
+                .addOption('coral', 'Coral')
                 .addOption('echo', 'Echo')
                 .addOption('fable', 'Fable')
                 .addOption('onyx', 'Onyx')
                 .addOption('nova', 'Nova')
+                .addOption('sage', 'Sage')
                 .addOption('shimmer', 'Shimmer')
+                .addOption('verse', 'Verse')
                 .setValue(this.plugin.settings.ttsVoice)
-                .onChange(async (value: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer') => {
+                .onChange(async (value: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse') => {
                     this.plugin.settings.ttsVoice = value;
                     await this.plugin.saveSettings();
                 })));
