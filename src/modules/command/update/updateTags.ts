@@ -81,9 +81,10 @@ export class UpdateTags {
      * 현재 노트의 태그를 연결된 노트에 추가합니다.
      * @param sourceFile 소스 파일
      * @param tags 추가할 태그 배열
+     * @param recursive 재귀적으로 적용할지 여부 (기본값: false)
      * @returns 성공 여부
      */
-    async addTagsToLinkedNotes(sourceFile: TFile, tags: string[]): Promise<boolean> {
+    async addTagsToLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = false): Promise<boolean> {
         try {
             if (!sourceFile || !tags || tags.length === 0) {
                 return false;
@@ -92,11 +93,29 @@ export class UpdateTags {
             const links = this.app.metadataCache.resolvedLinks[sourceFile.path] || {};
             let updatedCount = 0;
             
+            // 처리된 노트를 추적하기 위한 Set (순환 참조 방지)
+            const processedFiles = new Set<string>([sourceFile.path]);
+            
+            // 첫 번째 레벨 노트 처리
             for (const linkedPath of Object.keys(links)) {
                 const linkedFile = this.app.vault.getAbstractFileByPath(linkedPath);
                 if (linkedFile instanceof TFile) {
+                    // 노트에 태그 추가 및 업데이트 카운트 증가
                     const updated = await this.addTagsToNote(linkedFile, tags);
                     if (updated) updatedCount++;
+                    
+                    // 처리된 노트로 표시
+                    processedFiles.add(linkedFile.path);
+                    
+                    // 재귀적으로 처리하는 경우, 연결된 노트에 대해서도 처리
+                    if (recursive) {
+                        updatedCount += await this.processLinkedNotesRecursively(
+                            linkedFile, 
+                            tags, 
+                            processedFiles, 
+                            this.addTagsToNote.bind(this)
+                        );
+                    }
                 }
             }
             
@@ -112,9 +131,10 @@ export class UpdateTags {
      * 현재 노트의 태그를 연결된 노트에서 삭제합니다.
      * @param sourceFile 소스 파일
      * @param tags 삭제할 태그 배열
+     * @param recursive 재귀적으로 적용할지 여부 (기본값: false)
      * @returns 성공 여부
      */
-    async removeTagsFromLinkedNotes(sourceFile: TFile, tags: string[]): Promise<boolean> {
+    async removeTagsFromLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = false): Promise<boolean> {
         try {
             if (!sourceFile || !tags || tags.length === 0) {
                 return false;
@@ -123,11 +143,29 @@ export class UpdateTags {
             const links = this.app.metadataCache.resolvedLinks[sourceFile.path] || {};
             let updatedCount = 0;
             
+            // 처리된 노트를 추적하기 위한 Set (순환 참조 방지)
+            const processedFiles = new Set<string>([sourceFile.path]);
+            
+            // 첫 번째 레벨 노트 처리
             for (const linkedPath of Object.keys(links)) {
                 const linkedFile = this.app.vault.getAbstractFileByPath(linkedPath);
                 if (linkedFile instanceof TFile) {
+                    // 노트에서 태그 삭제 및 업데이트 카운트 증가
                     const updated = await this.removeTagsFromNote(linkedFile, tags);
                     if (updated) updatedCount++;
+                    
+                    // 처리된 노트로 표시
+                    processedFiles.add(linkedFile.path);
+                    
+                    // 재귀적으로 처리하는 경우, 연결된 노트에 대해서도 처리
+                    if (recursive) {
+                        updatedCount += await this.processLinkedNotesRecursively(
+                            linkedFile, 
+                            tags, 
+                            processedFiles, 
+                            this.removeTagsFromNote.bind(this)
+                        );
+                    }
                 }
             }
             
@@ -143,9 +181,10 @@ export class UpdateTags {
      * 연결된 노트의 태그를 현재 노트의 태그로 변경합니다.
      * @param sourceFile 소스 파일
      * @param tags 적용할 태그 배열
+     * @param recursive 재귀적으로 적용할지 여부 (기본값: false)
      * @returns 성공 여부
      */
-    async replaceTagsInLinkedNotes(sourceFile: TFile, tags: string[]): Promise<boolean> {
+    async replaceTagsInLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = false): Promise<boolean> {
         try {
             if (!sourceFile || !tags || tags.length === 0) {
                 return false;
@@ -154,11 +193,29 @@ export class UpdateTags {
             const links = this.app.metadataCache.resolvedLinks[sourceFile.path] || {};
             let updatedCount = 0;
             
+            // 처리된 노트를 추적하기 위한 Set (순환 참조 방지)
+            const processedFiles = new Set<string>([sourceFile.path]);
+            
+            // 첫 번째 레벨 노트 처리
             for (const linkedPath of Object.keys(links)) {
                 const linkedFile = this.app.vault.getAbstractFileByPath(linkedPath);
                 if (linkedFile instanceof TFile && linkedFile.path !== sourceFile.path) {
+                    // 노트의 태그 교체 및 업데이트 카운트 증가
                     const updated = await this.replaceTagsInNote(linkedFile, tags);
                     if (updated) updatedCount++;
+                    
+                    // 처리된 노트로 표시
+                    processedFiles.add(linkedFile.path);
+                    
+                    // 재귀적으로 처리하는 경우, 연결된 노트에 대해서도 처리
+                    if (recursive) {
+                        updatedCount += await this.processLinkedNotesRecursively(
+                            linkedFile, 
+                            tags, 
+                            processedFiles, 
+                            this.replaceTagsInNote.bind(this)
+                        );
+                    }
                 }
             }
             
@@ -168,6 +225,51 @@ export class UpdateTags {
             console.error("태그 변경 중 오류:", error);
             throw error;
         }
+    }
+
+    /**
+     * 연결된 노트를 재귀적으로 처리하는 메서드
+     * @param sourceFile 소스 파일
+     * @param tags 작업할 태그 배열
+     * @param processedFiles 이미 처리된 파일 Set (순환 참조 방지)
+     * @param tagOperation 각 파일에 수행할 태그 작업 함수 (addTagsToNote, removeTagsFromNote, replaceTagsInNote)
+     * @returns 업데이트된 노트 수
+     */
+    private async processLinkedNotesRecursively(
+        sourceFile: TFile, 
+        tags: string[], 
+        processedFiles: Set<string>,
+        tagOperation: (file: TFile, tags: string[]) => Promise<boolean>
+    ): Promise<number> {
+        let updatedCount = 0;
+        
+        // 현재 노트에 연결된 다른 노트들을 가져옴
+        const links = this.app.metadataCache.resolvedLinks[sourceFile.path] || {};
+        
+        for (const linkedPath of Object.keys(links)) {
+            // 이미 처리된 노트는 건너뜀 (순환 참조 방지)
+            if (processedFiles.has(linkedPath)) continue;
+            
+            const linkedFile = this.app.vault.getAbstractFileByPath(linkedPath);
+            if (linkedFile instanceof TFile) {
+                // 노트에 태그 작업 수행
+                const updated = await tagOperation(linkedFile, tags);
+                if (updated) updatedCount++;
+                
+                // 처리된 것으로 표시
+                processedFiles.add(linkedFile.path);
+                
+                // 이 노트와 연결된 노트들에도 재귀적으로 같은 작업 수행
+                updatedCount += await this.processLinkedNotesRecursively(
+                    linkedFile,
+                    tags,
+                    processedFiles,
+                    tagOperation
+                );
+            }
+        }
+        
+        return updatedCount;
     }
 
     /**

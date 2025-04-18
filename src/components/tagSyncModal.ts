@@ -54,6 +54,7 @@ export class TagSyncModal extends Modal {
     private title: string;
     private tags: string[];
     private selectedOption: 'add' | 'remove' | 'replace' | null = null;
+    private useRecursive: boolean = false; // 재귀 옵션 추가
 
     constructor(app: App, plugin: AILSSPlugin, file: TFile, title: string, tags: string[]) {
         super(app);
@@ -261,6 +262,31 @@ export class TagSyncModal extends Modal {
             attr: { style: 'margin: 0; font-weight: 400; color: var(--text-error);' } 
         });
         
+        // 재귀 옵션 추가
+        const recursiveOption = container.createDiv({
+            attr: { style: 'display: flex; align-items: center; margin: 1.5rem 0; padding: 0.8rem; background-color: var(--background-secondary); border-radius: 8px;' }
+        });
+        
+        const recursiveCheckbox = recursiveOption.createEl('input', {
+            attr: { 
+                type: 'checkbox',
+                id: 'recursive-option',
+                style: 'margin-right: 10px; width: 16px; height: 16px;' 
+            }
+        });
+        
+        recursiveOption.createEl('label', {
+            text: '재귀적으로 적용 (2단계 이상 떨어진 노트에도 적용)',
+            attr: { 
+                for: 'recursive-option',
+                style: 'font-weight: 500; cursor: pointer;' 
+            }
+        });
+        
+        recursiveCheckbox.addEventListener('change', (e) => {
+            this.useRecursive = (e.target as HTMLInputElement).checked;
+        });
+        
         // 버튼 컨테이너
         const buttonContainer = container.createDiv({
             attr: { style: 'display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem;' }
@@ -292,13 +318,13 @@ export class TagSyncModal extends Modal {
                 
                 switch(option) {
                     case 'add':
-                        result = await updateTags.addTagsToLinkedNotes(this.file, this.tags);
+                        result = await updateTags.addTagsToLinkedNotes(this.file, this.tags, this.useRecursive);
                         break;
                     case 'remove':
-                        result = await updateTags.removeTagsFromLinkedNotes(this.file, this.tags);
+                        result = await updateTags.removeTagsFromLinkedNotes(this.file, this.tags, this.useRecursive);
                         break;
                     case 'replace':
-                        result = await updateTags.replaceTagsInLinkedNotes(this.file, this.tags);
+                        result = await updateTags.replaceTagsInLinkedNotes(this.file, this.tags, this.useRecursive);
                         break;
                 }
                 
