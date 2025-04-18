@@ -1,7 +1,9 @@
-import { App, Notice, MarkdownView, moment } from 'obsidian';
+import { App, Notice, MarkdownView, moment, TFile } from 'obsidian';
 import type AILSSPlugin from 'main';
 import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
 import { PathSettings } from '../../maintenance/settings/pathSettings';
+import { FrontmatterSearchUtils } from '../../maintenance/utils/frontmatterSearchUtils';
+import { showTitleSearchModal } from '../../../components/titleSearchModal';
 
 export class LinkNote {
     constructor(
@@ -48,7 +50,37 @@ export class LinkNote {
 
             // 기본 태그를 제외한 태그만 가져오기
             const nonDefaultTags = FrontmatterManager.getNonDefaultTags(currentTags);
+            
+            // 1. 유사한 노트 검색
+            const searchResults = await FrontmatterSearchUtils.searchNotesByTitle(
+                this.app, 
+                selectedText
+            );
 
+            // 2. 검색 결과가 있으면 확인 모달 표시
+            if (searchResults.length > 0) {
+                const modalResult = await showTitleSearchModal(this.app, {
+                    title: "유사한 노트 발견",
+                    message: `"${selectedText}"와 유사한 제목의 노트가 발견되었습니다. 새 노트를 생성하시겠습니까?`,
+                    searchResults
+                });
+
+                // 3. 모달 결과에 따라 처리
+                if (modalResult.action === 'select' && modalResult.selectedFile) {
+                    // 기존 노트 선택 시 링크만 생성
+                    return await this.createLinkToExistingNote(
+                        editor, 
+                        selectedText, 
+                        modalResult.selectedFile
+                    );
+                } else if (modalResult.action === 'cancel') {
+                    // 취소 선택 시 종료
+                    return;
+                }
+                // 'create' 액션은 아래로 진행해서 새 노트 생성
+            }
+
+            // 4. 새 노트 생성 진행
             const now = moment();
             const folderPath = PathSettings.getTimestampedPath(now);
             
@@ -87,5 +119,15 @@ export class LinkNote {
             console.error('Error creating new note:', error);
             throw error;
         }
+    }
+
+    /**
+     * 기존 노트로 링크 생성
+     */
+    private async createLinkToExistingNote(editor: any, selectedText: string, existingFile: TFile): Promise<TFile> {
+        const fileNameWithoutExtension = existingFile.basename;
+        editor.replaceSelection(`[[${fileNameWithoutExtension}|${selectedText}]]`);
+        new Notice(`기존 노트로 링크가 생성되었습니다: ${existingFile.path}`);
+        return existingFile;
     }
 }
