@@ -64,8 +64,10 @@ export class AIOCR {
                 true // OCR 모드 활성화
             );
         } catch (error: any) {
-            new Notice('이미지 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-            return '이미지 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+            // API 오류 처리
+            console.error('OCR 분석 오류:', error);
+            new Notice(`OCR 분석 중 오류가 발생했습니다: ${error.message}`);
+            return `이미지 분석 중 오류가 발생했습니다: ${error.message}`;
         }
     }
 }

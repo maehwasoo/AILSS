@@ -92,20 +92,20 @@ export class AIVisionAPI {
         // o 시리즈 모델 (o1, o3, o4) 처리
         if (modelId.startsWith('o')) {
             try {
-                // o 시리즈는 기존 엔드포인트 사용 (chat/completions)
-                url = 'https://api.openai.com/v1/chat/completions';
+                // 공식 문서에 따라 o 시리즈는 /v1/responses 엔드포인트 사용
+                url = 'https://api.openai.com/v1/responses';
+                
+                // OpenAI 공식 문서 형식으로 변경 (input_text, input_image)
                 data = {
                     model: modelId,
-                    messages: [
+                    input: [
                         {
                             role: "user",
                             content: [
-                                { type: "text", text: combinedPrompt },
+                                { type: "input_text", text: combinedPrompt },
                                 {
-                                    type: "image_url",
-                                    image_url: {
-                                        url: `data:image/jpeg;base64,${base64Image}`
-                                    }
+                                    type: "input_image",
+                                    image_url: `data:image/jpeg;base64,${base64Image}`
                                 }
                             ]
                         }
@@ -124,26 +124,72 @@ export class AIVisionAPI {
 
                 console.log('응답 상태 코드:', response.status);
                 
+                // 응답 형식이 /v1/responses에 맞게 변경됨
                 if (response.status === 200) {
-                    return response.json.choices[0].message.content.trim();
+                    return response.json.output_text.trim();
                 }
 
-                // 오류 정보 확인
+                // 상세 오류 정보 로깅
                 let errorDetail = '';
                 try {
+                    console.log('전체 응답:', JSON.stringify(response.json));
                     if (response.json && response.json.error) {
                         errorDetail = `: ${JSON.stringify(response.json.error)}`;
                     }
-                    console.log('오류 응답:', JSON.stringify(response.json));
                 } catch (e) {
-                    // JSON 파싱 실패 무시
-                    console.log('응답 파싱 실패');
+                    console.log('응답 파싱 실패:', e);
                 }
 
                 throw new Error(`OpenAI API 응답 오류: ${response.status}${errorDetail}`);
             } catch (error: any) {
                 console.error('OpenAI 이미지 분석 오류:', error);
-                throw new Error(`OpenAI API 응답을 받지 못했습니다: ${error.message}`);
+                
+                // 두 번째 시도: 이전 접근 방식 시도
+                try {
+                    console.log('공식 문서 방식 실패, 기존 방식으로 재시도');
+                    url = 'https://api.openai.com/v1/chat/completions';
+                    
+                    // 기존 API 방식 시도
+                    data = {
+                        model: modelId,
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "text", text: combinedPrompt },
+                                    {
+                                        type: "image_url",
+                                        image_url: {
+                                            url: `data:image/jpeg;base64,${base64Image}`,
+                                            detail: "high"
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: 4000
+                    };
+                    
+                    console.log('두 번째 시도 요청 형식:', JSON.stringify(data).substring(0, 200) + '...');
+                    const response = await requestUrl({
+                        url: url,
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(data)
+                    });
+                    
+                    if (response.status === 200) {
+                        return response.json.choices[0].message.content.trim();
+                    }
+                    
+                    // 오류 정보 상세 로깅
+                    console.log('두 번째 시도 전체 응답:', JSON.stringify(response.json));
+                    throw new Error(`두 번째 시도도 실패: ${response.status}`);
+                } catch (retryError: any) {
+                    console.error('두 번째 시도 오류:', retryError);
+                    throw new Error(`OpenAI API 호출 실패: ${error.message}, 재시도 실패: ${retryError.message}`);
+                }
             }
         } else {
             // 기존 GPT 모델 형식 (chat/completions API)
