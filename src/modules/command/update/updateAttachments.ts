@@ -44,8 +44,13 @@ export class UpdateAttachments {
                     const attachmentFile = this.app.vault.getAbstractFileByPath(fullPath);
                     console.log("첨부파일 찾음:", attachmentFile?.path);
                     
-                    if (originalPath.includes(`${currentFile.basename}-`)) {
-                        console.log("이미 이름이 변경된 파일:", originalPath);
+                    // 파일명 패턴을 확인 (노트명-숫자.확장자)
+                    const fileNamePattern = /^(.+)-(\d+)\.(.+)$/;
+                    const fileNameMatch = originalPath.match(fileNamePattern);
+                    
+                    // 현재 노트에 이미 맞게 이름이 지정된 경우만 스킵
+                    if (fileNameMatch && fileNameMatch[1] === currentFile.basename) {
+                        console.log("이미 현재 노트에 맞게 이름이 변경된 파일:", originalPath);
                         continue;
                     }
 
