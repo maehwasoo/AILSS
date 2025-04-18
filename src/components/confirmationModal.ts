@@ -25,17 +25,18 @@ export class ConfirmationModal extends Modal {
     }
 
     onOpen() {
-        const {contentEl} = this;
+        const {contentEl, modalEl} = this;
         
-        // 모달 타입에 따른 배경색 설정
-        let containerStyle = "padding: 2rem;";
+        // 모달 전체에 배경색 적용 (danger 타입일 경우)
         if (this.options.type === 'danger') {
-            containerStyle += " background-color: rgba(255, 200, 200, 0.9); border-radius: 8px;";
+            modalEl.addClass('danger-modal');
+            // 인라인 스타일로 배경색 적용
+            modalEl.setAttribute('style', 'background-color: rgba(255, 200, 200, 1.0) !important;');
         }
         
         const container = contentEl.createDiv({
             cls: "confirmation-modal-container",
-            attr: { style: containerStyle }
+            attr: { style: "padding: 2rem;" }
         });
 
         if (this.options.title) {
