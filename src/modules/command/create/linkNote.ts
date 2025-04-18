@@ -3,7 +3,6 @@ import type AILSSPlugin from 'main';
 import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
 import { PathSettings } from '../../maintenance/settings/pathSettings';
 import { FrontmatterSearchUtils } from '../../maintenance/utils/frontmatterSearchUtils';
-import { showTitleSearchModal } from '../../../components/titleSearchModal';
 
 export class LinkNote {
     constructor(
@@ -51,21 +50,14 @@ export class LinkNote {
             // 기본 태그를 제외한 태그만 가져오기
             const nonDefaultTags = FrontmatterManager.getNonDefaultTags(currentTags);
             
-            // 1. 유사한 노트 검색
-            const searchResults = await FrontmatterSearchUtils.searchNotesByTitle(
-                this.app, 
+            // 중복 노트 검색 및 모달 표시
+            const modalResult = await FrontmatterSearchUtils.searchAndShowModal(
+                this.app,
                 selectedText
             );
 
-            // 2. 검색 결과가 있으면 확인 모달 표시
-            if (searchResults.length > 0) {
-                const modalResult = await showTitleSearchModal(this.app, {
-                    title: "유사한 노트 발견",
-                    message: `"${selectedText}"와 유사한 제목의 노트가 발견되었습니다. 새 노트를 생성하시겠습니까?`,
-                    searchResults
-                });
-
-                // 3. 모달 결과에 따라 처리
+            // 모달 결과에 따라 처리
+            if (modalResult) {
                 if (modalResult.action === 'select' && modalResult.selectedFile) {
                     // 기존 노트 선택 시 링크만 생성
                     return await this.createLinkToExistingNote(

@@ -1,5 +1,6 @@
 import { App, TFile } from 'obsidian';
 import { FrontmatterManager } from './frontmatterManager';
+import { showTitleSearchModal } from '../../../components/titleSearchModal';
 
 /**
  * 프론트매터 title 검색 관련 유틸리티
@@ -144,5 +145,38 @@ export class FrontmatterSearchUtils {
         // 매칭된 단어 비율 계산
         const matchRatio = matchCount / Math.max(words1.length, 1);
         return 0.2 + (matchRatio * 0.5); // 0.2 ~ 0.7 사이의 값
+    }
+
+    /**
+     * 제목으로 노트 검색 후 모달 표시 (중복 노트 검색 및 사용자 선택 처리)
+     * @param app Obsidian App 인스턴스
+     * @param searchText 검색할 텍스트 (노트 제목)
+     * @param customMessage 사용자 정의 메시지 (기본값 제공)
+     * @returns 모달 결과 {action, selectedFile} 또는 null (검색결과 없을 경우)
+     */
+    static async searchAndShowModal(
+        app: App,
+        searchText: string,
+        customMessage?: string
+    ): Promise<{action: 'select'|'create'|'cancel', selectedFile?: TFile} | null> {
+        // 1. 유사한 노트 검색
+        const searchResults = await this.searchNotesByTitle(app, searchText);
+
+        // 2. 검색 결과가 있으면 확인 모달 표시
+        if (searchResults.length > 0) {
+            const message = customMessage || 
+                `"${searchText}"와 유사한 제목의 노트가 발견되었습니다.\n새 노트를 생성하시겠습니까?`;
+
+            const modalResult = await showTitleSearchModal(app, {
+                title: "유사한 노트 발견",
+                message: message,
+                searchResults
+            });
+
+            return modalResult;
+        }
+
+        // 검색 결과가 없으면 null 반환 (새 노트 생성 진행)
+        return null;
     }
 }
