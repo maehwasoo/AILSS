@@ -79,7 +79,7 @@ export interface AILSSSettings {
     googleAIModel: string;
     imageGenerationModel: 'dall-e-2' | 'dall-e-3' | 'imagen-3.0-generate-002';
     ttsModel: 'tts-1' | 'tts-1-hd';
-    ttsVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    ttsVoice: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
     convertSelectionToLink: boolean;
 }
 
@@ -222,13 +222,18 @@ export class AILSSSettingTab extends PluginSettingTab {
             .setDesc('기본 음성 타입을 선택하세요')
             .addDropdown(dropdown => this.adjustDropdownWidth(dropdown
                 .addOption('alloy', 'Alloy')
+                .addOption('ash', 'Ash')
+                .addOption('ballad', 'Ballad')
+                .addOption('coral', 'Coral')
                 .addOption('echo', 'Echo')
                 .addOption('fable', 'Fable')
                 .addOption('onyx', 'Onyx')
                 .addOption('nova', 'Nova')
+                .addOption('sage', 'Sage')
                 .addOption('shimmer', 'Shimmer')
+                .addOption('verse', 'Verse')
                 .setValue(this.plugin.settings.ttsVoice)
-                .onChange(async (value: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer') => {
+                .onChange(async (value: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse') => {
                     this.plugin.settings.ttsVoice = value;
                     await this.plugin.saveSettings();
                 })));

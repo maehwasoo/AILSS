@@ -1,5 +1,136 @@
 # 개발 로그
 
+## 2025년 4월 18일 - OpenAI o 시리즈 API 수정
+
+### 배경
+OpenAI의 o 시리즈 모델(o1, o3, o4 등)을 사용하여 이미지 요청을 보낼 때 지속적으로 400 오류가 발생하는 문제가 있었습니다. 공식 OpenAI 문서를 참고하여 이 문제의 해결을 시도했습니다. 문제는 o 시리즈 모델에 맞는 요청 형식을 적용하지 않아 발생했습니다.
+
+### 원인 분석
+1. **API 엔드포인트 문제**:
+   - 이전에는 o 시리즈 모델 요청을 `/v1/responses` 엔드포인트로 보내도록 구현했습니다.
+   - 그러나 실제 API 응답에서는 여전히 400 오류가 발생했습니다.
+   - 공식 문서에서는 새로운 엔드포인트를 언급했으나, 테스트 결과 기존 `/v1/chat/completions` 엔드포인트를 사용해야 했습니다.
+
+2. **요청 형식 불일치**:
+   - 이전 구현에서는 o 시리즈 모델에 맞춰 `input_text`, `input_image` 타입을 사용했습니다.
+   - 테스트 결과, o 시리즈 모델은 기존 GPT 모델과 같은 `text`, `image_url` 타입을 사용해야 했습니다.
+
+3. **시스템 프롬프트 위치**:
+   - 이전에는 시스템 프롬프트를 최상위 레벨의 `system` 파라미터로 전달했습니다.
+   - o 시리즈 모델은 시스템 프롬프트를 별도로 받지 않고, 유저 프롬프트에 통합하는 것이 필요했습니다.
+
+### 구현 변경 사항
+
+1. **API 엔드포인트 수정**:
+   - o 시리즈 모델 요청을 `/v1/chat/completions` 엔드포인트로 변경했습니다.
+   - 응답 처리 방식도 일반 GPT 모델과 동일하게 수정했습니다.
+
+   ```typescript
+   // 이전 코드 (o 시리즈는 새로운 API 형식 사용)
+   if (modelId.startsWith('o')) {
+     url = 'https://api.openai.com/v1/responses';
+     // ...
+     if (response.status === 200) {
+       return response.json.output_text.trim();
+     }
+   }
+
+   // 수정 코드 (o 시리즈는 기존 API 형식을 사용)
+   if (modelId.startsWith('o')) {
+     url = 'https://api.openai.com/v1/chat/completions';
+     // ...
+     if (response.status === 200) {
+       return response.json.choices[0].message.content.trim();
+     }
+   }
+   ```
+
+2. **요청 구조 변경**:
+   - o 시리즈 모델에 맞는 메시지 구조로 변경했습니다.
+   - `input_text` → `text`, `input_image` → `image_url` 타입으로 변경했습니다.
+
+   ```typescript
+   // 이전 코드
+   data = {
+     model: modelId,
+     input: [
+       {
+         role: "user",
+         content: [
+           { type: "input_text", text: combinedPrompt },
+           { 
+             type: "input_image", 
+             image_url: `data:image/jpeg;base64,${base64Image}`,
+             detail: "high" 
+           }
+         ]
+       }
+     ],
+     system: systemPrompt,  // 최상위 레벨의 system 파라미터
+     temperature: 0.3,
+     max_tokens: 4000
+   };
+
+   // 수정 코드
+   data = {
+     model: modelId,
+     messages: [
+       {
+         role: "user",
+         content: [
+           { type: "text", text: combinedPrompt },
+           {
+             type: "image_url",
+             image_url: {
+               url: `data:image/jpeg;base64,${base64Image}`
+             }
+           }
+         ]
+       }
+     ],
+     temperature: 0.3,
+     max_tokens: 4000
+   };
+   ```
+
+3. **프롬프트 통합**:
+   - 시스템 프롬프트와 유저 프롬프트를 하나로 통합했습니다.
+   - `aiAnswer.ts`의 접근 방식을 참고하여 단일 프롬프트로 병합했습니다.
+
+   ```typescript
+   // 시스템 프롬프트와 유저 프롬프트 결합
+   const combinedPrompt = ocr ? 
+     `${systemPrompt}\n\n${userPrompt}` : 
+     `${systemPrompt}\n\n${userPrompt}`;
+   ```
+
+4. **디버깅 개선**:
+   - 긴 요청 데이터는 일부만 로깅하도록 개선했습니다.
+   - 오류 발생 시 더 상세한 정보를 제공하는 로깅을 추가했습니다.
+
+   ```typescript
+   console.log('O 시리즈 요청 형식:', JSON.stringify(data).substring(0, 200) + '...');
+   // ...
+   console.log('응답 상태 코드:', response.status);
+   // ...
+   console.log('오류 응답:', JSON.stringify(response.json));
+   ```
+
+### 결과 및 교훈
+1. **API 통합의 중요성**:
+   - OpenAI의 공식 문서가 항상 최신 API 동작을 정확히 반영하지는 않을 수 있습니다.
+   - o 시리즈 모델은 문서에 명시된 것과 다르게, 기존 GPT 모델과 유사한 API 구조를 사용했습니다.
+
+2. **유연한 설계의 필요성**:
+   - 외부 API가 변경될 가능성을 고려하여 코드를 더 유연하게 설계해야 합니다.
+   - 모델별 분기 처리를 더 체계적으로 관리할 필요가 있습니다.
+
+3. **테스트의 중요성**:
+   - API 변경 시 철저한 테스트가 필요합니다.
+   - 다양한 모델과 요청 형식에 대한 테스트 케이스를 준비해야 합니다.
+
+이 수정을 통해 o 시리즈 모델을 사용한 이미지 분석이 정상적으로 작동하게 되었으며, 사용자는 이제 모든 OpenAI 모델에서 일관된 경험을 얻을 수 있게 되었습니다.
+
 ## 2025년 4월 18일 - main.ts 모듈화
 
 ### 배경
