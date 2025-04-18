@@ -81,10 +81,10 @@ export class UpdateTags {
      * 현재 노트의 태그를 연결된 노트에 추가합니다.
      * @param sourceFile 소스 파일
      * @param tags 추가할 태그 배열
-     * @param recursive 재귀적으로 적용할지 여부 (기본값: false)
+     * @param recursive 재귀적으로 적용할지 여부 (기본값: true)
      * @returns 성공 여부
      */
-    async addTagsToLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = false): Promise<boolean> {
+    async addTagsToLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = true): Promise<boolean> {
         try {
             if (!sourceFile || !tags || tags.length === 0) {
                 return false;
@@ -131,10 +131,10 @@ export class UpdateTags {
      * 현재 노트의 태그를 연결된 노트에서 삭제합니다.
      * @param sourceFile 소스 파일
      * @param tags 삭제할 태그 배열
-     * @param recursive 재귀적으로 적용할지 여부 (기본값: false)
+     * @param recursive 재귀적으로 적용할지 여부 (기본값: true)
      * @returns 성공 여부
      */
-    async removeTagsFromLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = false): Promise<boolean> {
+    async removeTagsFromLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = true): Promise<boolean> {
         try {
             if (!sourceFile || !tags || tags.length === 0) {
                 return false;
@@ -181,10 +181,10 @@ export class UpdateTags {
      * 연결된 노트의 태그를 현재 노트의 태그로 변경합니다.
      * @param sourceFile 소스 파일
      * @param tags 적용할 태그 배열
-     * @param recursive 재귀적으로 적용할지 여부 (기본값: false)
+     * @param recursive 재귀적으로 적용할지 여부 (기본값: true)
      * @returns 성공 여부
      */
-    async replaceTagsInLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = false): Promise<boolean> {
+    async replaceTagsInLinkedNotes(sourceFile: TFile, tags: string[], recursive: boolean = true): Promise<boolean> {
         try {
             if (!sourceFile || !tags || tags.length === 0) {
                 return false;
