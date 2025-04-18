@@ -51,7 +51,8 @@ export class EmbedNote {
             
             // 선택된 텍스트가 없는지 확인
             if (!selectedText) {
-                throw new Error("선택된 텍스트가 없습니다.");
+                new Notice("텍스트를 선택해주세요.");
+                return;
             }
             
             // 선택된 텍스트의 첫 줄을 제목으로 사용

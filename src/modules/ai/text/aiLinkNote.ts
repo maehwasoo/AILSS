@@ -36,7 +36,8 @@ export class AILinkNote {
             };
             
             if (!selectedText) {
-                throw new Error("선택된 텍스트가 없습니다.");
+                new Notice("텍스트를 선택해주세요.");
+                return;
             }
 
             // 현재 문서의 전체 내용 가져오기

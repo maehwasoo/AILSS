@@ -27,7 +27,8 @@ export class LinkNote {
             const selectedText = editor.getSelection().trim();
             
             if (!selectedText) {
-                throw new Error("선택된 텍스트가 없습니다.");
+                new Notice("텍스트를 선택해주세요.");
+                return;
             }
 
             const activeFile = this.app.workspace.getActiveFile();
