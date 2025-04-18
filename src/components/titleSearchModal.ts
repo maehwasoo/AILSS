@@ -45,10 +45,13 @@ export class TitleSearchModal extends Modal {
             }
         });
         
-        messageBox.createEl('p', { 
-            text: this.options.message,
+        // 개행 처리를 위해 innerHTML 사용하도록 변경
+        const messageEl = messageBox.createEl('p', { 
             attr: { style: "margin: 0; text-align: center;" } 
         });
+        
+        // 개행 문자를 <br> 태그로 변환
+        messageEl.innerHTML = this.options.message.replace(/\n/g, '<br>');
 
         // 검색 결과 컨테이너
         const resultsContainer = container.createDiv({
