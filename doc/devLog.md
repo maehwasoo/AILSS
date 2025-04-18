@@ -164,6 +164,122 @@ API 오류 응답에서 확인된 주요 메시지:
    - 모듈화된 구조로 유사한 기능 확장이 용이
    - 비동기 작업 처리 및 사용자 인터랙션 패턴 표준화
 
+## 2025년 4월 18일 - Google Imagen API 구현 및 수정
+
+### 배경
+Google의 Imagen API를 사용하여 이미지 생성 기능을 구현하려 했으나, API 요청 시 지속적으로 400 오류가 발생했습니다. 공식 문서와 실제 API의 불일치로 인해 여러 시행착오를 겪었습니다.
+
+### 원인 분석
+1. **API 요청 형식 불일치**:
+   - 처음에는 OpenAI API와 비슷한 구조로 요청을 구성했으나, Google Imagen API는 다른 형식을 요구했습니다.
+   - 초기 구현에서는 `contents` 배열과 `generationConfig`를 사용했으나, 계속해서 400 오류가 반환되었습니다.
+
+2. **API 엔드포인트 문제**:
+   - 처음에는 `/v1/models/imagen-3.0-generate-002:generateContent` 엔드포인트를 사용했으나 실제로는 다른 엔드포인트가 필요했습니다.
+   - 공식 문서에서 제시한 엔드포인트는 `/v1beta/models/imagen-3.0-generate-002:predict`였습니다.
+
+3. **요청 본문 구조 차이**:
+   - `contents` 배열과 `generationConfig` 대신 `instances`와 `parameters` 구조를 사용해야 했습니다.
+   - `aspectRatio`와 같은 매개변수의 위치도 다른 계층에 위치해야 했습니다.
+
+### 구현 변경 사항
+
+1. **API 엔드포인트 수정**:
+   ```typescript
+   // 이전 코드
+   const url = 'https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-002:generateContent';
+   
+   // 수정 코드
+   const url = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict';
+   ```
+
+2. **요청 본문 구조 변경**:
+   ```typescript
+   // 이전 코드
+   const data = {
+     contents: [{
+       role: "user",
+       parts: [{
+         text: prompt
+       }]
+     }],
+     generationConfig: {
+       aspectRatio: aspectRatio,
+       numberOfImages: 3
+     }
+   };
+
+   // 수정 코드
+   const data = {
+     "instances": [
+       {
+         "prompt": prompt
+       }
+     ],
+     "parameters": {
+       "sampleCount": 1,
+       "aspectRatio": aspectRatio
+     }
+   };
+   ```
+
+3. **응답 처리 로직 수정**:
+   ```typescript
+   // 이전 코드
+   if (responseData.candidates && responseData.candidates.length > 0) {
+     for (const candidate of responseData.candidates) {
+       if (candidate.content && candidate.content.parts) {
+         for (const part of candidate.content.parts) {
+           if (part.inlineData && part.inlineData.data) {
+             // 이미지 처리
+           }
+         }
+       }
+     }
+   }
+
+   // 수정 코드
+   if (responseData.predictions) {
+     for (const prediction of responseData.predictions) {
+       if (prediction.bytesBase64Encoded) {
+         // Base64 이미지 데이터를 임시 data:URI로 변환
+         const imageUrl = `data:image/png;base64,${prediction.bytesBase64Encoded}`;
+         images.push(imageUrl);
+       }
+     }
+   }
+   ```
+
+4. **프롬프트 처리 개선**:
+   - 초기에는 한글 프롬프트를 영어로 변환하는 등의 추가 처리를 시도했으나, 최종적으로는 원본 프롬프트를 그대로 사용하는 방식으로 간소화했습니다.
+
+### 시도했던 접근법
+
+1. **프롬프트 전처리**:
+   - OCR 결과를 이미지 생성에 적합한 형식으로 변환
+   - 한글 프롬프트에 영어 설명을 추가하는 기능 구현
+   - 특정 패턴의 메타데이터 제거
+
+2. **API 매개변수 조정**:
+   - `responseMimeType` 지정
+   - `sampleCount`, `numberOfImages` 값 변경
+   - 헤더 정보 추가 및 조정
+
+3. **오류 로깅 개선**:
+   - 응답 본문 파싱 및 세부 오류 로깅
+   - 요청 데이터 상세 출력
+   - 오류 패턴 분석을 위한 추가 로깅
+
+### 결과
+
+1. **API 문서의 중요성**:
+   - 공식 문서와 실제 API 구현 사이에 차이가 있을 수 있음을 인식
+   - 문서 내용을 그대로 적용하기보다 실제 테스트를 통한 검증이 필요
+
+2. **점진적 접근법의 유용성**:
+   - 복잡한 기능을 추가하기 전에 기본 API 호출이 작동하는지 확인
+   - 한 번에 여러 변수를 변경하지 않고 단계적으로 테스트
+
 ## 2025년 4월 18일 - 첨부파일 이름 동기화 모듈 개선
 
 ### 배경

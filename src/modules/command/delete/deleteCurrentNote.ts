@@ -108,20 +108,78 @@ export class DeleteCurrentNote {
     }
 
     private async findAllAttachments(content: string): Promise<TFile[]> {
-        const attachmentRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+        // 더 정확한 첨부파일 정규식 패턴 (위키링크와 마크다운 링크 모두 지원)
+        const wikiLinkRegex = /!\[\[([^\]|#]+)(?:\|[^\]]+)?(?:#[^\]]+)?\]\]/g;
+        const markdownLinkRegex = /!\[.*?\]\(([^)]+)\)/g;
         const attachments: TFile[] = [];
         let match;
 
-        while ((match = attachmentRegex.exec(content)) !== null) {
-            const attachmentPath = match[1].split('#')[0]; // # 이후 부분 제거 (앵커나 블록 ID)
-            const attachmentFile = this.app.vault.getAbstractFileByPath(attachmentPath);
+        console.log("첨부파일 검색 시작");
+
+        // 위키링크 형식의 첨부파일 찾기
+        while ((match = wikiLinkRegex.exec(content)) !== null) {
+            const attachmentPath = match[1].trim();
+            console.log("위키링크 형식 첨부파일 발견:", attachmentPath);
+            
+            // 필요시 경로 정규화
+            const normalizedPath = this.normalizePath(attachmentPath);
+            console.log("정규화된 경로:", normalizedPath);
+            
+            const attachmentFile = this.app.vault.getAbstractFileByPath(normalizedPath);
             
             if (attachmentFile instanceof TFile) {
+                console.log("첨부파일 찾음:", attachmentFile.path);
                 attachments.push(attachmentFile);
+            } else {
+                console.log("파일을 찾을 수 없음:", normalizedPath);
             }
         }
         
+        // 마크다운 링크 형식의 첨부파일 찾기
+        while ((match = markdownLinkRegex.exec(content)) !== null) {
+            const attachmentPath = match[1].trim();
+            console.log("마크다운 링크 형식 첨부파일 발견:", attachmentPath);
+            
+            // 필요시 경로 정규화
+            const normalizedPath = this.normalizePath(attachmentPath);
+            console.log("정규화된 경로:", normalizedPath);
+            
+            const attachmentFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+            
+            if (attachmentFile instanceof TFile) {
+                console.log("첨부파일 찾음:", attachmentFile.path);
+                attachments.push(attachmentFile);
+            } else {
+                console.log("파일을 찾을 수 없음:", normalizedPath);
+            }
+        }
+        
+        console.log(`총 ${attachments.length}개의 첨부파일을 찾음`);
         return attachments;
+    }
+
+    // 경로 정규화를 위한 유틸리티 메서드 추가
+    private normalizePath(path: string): string {
+        // URL 인코딩 된 문자 디코딩
+        path = decodeURIComponent(path);
+        
+        // 파일:// 프로토콜 제거
+        if (path.startsWith('file://')) {
+            path = path.substring(7);
+        }
+        
+        // 상대 경로 처리 (필요한 경우)
+        if (!path.startsWith('/') && !path.includes(':')) {
+            const currentFile = this.app.workspace.getActiveFile();
+            if (currentFile) {
+                const currentFolder = currentFile.parent?.path || '';
+                if (currentFolder) {
+                    path = `${currentFolder}/${path}`;
+                }
+            }
+        }
+        
+        return path;
     }
 
     private async findBlockReferences(currentFile: TFile): Promise<{noteFile: TFile, blockId: string}[]> {
