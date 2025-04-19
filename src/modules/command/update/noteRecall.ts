@@ -90,13 +90,26 @@ export class NoteRecall {
             this.statusTextElement = null;
         }
 
-        // 현재 활성화된 마크다운 뷰 가져오기
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view) return;
-
-        // 에디터 컨테이너에 네비게이션 바 추가
-        const container = view.containerEl;
-        this.navigationBarElement = container.createDiv({ cls: 'note-recall-editor-navbar' });
+        // 워크스페이스 상단에 네비게이션 바 추가
+        const workspaceEl = document.querySelector('.workspace-leaf.mod-active');
+        if (!workspaceEl) {
+            // 활성화된 워크스페이스 리프가 없는 경우 기본 방식으로 진행
+            const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+            if (!view) return;
+            
+            this.navigationBarElement = view.containerEl.createDiv({ cls: 'note-recall-editor-navbar' });
+        } else {
+            this.navigationBarElement = workspaceEl.createDiv({ cls: 'note-recall-editor-navbar' });
+            
+            // 스타일 설정
+            if (this.navigationBarElement) {
+                this.navigationBarElement.style.position = 'absolute';
+                this.navigationBarElement.style.top = '0';
+                this.navigationBarElement.style.left = '0';
+                this.navigationBarElement.style.width = '100%';
+                this.navigationBarElement.style.zIndex = '1000';
+            }
+        }
 
         // 왼쪽 버튼
         const leftButton = new ButtonComponent(this.navigationBarElement);
@@ -113,6 +126,13 @@ export class NoteRecall {
         rightButton.setIcon('arrow-right');
         rightButton.setTooltip('다음 노트');
         rightButton.onClick(() => this.navigateToIndex(this.currentIndex + 1));
+
+        // 여백 추가
+        if (this.navigationBarElement) {
+            const spacer = this.navigationBarElement.createDiv({ cls: 'note-recall-spacer' });
+            spacer.style.display = 'inline-block';
+            spacer.style.width = '10px';
+        }
 
         // 종료 버튼
         const exitButton = new ButtonComponent(this.navigationBarElement);
