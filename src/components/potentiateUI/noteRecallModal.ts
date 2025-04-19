@@ -38,14 +38,11 @@ export class NoteRecallModal extends Modal {
     private inputEl: HTMLTextAreaElement;
     private micButton: ButtonComponent;
     private submitButton: ButtonComponent;
-    private statusEl: HTMLElement;
-    private recordingTimerEl: HTMLElement;
-    private recordingStatusIcon: HTMLElement;
+    private recordingStatusIcon: HTMLElement; // 원형 애니메이션 아이콘
     
     // 녹음 관련
     private recordingSession: RecordingSession | null = null;
     private realtimeSpeechSession: RealtimeSpeechSession | null = null;
-    private recordingTimer: number | null = null;
     private recordingStartTime: number = 0;
     
     // 상태 관리
@@ -85,18 +82,9 @@ export class NoteRecallModal extends Modal {
         // 버튼 컨테이너 (우측 배치)
         const buttonContainerEl = headerContainerEl.createDiv({ cls: 'note-recall-button-container' });
         
-        // 상태 표시 영역 (버튼 왼쪽에 배치)
-        this.statusEl = buttonContainerEl.createDiv({ cls: 'note-recall-status' });
-        
-        // 녹음 상태 아이콘 (원형 애니메이션)
-        this.recordingStatusIcon = this.statusEl.createDiv({ cls: 'recording-status-icon' });
-        this.recordingStatusIcon.style.display = 'none';
-        
-        this.recordingTimerEl = this.statusEl.createEl('span', { 
-            text: '',
-            cls: 'note-recall-timer'
-        });
-        
+        // 녹음 상태 아이콘 (원형 애니메이션) - 마이크 버튼 왼쪽에 배치
+        this.recordingStatusIcon = buttonContainerEl.createDiv({ cls: 'recording-status-icon' });
+
         // 마이크 버튼
         this.micButton = new ButtonComponent(buttonContainerEl)
             .setButtonText('음성 인식')
@@ -124,36 +112,6 @@ export class NoteRecallModal extends Modal {
         
         // 초기 상태 설정
         this.updateUIByState(RecognitionState.IDLE);
-        this.addCustomStyles();
-    }
-    
-    /**
-     * 커스텀 스타일 추가 - 모달 레벨에서 추가하여 전역 스타일과 충돌 방지
-     */
-    private addCustomStyles() {
-        const styleEl = document.createElement('style');
-        styleEl.textContent = `
-            .note-recall-status .recording-status-icon {
-                display: none;
-                width: 16px;
-                height: 16px;
-                border-radius: 50%;
-                background-color: #ff5d5d; /* 더 눈에 띄는 적색 */
-                margin-right: 8px;
-            }
-            
-            @keyframes recording-pulse {
-                0% { transform: scale(0.85); opacity: 0.7; box-shadow: 0 0 0 0 rgba(255, 93, 93, 0.5); }
-                50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 8px rgba(255, 93, 93, 0); }
-                100% { transform: scale(0.85); opacity: 0.7; box-shadow: 0 0 0 0 rgba(255, 93, 93, 0); }
-            }
-            
-            .note-recall-status.recording .recording-status-icon {
-                display: block;
-                animation: recording-pulse 1.2s infinite cubic-bezier(0.66, 0, 0.33, 1);
-            }
-        `;
-        document.head.appendChild(styleEl);
     }
     
     /**
@@ -188,6 +146,19 @@ export class NoteRecallModal extends Modal {
             buttonContainerEl.style.alignItems = 'center';
         }
         
+        // 녹음 상태 아이콘 스타일
+        const recordingStatusIcon = contentEl.querySelector('.recording-status-icon') as HTMLElement;
+        if (recordingStatusIcon) {
+            recordingStatusIcon.style.width = '14px';
+            recordingStatusIcon.style.height = '14px';
+            recordingStatusIcon.style.borderRadius = '50%';
+            recordingStatusIcon.style.backgroundColor = '#ff3030'; // 밝은 빨간색
+            recordingStatusIcon.style.display = 'none'; // 초기에는 숨김
+            recordingStatusIcon.style.marginRight = '8px';
+            recordingStatusIcon.style.boxShadow = '0 0 0 rgba(255, 48, 48, 0.4)';
+            recordingStatusIcon.style.flexShrink = '0';
+        }
+        
         // 입력 영역 스타일
         const textareaEl = contentEl.querySelector('.note-recall-textarea') as HTMLTextAreaElement;
         if (textareaEl) {
@@ -215,19 +186,49 @@ export class NoteRecallModal extends Modal {
             (submitButtonEl as HTMLElement).addClass('mod-cta');
         }
         
-        // 상태 텍스트 스타일
-        const statusEl = contentEl.querySelector('.note-recall-status') as HTMLElement;
-        if (statusEl) {
-            statusEl.style.marginRight = '0.5rem';
-            statusEl.style.minWidth = '120px';
-            statusEl.style.textAlign = 'right';
-            statusEl.style.fontSize = '0.9em';
-            statusEl.style.color = 'var(--text-muted)';
-            statusEl.style.display = 'flex';
-            statusEl.style.alignItems = 'center';
-            statusEl.style.justifyContent = 'flex-end';
-            statusEl.style.gap = '8px';
+        // 애니메이션 키프레임 스타일 추가
+        this.addAnimationStyles();
+    }
+    
+    /**
+     * 애니메이션 관련 스타일 추가
+     */
+    private addAnimationStyles() {
+        // 기존 스타일이 있으면 제거
+        const existingStyle = document.getElementById('recording-animation-style');
+        if (existingStyle) {
+            existingStyle.remove();
         }
+        
+        // 새 스타일 요소 생성
+        const styleEl = document.createElement('style');
+        styleEl.id = 'recording-animation-style';
+        styleEl.textContent = `
+            @keyframes recording-pulse {
+                0% {
+                    transform: scale(0.95);
+                    box-shadow: 0 0 0 0 rgba(255, 48, 48, 0.7);
+                }
+                
+                70% {
+                    transform: scale(1.1);
+                    box-shadow: 0 0 0 6px rgba(255, 48, 48, 0);
+                }
+                
+                100% {
+                    transform: scale(0.95);
+                    box-shadow: 0 0 0 0 rgba(255, 48, 48, 0);
+                }
+            }
+            
+            .recording-status-icon.pulsing {
+                animation: recording-pulse 1.5s infinite cubic-bezier(0.66, 0, 0.33, 1);
+                display: block !important;
+            }
+        `;
+        
+        // 문서에 스타일 추가
+        document.head.appendChild(styleEl);
     }
     
     /**
@@ -242,57 +243,67 @@ export class NoteRecallModal extends Modal {
         
         this.recognitionState = state;
         
-        // 상태 표시 요소 초기화
-        this.statusEl.removeClass('recording');
-        
         // 상태별 UI 업데이트
         switch (state) {
             case RecognitionState.IDLE:
                 this.waitingToRestart = false;
-                this.statusEl.setText('');
                 this.micButton.setButtonText('음성 인식');
                 this.micButton.buttonEl.removeClass('recording');
                 this.micButton.setDisabled(false);
                 this.submitButton.setDisabled(false);
+                
+                // 녹음 아이콘 애니메이션 중지
+                this.recordingStatusIcon.removeClass('pulsing');
+                this.recordingStatusIcon.style.display = 'none';
                 break;
                 
             case RecognitionState.RECORDING:
                 this.waitingToRestart = false;
-                this.statusEl.setText('인식 중');
-                this.statusEl.addClass('recording');
-                this.micButton.setButtonText('■ 중지');
+                this.micButton.setButtonText('중지');
                 this.micButton.buttonEl.addClass('recording');
                 this.micButton.setDisabled(false);
+                
+                // 녹음 아이콘 애니메이션 시작
+                this.recordingStatusIcon.addClass('pulsing');
                 break;
                 
             case RecognitionState.PROCESSING:
-                this.statusEl.setText('처리 중...');
                 this.micButton.setButtonText('음성 인식');
                 this.micButton.buttonEl.removeClass('recording');
                 this.micButton.setDisabled(true);
+                
+                // 녹음 아이콘 애니메이션 중지
+                this.recordingStatusIcon.removeClass('pulsing');
+                this.recordingStatusIcon.style.display = 'none';
                 break;
                 
             case RecognitionState.COMPLETED:
-                this.statusEl.setText('완료됨');
                 this.micButton.setDisabled(false);
+                
+                // 녹음 아이콘 애니메이션 중지
+                this.recordingStatusIcon.removeClass('pulsing');
+                this.recordingStatusIcon.style.display = 'none';
                 
                 // 상태 변수 설정 - IDLE로 전환될 때 인식할 수 있도록
                 this.waitingToRestart = true;
                 
-                // 2초 후 IDLE 상태로 자동 전환
+                // 1초 후 IDLE 상태로 자동 전환 (시간 단축)
                 this.statusClearTimer = window.setTimeout(() => {
                     this.updateUIByState(RecognitionState.IDLE);
-                }, 2000);
+                }, 1000);
                 break;
                 
             case RecognitionState.ERROR:
-                this.statusEl.setText('오류 발생');
                 this.micButton.setDisabled(false);
                 
-                // 2초 후 IDLE 상태로 자동 전환
+                // 녹음 아이콘 애니메이션 중지
+                this.recordingStatusIcon.removeClass('pulsing');
+                this.recordingStatusIcon.style.display = 'none';
+                
+                // 1초 후 IDLE 상태로 자동 전환 (시간 단축)
                 this.statusClearTimer = window.setTimeout(() => {
                     this.updateUIByState(RecognitionState.IDLE);
-                }, 2000);
+                }, 1000);
                 break;
         }
     }
@@ -350,12 +361,6 @@ export class NoteRecallModal extends Modal {
                 }
             );
             
-            // 타이머 시작
-            this.recordingTimer = window.setInterval(() => {
-                const elapsed = Date.now() - this.recordingStartTime;
-                this.recordingTimerEl.setText(formatRecordingTime(elapsed));
-            }, 1000);
-            
         } catch (error) {
             console.error('실시간 음성 인식 시작 오류:', error);
             new Notice('마이크 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
@@ -370,12 +375,6 @@ export class NoteRecallModal extends Modal {
         if (!this.realtimeSpeechSession) return;
         
         try {
-            // 타이머 중지
-            if (this.recordingTimer) {
-                clearInterval(this.recordingTimer);
-                this.recordingTimer = null;
-            }
-            
             // 상태 업데이트
             this.updateUIByState(RecognitionState.PROCESSING);
             
@@ -385,13 +384,11 @@ export class NoteRecallModal extends Modal {
             
             // 완료 상태로 업데이트
             this.updateUIByState(RecognitionState.COMPLETED);
-            this.recordingTimerEl.setText('');
             
         } catch (error) {
             console.error('실시간 음성 인식 중지 오류:', error);
             new Notice('음성 인식 처리 중 오류가 발생했습니다.');
             this.updateUIByState(RecognitionState.ERROR);
-            this.recordingTimerEl.setText('');
         }
     }
     
@@ -415,7 +412,6 @@ export class NoteRecallModal extends Modal {
             this.submitButton.setDisabled(true);
             this.micButton.setDisabled(true);
             this.updateUIByState(RecognitionState.PROCESSING);
-            this.statusEl.setText('정확도 분석 중...');
             
             // 정확도 검증 수행 - plugin 객체 전달
             const result = await checkAccuracy(
@@ -451,16 +447,16 @@ export class NoteRecallModal extends Modal {
             }
         }
         
-        // 타이머가 실행 중이라면 중지
-        if (this.recordingTimer) {
-            clearInterval(this.recordingTimer);
-            this.recordingTimer = null;
-        }
-        
         // 상태 타이머가 실행 중이라면 중지
         if (this.statusClearTimer) {
             clearTimeout(this.statusClearTimer);
             this.statusClearTimer = null;
+        }
+        
+        // 애니메이션 스타일 제거
+        const styleEl = document.getElementById('recording-animation-style');
+        if (styleEl) {
+            styleEl.remove();
         }
     }
 } 
