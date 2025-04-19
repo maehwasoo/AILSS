@@ -45,14 +45,14 @@ export class NoteRecall {
         this.isActive = true;
         this.currentIndex = 0;
         
-        // 네비게이션 바 생성
-        this.createNavigationBar();
-        
         // 키보드 이벤트 리스너 추가
         this.registerKeyboardEvents();
         
         // 첫 번째 노트 열기
-        this.openCurrentNote();
+        await this.openCurrentNote();
+        
+        // 노트가 열린 후 네비게이션 바 생성
+        this.createNavigationBar();
     }
 
     /**
@@ -121,7 +121,7 @@ export class NoteRecall {
         const leftButton = new ButtonComponent(this.navigationBarElement);
         leftButton.setIcon('arrow-left');
         leftButton.setTooltip('이전 노트');
-        leftButton.onClick(() => this.navigateToIndex(this.currentIndex - 1));
+        leftButton.onClick(async () => await this.navigateToIndex(this.currentIndex - 1));
 
         // 상태 텍스트 (현재 위치/전체)
         this.statusTextElement = this.navigationBarElement.createDiv({ cls: 'note-recall-status' });
@@ -131,7 +131,7 @@ export class NoteRecall {
         const rightButton = new ButtonComponent(this.navigationBarElement);
         rightButton.setIcon('arrow-right');
         rightButton.setTooltip('다음 노트');
-        rightButton.onClick(() => this.navigateToIndex(this.currentIndex + 1));
+        rightButton.onClick(async () => await this.navigateToIndex(this.currentIndex + 1));
 
         // 여백 추가
         if (this.navigationBarElement) {
@@ -193,6 +193,11 @@ export class NoteRecall {
                 view.editor.scrollTo(0, 0);
             }
 
+            // 네비게이션 바가 없으면 다시 생성
+            if (!this.navigationBarElement) {
+                this.createNavigationBar();
+            }
+
             // 상태 표시 업데이트
             this.updateStatusText();
         } catch (error) {
@@ -204,7 +209,7 @@ export class NoteRecall {
     /**
      * 주어진 인덱스로 노트 이동
      */
-    private navigateToIndex(index: number) {
+    private async navigateToIndex(index: number) {
         if (!this.isActive) return;
 
         if (index < 0) {
@@ -217,7 +222,7 @@ export class NoteRecall {
             this.currentIndex = index;
         }
 
-        this.openCurrentNote();
+        await this.openCurrentNote();
     }
 
     /**
