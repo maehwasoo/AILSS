@@ -54,6 +54,13 @@ export class NoteRecallModal extends Modal {
         // 버튼 컨테이너 (우측 배치)
         const buttonContainerEl = headerContainerEl.createDiv({ cls: 'note-recall-button-container' });
         
+        // 상태 표시 영역 - 이동됨 (버튼 왼쪽에 배치)
+        this.statusEl = buttonContainerEl.createDiv({ cls: 'note-recall-status' });
+        this.recordingTimerEl = this.statusEl.createEl('span', { 
+            text: '',
+            cls: 'note-recall-timer'
+        });
+        
         // 마이크 버튼
         this.micButton = new ButtonComponent(buttonContainerEl)
             .setButtonText('음성 인식')
@@ -74,13 +81,6 @@ export class NoteRecallModal extends Modal {
                 rows: '25'
             },
             cls: 'note-recall-textarea'
-        });
-        
-        // 상태 표시 영역
-        this.statusEl = contentEl.createDiv({ cls: 'note-recall-status' });
-        this.recordingTimerEl = this.statusEl.createEl('span', { 
-            text: '',
-            cls: 'note-recall-timer'
         });
         
         // CSS 스타일 적용
@@ -143,6 +143,16 @@ export class NoteRecallModal extends Modal {
         const submitButtonEl = contentEl.querySelector('.note-recall-submit-button');
         if (submitButtonEl) {
             (submitButtonEl as HTMLElement).addClass('mod-cta');
+        }
+        
+        // 상태 텍스트 스타일
+        const statusEl = contentEl.querySelector('.note-recall-status') as HTMLElement;
+        if (statusEl) {
+            statusEl.style.marginRight = '0.5rem';
+            statusEl.style.minWidth = '80px';
+            statusEl.style.textAlign = 'right';
+            statusEl.style.fontSize = '0.9em';
+            statusEl.style.color = 'var(--text-muted)';
         }
     }
     
