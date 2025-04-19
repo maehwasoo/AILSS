@@ -52,16 +52,18 @@ export class TagSyncModal extends Modal {
     private plugin: AILSSPlugin;
     private file: TFile;
     private title: string;
-    private tags: string[];
+    private allTags: string[];
+    private selectedTags: string[];
     private selectedOption: 'add' | 'remove' | 'replace' | null = null;
-    private useRecursive: boolean = false; // 재귀 옵션 추가
+    private useRecursive: boolean = true; // 재귀 옵션 기본값을 true로 변경
 
     constructor(app: App, plugin: AILSSPlugin, file: TFile, title: string, tags: string[]) {
         super(app);
         this.plugin = plugin;
         this.file = file;
         this.title = title;
-        this.tags = tags;
+        this.allTags = tags;
+        this.selectedTags = [...tags]; // 초기에는 모든 태그가 선택된 상태
     }
 
     onOpen() {
@@ -70,53 +72,115 @@ export class TagSyncModal extends Modal {
         
         const container = contentEl.createDiv({
             cls: "tag-sync-container",
-            attr: { style: "padding: 2rem;" }
+            attr: { style: "padding: 1.5rem;" } // 2rem에서 1.5rem으로 패딩 줄임
         });
         
         // 헤더 영역
         const headerContainer = container.createDiv({
             cls: "header-container",
-            attr: { style: "display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem;" }
+            attr: { style: "display: flex; flex-direction: column; align-items: center; margin-bottom: 1rem;" } // 1.5rem에서 1rem으로 마진 줄임
         });
         
         // 타이틀
         headerContainer.createEl('h2', { 
             text: this.title,
-            attr: { style: "margin: 0 0 0.5rem 0; font-size: 1.5em; text-align: center;" }
+            attr: { style: "margin: 0 0 0.7rem 0; font-size: 1.4em; text-align: center;" } // 마진과 폰트 사이즈 줄임
         });
         
-        // 현재 태그 표시
-        const tagsDisplay = headerContainer.createDiv({
-            attr: { style: "font-size: 0.9em; color: var(--text-muted); text-align: center;" }
+        // 태그 선택 UI 추가
+        const tagsSelectionContainer = container.createDiv({
+            cls: 'tags-selection-container',
+            attr: { style: 'margin-bottom: 1.5rem; text-align: center;' }
         });
-        
-        // 태그 배지 스타일로 표시
-        if (this.tags.length > 0) {
-            this.tags.forEach(tag => {
-                const tagBadge = tagsDisplay.createSpan({
-                    cls: "tag-badge",
-                    text: tag,
-                    attr: {
-                        style: "background-color: var(--interactive-accent); color: var(--text-on-accent); padding: 2px 8px; border-radius: 10px; margin: 0 4px 4px 0; display: inline-block;"
-                    }
-                });
+
+        // 태그 선택 UI
+        const tagListContainer = tagsSelectionContainer.createDiv({
+            attr: { style: 'display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;' }
+        });
+
+        // 모든 태그를 선택 가능한 태그 아이템으로 표시
+        this.allTags.forEach(tag => {
+            const isSelected = this.selectedTags.includes(tag);
+            const tagEl = tagListContainer.createDiv({
+                cls: 'tag-item',
+                text: tag,
+                attr: { 
+                    style: `
+                        padding: 0.3rem 0.8rem; 
+                        border-radius: 1rem; 
+                        cursor: pointer; 
+                        transition: all 0.2s ease;
+                        background-color: ${isSelected ? 'var(--interactive-accent)' : 'var(--background-secondary)'};
+                        color: ${isSelected ? 'var(--text-on-accent)' : 'var(--text-normal)'};
+                    `
+                }
             });
-        }
+
+            // 클릭 이벤트
+            tagEl.addEventListener('click', () => {
+                const tagIndex = this.selectedTags.indexOf(tag);
+                
+                if (tagIndex > -1) {
+                    // 이미 선택된 태그면 제거
+                    this.selectedTags.splice(tagIndex, 1);
+                    tagEl.style.backgroundColor = 'var(--background-secondary)';
+                    tagEl.style.color = 'var(--text-normal)';
+                } else {
+                    // 선택되지 않은 태그면 추가
+                    this.selectedTags.push(tag);
+                    tagEl.style.backgroundColor = 'var(--interactive-accent)';
+                    tagEl.style.color = 'var(--text-on-accent)';
+                }
+            });
+
+            // 마우스 호버 효과
+            tagEl.addEventListener('mouseenter', () => {
+                if (!this.selectedTags.includes(tag)) {
+                    tagEl.style.backgroundColor = 'var(--background-modifier-hover)';
+                }
+            });
+
+            tagEl.addEventListener('mouseleave', () => {
+                if (!this.selectedTags.includes(tag)) {
+                    tagEl.style.backgroundColor = 'var(--background-secondary)';
+                }
+            });
+        });
+
+        // 태그가 하나도 선택되지 않았을 때 안내 메시지
+        const noTagsSelectedWarning = tagsSelectionContainer.createDiv({
+            cls: 'no-tags-warning',
+            attr: { 
+                style: `
+                    margin-top: 0.8rem; 
+                    color: var(--text-error); 
+                    font-size: 0.9em;
+                    display: ${this.selectedTags.length === 0 ? 'block' : 'none'};
+                `
+            }
+        });
         
+        noTagsSelectedWarning.createSpan({
+            text: '※ 적어도 하나의 태그를 선택해주세요.'
+        });
+
+        // 태그 선택 상태 변경 감지
+        const updateTagSelectionState = () => {
+            if (this.selectedTags.length === 0) {
+                noTagsSelectedWarning.style.display = 'block';
+            } else {
+                noTagsSelectedWarning.style.display = 'none';
+            }
+        };
+
         // 구분선
-        container.createEl('hr', { attr: { style: "margin-bottom: 1.5rem;" } });
+        container.createEl('hr', { attr: { style: "margin-bottom: 1rem;" } }); // 1.5rem에서 1rem으로 마진 줄임
         
         // 옵션 선택 UI
         this.showOptionSelection(container);
     }
 
     private showOptionSelection(container: HTMLElement) {
-        // 제목
-        container.createEl('h3', { 
-            text: '태그 동기화 옵션',
-            attr: { style: "margin: 0 0 1.5rem 0; font-size: 1.2em; text-align: center; font-weight: 600;" }
-        });
-        
         // 옵션 버튼 컨테이너
         const optionsContainer = container.createDiv({
             cls: 'tag-sync-options',
@@ -140,25 +204,25 @@ export class TagSyncModal extends Modal {
             attr: { style: 'display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;' }
         });
         
-        // 추가 설명
+        // 추가 설명 (줄바꿈 추가)
         this.createOptionDescription(
             descriptionContainer,
             '추가',
-            '현재 노트의 태그를 연결된 모든 노트에 추가합니다. 이미 있는 태그는 건너뜁니다.'
+            '선택한 태그를 연결된 모든 노트에 추가합니다.\n이미 있는 태그는 건너뜁니다.'
         );
         
-        // 삭제 설명
+        // 삭제 설명 (줄바꿈 추가)
         this.createOptionDescription(
             descriptionContainer,
             '삭제',
-            '현재 노트의 태그를 연결된 모든 노트에서 삭제합니다. 없는 태그는 건너뜁니다.'
+            '선택한 태그를 연결된 모든 노트에서 삭제합니다.\n없는 태그는 건너뜁니다.'
         );
         
-        // 변경 설명
+        // 변경 설명 (줄바꿈 추가)
         this.createOptionDescription(
             descriptionContainer,
             '변경',
-            '연결된 모든 노트의 태그를 현재 노트의 태그로 완전히 교체합니다. 기존 태그는 모두 삭제됩니다.'
+            '연결된 모든 노트의 태그를 선택한 태그로 완전히 교체합니다.\n기존 태그는 모두 삭제됩니다.'
         );
     }
     
@@ -192,6 +256,12 @@ export class TagSyncModal extends Modal {
         });
         
         button.addEventListener('click', () => {
+            // 선택된 태그가 없으면 작업 불가
+            if (this.selectedTags.length === 0) {
+                new Notice('적어도 하나의 태그를 선택해주세요.');
+                return;
+            }
+            
             this.selectedOption = option;
             this.showConfirmation(option);
         });
@@ -208,10 +278,17 @@ export class TagSyncModal extends Modal {
             attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600; font-size: 1em;' }
         });
         
-        // 설명
-        descItem.createEl('p', {
-            text: description,
+        // 설명 (줄바꿈 처리)
+        const lines = description.split('\n');
+        const paragraphContainer = descItem.createDiv({
             attr: { style: 'margin: 0; color: var(--text-muted);' }
+        });
+        
+        lines.forEach((line, index) => {
+            paragraphContainer.createEl('p', {
+                text: line,
+                attr: { style: 'margin: ' + (index === 0 ? '0 0 0.3rem 0' : '0') }
+            });
         });
     }
     
@@ -221,57 +298,79 @@ export class TagSyncModal extends Modal {
         
         const container = contentEl.createDiv({
             cls: "tag-sync-container",
-            attr: { style: "padding: 2rem;" }
+            attr: { style: "padding: 1.5rem;" } // 2rem에서 1.5rem으로 패딩 줄임
         });
         
         // 헤더
         container.createEl('h2', { 
             text: '태그 동기화 확인',
-            attr: { style: "margin: 0 0 1.5rem 0; font-size: 1.5em; text-align: center;" }
+            attr: { style: "margin: 0 0 0.7rem 0; font-size: 1.4em; text-align: center;" } // 마진과 폰트 사이즈 줄임
+        });
+        
+        // 선택된 태그 표시 (캡슐 형태로)
+        const selectedTagsDisplay = container.createDiv({
+            attr: { style: "text-align: center; margin-bottom: 1.2rem;" } // 1.5rem에서 1.2rem으로 마진 줄임
+        });
+        
+        this.selectedTags.forEach(tag => {
+            selectedTagsDisplay.createSpan({
+                cls: "tag-badge",
+                text: tag,
+                attr: {
+                    style: "background-color: var(--interactive-accent); color: var(--text-on-accent); padding: 3px 10px; border-radius: 12px; margin: 0 4px 4px 0; display: inline-block;"
+                }
+            });
         });
         
         // 경고 메시지
         const warningBox = container.createDiv({
             cls: 'warning-box',
             attr: { 
-                style: 'background-color: rgba(var(--background-modifier-error-rgb), 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;' 
+                style: 'background-color: rgba(var(--background-modifier-error-rgb), 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.2rem; text-align: center;' // 1.5rem에서 1.2rem으로 마진 줄임
             }
         });
         
-        // 옵션별 메시지
-        let message = '';
+        // 옵션별 메시지 (재귀적 적용 여부에 따라 메시지 변경)
+        let mainMessage = '';
+        let subMessage = '';
+        const targetDesc = this.useRecursive ? '연결된 모든 노트' : '직접 연결된 노트';
+        
         switch(option) {
             case 'add':
-                message = `현재 노트의 태그(${this.tags.join(', ')})를 연결된 모든 노트에 추가하시겠습니까?`;
+                mainMessage = `선택한 태그를 ${targetDesc}에 추가하시겠습니까?`;
+                subMessage = `이 작업은 ${targetDesc}의 태그를 수정합니다.`;
                 break;
             case 'remove':
-                message = `현재 노트의 태그(${this.tags.join(', ')})를 연결된 모든 노트에서 삭제하시겠습니까?`;
+                mainMessage = `선택한 태그를 ${targetDesc}에서 삭제하시겠습니까?`;
+                subMessage = `이 작업은 ${targetDesc}의 태그를 수정합니다.`;
                 break;
             case 'replace':
-                message = `연결된 모든 노트의 태그를 현재 노트의 태그(${this.tags.join(', ')})로 변경하시겠습니까?`;
+                mainMessage = `${targetDesc}의 태그를 선택한 태그로 변경하시겠습니까?`;
+                subMessage = `이 작업은 ${targetDesc}의 태그를 완전히 대체합니다.`;
                 break;
         }
         
         warningBox.createEl('p', { 
-            text: message,
+            text: mainMessage,
             attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 500;' } 
         });
         
         warningBox.createEl('p', { 
-            text: '이 작업은 연결된 모든 노트의 태그를 수정합니다.',
+            text: subMessage,
             attr: { style: 'margin: 0; font-weight: 400; color: var(--text-error);' } 
         });
         
         // 재귀 옵션 추가
         const recursiveOption = container.createDiv({
-            attr: { style: 'display: flex; align-items: center; margin: 1.5rem 0; padding: 0.8rem; background-color: var(--background-secondary); border-radius: 8px;' }
+            attr: { style: 'display: flex; align-items: center; margin: 1.2rem 0; padding: 0.8rem; background-color: var(--background-secondary); border-radius: 8px;' } // 1.5rem에서 1.2rem으로 마진 줄임
         });
         
         const recursiveCheckbox = recursiveOption.createEl('input', {
             attr: { 
                 type: 'checkbox',
                 id: 'recursive-option',
-                style: 'margin-right: 10px; width: 16px; height: 16px;' 
+                style: 'margin-right: 10px; width: 16px; height: 16px;',
+                checked: this.useRecursive // 기본 체크 상태 설정
             }
         });
         
@@ -283,13 +382,50 @@ export class TagSyncModal extends Modal {
             }
         });
         
+        // 체크박스 상태가 변경될 때 메시지 업데이트
         recursiveCheckbox.addEventListener('change', (e) => {
             this.useRecursive = (e.target as HTMLInputElement).checked;
+            
+            // 메시지 업데이트
+            const targetDesc = this.useRecursive ? '연결된 모든 노트' : '직접 연결된 노트';
+            
+            // 첫 번째 메시지 요소 (주 경고 메시지)
+            const messageElements = warningBox.querySelectorAll('p');
+            if (messageElements.length >= 1) {
+                let mainMessage = '';
+                switch(option) {
+                    case 'add':
+                        mainMessage = `선택한 태그를 ${targetDesc}에 추가하시겠습니까?`;
+                        break;
+                    case 'remove':
+                        mainMessage = `선택한 태그를 ${targetDesc}에서 삭제하시겠습니까?`;
+                        break;
+                    case 'replace':
+                        mainMessage = `${targetDesc}의 태그를 선택한 태그로 변경하시겠습니까?`;
+                        break;
+                }
+                messageElements[0].textContent = mainMessage;
+            }
+            
+            // 두 번째 메시지 요소 (부가 경고 메시지)
+            if (messageElements.length >= 2) {
+                let subMessage = '';
+                switch(option) {
+                    case 'add':
+                    case 'remove':
+                        subMessage = `이 작업은 ${targetDesc}의 태그를 수정합니다.`;
+                        break;
+                    case 'replace':
+                        subMessage = `이 작업은 ${targetDesc}의 태그를 완전히 대체합니다.`;
+                        break;
+                }
+                messageElements[1].textContent = subMessage;
+            }
         });
         
         // 버튼 컨테이너
         const buttonContainer = container.createDiv({
-            attr: { style: 'display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem;' }
+            attr: { style: 'display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem;' } // 2rem에서 1.5rem으로 마진 줄임
         });
         
         // 취소 버튼
@@ -318,13 +454,13 @@ export class TagSyncModal extends Modal {
                 
                 switch(option) {
                     case 'add':
-                        result = await updateTags.addTagsToLinkedNotes(this.file, this.tags, this.useRecursive);
+                        result = await updateTags.addTagsToLinkedNotes(this.file, this.selectedTags, this.useRecursive);
                         break;
                     case 'remove':
-                        result = await updateTags.removeTagsFromLinkedNotes(this.file, this.tags, this.useRecursive);
+                        result = await updateTags.removeTagsFromLinkedNotes(this.file, this.selectedTags, this.useRecursive);
                         break;
                     case 'replace':
-                        result = await updateTags.replaceTagsInLinkedNotes(this.file, this.tags, this.useRecursive);
+                        result = await updateTags.replaceTagsInLinkedNotes(this.file, this.selectedTags, this.useRecursive);
                         break;
                 }
                 

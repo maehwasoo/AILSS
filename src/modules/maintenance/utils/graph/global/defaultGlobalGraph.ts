@@ -1,7 +1,7 @@
 export const DEFAULT_GLOBAL_GRAPH = {
   "collapse-filter": false,
   "search": "",
-  "showTags": true,
+  "showTags": false,
   "showAttachments": false,
   "hideUnresolved": true,
   "showOrphans": true,
@@ -88,13 +88,13 @@ export const DEFAULT_GLOBAL_GRAPH = {
   "collapse-display": false,
   "showArrow": true,
   "textFadeMultiplier": 0,
-  "nodeSizeMultiplier": 1,
-  "lineSizeMultiplier": 0.55,
+  "nodeSizeMultiplier": 1.3,
+  "lineSizeMultiplier": 1,
   "collapse-forces": false,
-  "centerStrength": 0.25,
-  "repelStrength": 8.25,
-  "linkStrength": 0.75,
-  "linkDistance": 85,
+  "centerStrength": 0.1,
+  "repelStrength": 5,
+  "linkStrength": 0.9,
+  "linkDistance": 50,
   "scale": 0.2,
   "close": true
 } as const;
