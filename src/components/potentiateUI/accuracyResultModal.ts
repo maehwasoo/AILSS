@@ -103,7 +103,7 @@ export class AccuracyResultModal extends Modal {
             });
             feedbackEl.style.textAlign = 'center';
             feedbackEl.style.margin = '0';
-            feedbackEl.style.lineHeight = '1.5';
+            feedbackEl.style.lineHeight = '1.8';
         }
     }
     
