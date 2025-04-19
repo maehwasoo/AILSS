@@ -76,7 +76,7 @@ export class NoteRecallModal extends Modal {
             .setButtonText('제출')
             .setClass('note-recall-submit-button')
             .onClick(() => this.submitRecall());
-        
+            
         // 입력 영역
         const inputContainerEl = contentEl.createDiv({ cls: 'note-recall-input-container' });
         this.inputEl = inputContainerEl.createEl('textarea', {

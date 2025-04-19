@@ -5,6 +5,8 @@ import { showConfirmationDialog } from '../../../components/commonUI/confirmatio
 import { moment } from 'obsidian';
 import { NoteRecallModal } from '../../../components/potentiateUI/noteRecallModal';
 import { AccuracyResult } from '../../../modules/ai/ai_utils/accuracyChecker';
+import { AccuracyResultModal } from '../../../components/potentiateUI/accuracyResultModal';
+import { TokenWarningModal } from '../../../components/potentiateUI/tokenWarningModal';
 
 export class Potentiate {
     private app: App;
@@ -50,7 +52,7 @@ export class Potentiate {
             }
         }
 
-        // 항상 먼저 확인 대화상자 표시
+        // 1. 확인 대화상자 표시
         const confirmed = await showConfirmationDialog(this.app, {
             title: "노트 강화 확인",
             message: `현재 노트의 강화 지수를 ${currentPotentiation} → ${currentPotentiation + FrontmatterManager.getPotentiationIncrement()}로 증가시키시겠습니까?`,
@@ -65,12 +67,28 @@ export class Potentiate {
 
         // 확인 후 정확도 검증 활성화 여부에 따라 처리
         if (this.plugin.settings.enablePotentiateAccuracyCheck) {
-            // 정확도 검증 활성화 - 노트 복기 모달 표시
-            this.showNoteRecallModal(activeFile, fileContent, currentPotentiation);
+            // 2. 토큰 경고창 표시
+            this.showTokenWarningModal(activeFile, fileContent, currentPotentiation);
         } else {
             // 정확도 검증 비활성화 - 바로 강화 적용
             await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
         }
+    }
+
+    /**
+     * 토큰 경고 모달을 표시합니다.
+     */
+    private showTokenWarningModal(activeFile: any, fileContent: string, currentPotentiation: number) {
+        const tokenWarningModal = new TokenWarningModal(
+            this.app,
+            fileContent,
+            // 계속 진행 콜백 - 노트 복기 모달 표시
+            () => {
+                this.showNoteRecallModal(activeFile, fileContent, currentPotentiation);
+            }
+        );
+        
+        tokenWarningModal.open();
     }
 
     /**
@@ -83,20 +101,18 @@ export class Potentiate {
             this.plugin.settings,
             this.plugin,
             async (result: AccuracyResult) => {
-                // 정확도 결과에 따라 강화 적용
+                // 정확도 결과에 따른 강화 적용
                 if (result.success) {
                     // 75% 이상이면 강화 적용
                     await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
-                    new Notice(`정확도 ${Math.round(result.score)}% - 강화가 적용되었습니다!`, 4000);
-                } else {
-                    // 75% 미만이면 강화 미적용
-                    new Notice(`정확도 ${Math.round(result.score)}% - 75% 이상 필요합니다. 강화가 적용되지 않았습니다.`, 4000);
-                    if (result.feedback) {
-                        setTimeout(() => {
-                            new Notice(`피드백: ${result.feedback}`, 6000);
-                        }, 1500);
-                    }
                 }
+                
+                // 4. 결과 모달 표시
+                const resultModal = new AccuracyResultModal(
+                    this.app,
+                    result
+                );
+                resultModal.open();
             }
         );
         
