@@ -2,7 +2,6 @@ import { AILSSSettings } from '../../../core/settings/settings';
 import { Notice } from 'obsidian';
 import { requestToAI } from './aiUtils';
 import AILSSPlugin from '../../../../main';
-import { getContentWithoutFrontmatter } from '../../../core/utils/contentUtils';
 
 /**
  * 정확도 검증 결과 인터페이스
@@ -39,21 +38,17 @@ export function estimateTokens(text: string): number {
  * 정확도 검증을 위한 프롬프트를 생성합니다
  */
 function createAccuracyPrompt(originalText: string, userInput: string): string {
-    // 프론트매터 제거
-    const cleanOriginalText = getContentWithoutFrontmatter(originalText);
-    const cleanUserInput = getContentWithoutFrontmatter(userInput);
-    
     return `
 다음은 원본 텍스트와 사용자가 작성한 텍스트입니다. 원본 텍스트의 핵심 내용과 주요 키워드, 중요 포인트를 사용자가 얼마나 정확하게 기억하고 표현했는지 평가해주세요.
 
 원본 텍스트:
 """
-${cleanOriginalText}
+${originalText}
 """
 
 사용자 입력:
 """
-${cleanUserInput}
+${userInput}
 """
 
 평가 가이드라인:
@@ -81,13 +76,9 @@ ${cleanUserInput}
  * @returns 안전: 0, 경고: 1, 위험: 2
  */
 export function checkTokenLimit(originalText: string, userInput: string): { status: number; estimatedTokens: number } {
-    // 프론트매터 제거
-    const cleanOriginalText = getContentWithoutFrontmatter(originalText);
-    const cleanUserInput = getContentWithoutFrontmatter(userInput);
-    
     const promptTokens = estimateTokens(createAccuracyPrompt('', '')); // 프롬프트 템플릿 자체의 토큰 수
-    const originalTokens = estimateTokens(cleanOriginalText);
-    const userTokens = estimateTokens(cleanUserInput);
+    const originalTokens = estimateTokens(originalText);
+    const userTokens = estimateTokens(userInput);
     
     const totalTokens = promptTokens + originalTokens + userTokens;
     

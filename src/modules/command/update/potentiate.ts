@@ -7,6 +7,7 @@ import { NoteRecallModal } from '../../../components/potentiateUI/noteRecallModa
 import { AccuracyResult } from '../../../modules/ai/ai_utils/accuracyChecker';
 import { AccuracyResultModal } from '../../../components/potentiateUI/accuracyResultModal';
 import { TokenWarningModal } from '../../../components/potentiateUI/tokenWarningModal';
+import { getContentWithoutFrontmatter } from '../../../core/utils/contentUtils';
 
 export class Potentiate {
     private app: App;
@@ -33,6 +34,9 @@ export class Potentiate {
             new Notice('프론트매터가 없는 노트입니다.');
             return;
         }
+
+        // 프론트매터를 제거한 순수 노트 내용 추출 (한 번만 수행)
+        const purifiedContent = getContentWithoutFrontmatter(fileContent);
 
         const currentPotentiation = Number(frontmatter.potentiation) || 0;
         const lastActivated = frontmatter.updated ? new Date(frontmatter.updated) : null;
@@ -67,8 +71,8 @@ export class Potentiate {
 
         // 확인 후 정확도 검증 활성화 여부에 따라 처리
         if (this.plugin.settings.enablePotentiateAccuracyCheck) {
-            // 2. 토큰 경고창 표시
-            this.showTokenWarningModal(activeFile, fileContent, currentPotentiation);
+            // 2. 토큰 경고창 표시 (순수 내용 전달)
+            this.showTokenWarningModal(activeFile, fileContent, purifiedContent, currentPotentiation);
         } else {
             // 정확도 검증 비활성화 - 바로 강화 적용
             await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
@@ -77,14 +81,15 @@ export class Potentiate {
 
     /**
      * 토큰 경고 모달을 표시합니다.
+     * @param purifiedContent 프론트매터가 제거된 순수 노트 내용
      */
-    private showTokenWarningModal(activeFile: any, fileContent: string, currentPotentiation: number) {
+    private showTokenWarningModal(activeFile: any, fileContent: string, purifiedContent: string, currentPotentiation: number) {
         const tokenWarningModal = new TokenWarningModal(
             this.app,
-            fileContent,
+            purifiedContent, // 순수 노트 내용 전달
             // 계속 진행 콜백 - 노트 복기 모달 표시
             () => {
-                this.showNoteRecallModal(activeFile, fileContent, currentPotentiation);
+                this.showNoteRecallModal(activeFile, fileContent, purifiedContent, currentPotentiation);
             }
         );
         
@@ -93,11 +98,12 @@ export class Potentiate {
 
     /**
      * 노트 복기 모달을 표시하고 정확도 검증을 수행합니다.
+     * @param purifiedContent 프론트매터가 제거된 순수 노트 내용
      */
-    private showNoteRecallModal(activeFile: any, fileContent: string, currentPotentiation: number) {
+    private showNoteRecallModal(activeFile: any, fileContent: string, purifiedContent: string, currentPotentiation: number) {
         const modal = new NoteRecallModal(
             this.app,
-            fileContent,
+            purifiedContent, // 순수 노트 내용 전달
             this.plugin.settings,
             this.plugin,
             async (result: AccuracyResult) => {
