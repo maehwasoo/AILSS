@@ -80,6 +80,11 @@ export class RibbonRegistry {
         this.plugin.addRibbonIcon('unlink', '노트 링크 해제', () => {
             this.services.getUnlinkNotesManager().unlinkSelectedNotes();
         });
+        
+        // 노트 복기
+        this.plugin.addRibbonIcon('book-open', '노트 복기', () => {
+            this.services.getNoteRecallManager().main();
+        });
     }
     
     /**

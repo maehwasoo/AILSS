@@ -111,6 +111,14 @@ export class CommandRegistry {
             icon: 'unlink',
             editorCallback: () => this.services.getUnlinkNotesManager().unlinkSelectedNotes()
         });
+        
+        // 노트 복기
+        this.plugin.addCommand({
+            id: 'recall-notes',
+            name: '노트 복기',
+            icon: 'book-open',
+            callback: () => this.services.getNoteRecallManager().main()
+        });
     }
     
     /**
