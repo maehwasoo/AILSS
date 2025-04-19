@@ -118,7 +118,7 @@ export async function checkAccuracy(
             return {
                 success: false,
                 score: 0,
-                feedback: "텍스트가 너무 깁니다. AI 모델의 처리 한도를 초과합니다. 핵심 내용만 복기해주세요."
+                feedback: "텍스트가 너무 깁니다. AI 모델의 처리 한도를 초과합니다.\n핵심 내용만 복기해주세요."
             };
         } else if (tokenCheck.status === 1) {
             new Notice(`텍스트가 길어 정확도 평가가 부정확할 수 있습니다\n약 ${tokenCheck.estimatedTokens} 토큰 감지됨\n핵심 내용 위주로 평가합니다`, 50000);

@@ -66,16 +66,22 @@ export class NoteRecall {
             return markdownFiles;
         }
 
+        // '#' 제거하고 정규화
+        const normalizedTags = tags.map(tag => tag.startsWith('#') ? tag.substring(1) : tag);
+
         return markdownFiles.filter(file => {
             // 파일의 캐시된 메타데이터 확인
             const cache = this.app.metadataCache.getFileCache(file);
-            if (!cache || !cache.tags) return false;
+            if (!cache) return false;
 
-            // 파일에 지정된 태그가 하나라도 포함되어 있는지 확인
-            return tags.some(tag => {
-                const searchTag = tag.startsWith('#') ? tag : `#${tag}`;
-                return cache.tags?.some(t => t.tag === searchTag);
-            });
+            // 프론트매터 태그만 확인
+            const frontmatterTags = cache.frontmatter?.tags;
+            return Array.isArray(frontmatterTags) && 
+                frontmatterTags.some(fileTag => 
+                    normalizedTags.some(normalizedTag => 
+                        fileTag === normalizedTag || fileTag.startsWith(`${normalizedTag}/`)
+                    )
+                );
         });
     }
 
