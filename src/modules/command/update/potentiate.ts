@@ -3,6 +3,8 @@ import type AILSSPlugin from '../../../../main';
 import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
 import { moment } from 'obsidian';
+import { NoteRecallModal } from '../../../components/potentiateUI/noteRecallModal';
+import { AccuracyResult } from '../../../modules/ai/ai_utils/accuracyChecker';
 
 export class Potentiate {
     private app: App;
@@ -48,6 +50,49 @@ export class Potentiate {
             }
         }
 
+        // 정확도 검증 활성화 여부 확인
+        if (this.plugin.settings.enablePotentiateAccuracyCheck) {
+            // 정확도 검증 활성화 - 노트 복기 모달 표시
+            this.showNoteRecallModal(activeFile, fileContent, currentPotentiation);
+        } else {
+            // 정확도 검증 비활성화 - 기존 로직 실행
+            await this.showConfirmationAndPotentiate(activeFile, fileContent, currentPotentiation);
+        }
+    }
+
+    /**
+     * 노트 복기 모달을 표시하고 정확도 검증을 수행합니다.
+     */
+    private showNoteRecallModal(activeFile: any, fileContent: string, currentPotentiation: number) {
+        const modal = new NoteRecallModal(
+            this.app,
+            fileContent,
+            this.plugin.settings,
+            async (result: AccuracyResult) => {
+                // 정확도 결과에 따라 강화 적용
+                if (result.success) {
+                    // 75% 이상이면 강화 적용
+                    await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
+                    new Notice(`정확도 ${Math.round(result.score)}% - 강화가 적용되었습니다!`, 4000);
+                } else {
+                    // 75% 미만이면 강화 미적용
+                    new Notice(`정확도 ${Math.round(result.score)}% - 75% 이상 필요합니다. 강화가 적용되지 않았습니다.`, 4000);
+                    if (result.feedback) {
+                        setTimeout(() => {
+                            new Notice(`피드백: ${result.feedback}`, 6000);
+                        }, 1500);
+                    }
+                }
+            }
+        );
+        
+        modal.open();
+    }
+
+    /**
+     * 확인 대화상자를 표시하고 강화를 적용합니다.
+     */
+    private async showConfirmationAndPotentiate(activeFile: any, fileContent: string, currentPotentiation: number) {
         // 사용자 확인 추가
         const confirmed = await showConfirmationDialog(this.app, {
             title: "노트 강화 확인",
@@ -61,6 +106,14 @@ export class Potentiate {
             return;
         }
 
+        // 강화 적용
+        await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
+    }
+
+    /**
+     * 실제 강화 값을 적용합니다.
+     */
+    private async applyPotentiation(activeFile: any, fileContent: string, currentPotentiation: number) {
         // 강화 수행
         const newPotentiation = currentPotentiation + FrontmatterManager.getPotentiationIncrement();
         const now = moment().utcOffset('+09:00');  // 한국 시간대 설정

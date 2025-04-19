@@ -4,9 +4,9 @@
 
 포텐시에이트(Potentiate) 모듈은 노트의 강화 값(potentiation)을 관리하는 기능으로, 현재는 명령어 실행 시 단순히 강화 값을 +1 증가시키는 기능만 제공합니다. 이 모듈을 개선하여 다음 기능을 추가하고자 합니다:
 
-- [ ] 1. 노트 내용 복기를 통한 정확도 검증 기능
-- [ ] 2. 텍스트 또는 음성 입력 방식 지원
-- [ ] 3. AI를 통한 정확도 평가(75% 이상일 때만 강화 적용)
+- [x] 1. 노트 내용 복기를 통한 정확도 검증 기능
+- [x] 2. 텍스트 또는 음성 입력 방식 지원
+- [x] 3. AI를 통한 정확도 평가(75% 이상일 때만 강화 적용)
 
 이 모든 기능은 유지보수가 쉽고, 사용자 설정을 통해 켜고 끌 수 있도록 모듈화하며, 기존 컴포넌트를 최대한 재활용하여 일관성을 유지합니다.
 
@@ -38,9 +38,9 @@ src/
 
 ### 1.2 기존 코드 이전 및 확장
 
-- [ ] `potentiate.ts`의 핵심 강화 로직은 그대로 유지
-- [ ] 노트 복기 및 정확도 검증 기능을 위한 인터페이스 추가
-- [ ] 설정을 통해 정확도 검증 기능을 On/Off할 수 있도록 구현
+- [x] `potentiate.ts`의 핵심 강화 로직은 그대로 유지
+- [x] 노트 복기 및 정확도 검증 기능을 위한 인터페이스 추가
+- [x] 설정을 통해 정확도 검증 기능을 On/Off할 수 있도록 구현
 
 ## 2. 기능 구현 계획
 
@@ -122,21 +122,21 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
 
 ### 5.1 기본 구조 구현 (1단계)
 
-- [ ] 1. whisperUtils.ts 파일 생성 및 기본 API 연동 구현
-- [ ] 2. accuracyChecker.ts 파일 생성 및 기본 로직 구현
-- [ ] 3. settings.ts에 정확도 검증 토글 설정 추가
+- [x] 1. whisperUtils.ts 파일 생성 및 기본 API 연동 구현
+- [x] 2. accuracyChecker.ts 파일 생성 및 기본 로직 구현
+- [x] 3. settings.ts에 정확도 검증 토글 설정 추가
 
 ### 5.2 UI 구현 (2단계)
 
-- [ ] 1. noteRecallModal.ts 생성 및 UI 레이아웃 구현
-- [ ] 2. 마이크 녹음 기능 및 이벤트 핸들러 구현
-- [ ] 3. 입력 및 제출 로직 구현
+- [x] 1. noteRecallModal.ts 생성 및 UI 레이아웃 구현
+- [x] 2. 마이크 녹음 기능 및 이벤트 핸들러 구현
+- [x] 3. 입력 및 제출 로직 구현
 
 ### 5.3 로직 통합 (3단계)
 
-- [ ] 1. potentiate.ts 수정하여 정확도 검증 기능 연동
-- [ ] 2. 정확도 검증 결과에 따른 강화 적용 로직 구현
-- [ ] 3. 설정에 따른 로직 분기 처리 구현
+- [x] 1. potentiate.ts 수정하여 정확도 검증 기능 연동
+- [x] 2. 정확도 검증 결과에 따른 강화 적용 로직 구현
+- [x] 3. 설정에 따른 로직 분기 처리 구현
 
 ### 5.4 테스트 및 개선 (4단계)
 
@@ -172,216 +172,30 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
 - [ ] AI 모델 호출 로직 구현
 - [ ] 각 AI 제공업체별 처리 분기 구현
 
-```typescript
-// src/modules/ai/ai_utils/accuracyChecker.ts
+## 구현 완료 메모
 
-import { AILSSSettings } from 'src/core/settings/settings';
+포텐시에이트 모듈의 개선이 성공적으로 구현되었습니다. 주요 구현 내용은 다음과 같습니다:
 
-export interface AccuracyResult {
-  score: number;  // 0-100 범위의 정확도 점수
-  feedback?: string;  // 선택적 피드백 텍스트
-}
+1. 노트 내용 복기를 통한 정확도 검증 기능
+   - 노트 내용을 기억나는 대로 텍스트로 입력하거나 음성으로 말할 수 있는 모달 UI 구현
+   - 음성 입력은 OpenAI의 Whisper API를 활용하여 텍스트로 변환
 
-export async function checkAccuracy(
-  originalText: string,
-  userInput: string,
-  settings: AILSSSettings
-): Promise<AccuracyResult> {
-  // 선택된 AI 모델에 따라 적절한 API 호출
-  const selectedModel = settings.selectedAIModel;
-  
-  switch(selectedModel) {
-    case 'claude':
-      return checkAccuracyWithClaude(originalText, userInput, settings.claudeAPIKey, settings.claudeModel);
-    case 'openai':
-      return checkAccuracyWithOpenAI(originalText, userInput, settings.openAIAPIKey, settings.openAIModel);
-    // 다른 모델 케이스 추가
-    default:
-      throw new Error(`지원되지 않는 AI 모델: ${selectedModel}`);
-  }
-}
+2. 정확도 평가 기능
+   - 사용자 설정에 따라 OpenAI, Claude, Perplexity, Google AI 등 다양한 모델 지원
+   - 정확도가 75% 이상일 때만 강화 적용
+   - 피드백 제공 기능 추가
 
-// 구현 계획: 각 AI 모델별 정확도 검증 함수 구현
-```
+3. 설정을 통한 기능 제어
+   - 정확도 검증 기능을 on/off할 수 있는 설정 추가
+   - 기능 비활성화 시 기존 로직으로 작동
 
-### 7.2 whisperUtils.ts
+4. 유지보수성 향상
+   - 기능별 모듈화로 코드 가독성 및 유지보수성 개선
+   - 기존 코드와의 통합성 유지
 
-- [ ] 오디오 녹음 함수 구현
-- [ ] Whisper API 연동 구현
-- [ ] 오류 처리 로직 구현
+### 향후 개선 사항
 
-```typescript
-// src/modules/ai/ai_utils/whisperUtils.ts
-
-export interface WhisperTranscriptionResult {
-  text: string;
-  confidence?: number;
-}
-
-export async function transcribeAudio(
-  audioBlob: Blob,
-  apiKey: string
-): Promise<WhisperTranscriptionResult> {
-  // Whisper API 요청 준비
-  const formData = new FormData();
-  formData.append('file', audioBlob, 'recording.webm');
-  formData.append('model', 'whisper-1');
-  
-  // API 호출 및 결과 반환
-  // ...
-}
-
-export function startRecording(): Promise<MediaRecorder> {
-  // 브라우저 오디오 녹음 기능 구현
-  // ...
-}
-
-export function stopRecording(recorder: MediaRecorder): Promise<Blob> {
-  // 녹음 중지 및 오디오 데이터 반환
-  // ...
-}
-```
-
-### 7.3 noteRecallModal.ts
-
-- [ ] 모달 UI 클래스 구현
-- [ ] 마이크 버튼 및 제출 버튼 이벤트 핸들러 구현
-- [ ] 상태 표시 로직 구현
-
-```typescript
-// src/components/potentiateUI/noteRecallModal.ts
-
-import { App, Modal, Setting } from 'obsidian';
-import { transcribeAudio, startRecording, stopRecording } from 'src/modules/ai/ai_utils/whisperUtils';
-import { checkAccuracy } from 'src/modules/ai/ai_utils/accuracyChecker';
-
-export class NoteRecallModal extends Modal {
-  // 속성 정의
-  // UI 구성 요소
-  // 이벤트 핸들러
-  
-  constructor(app: App, noteContent: string, onSubmit: (accuracy: number) => void) {
-    // 초기화 로직
-  }
-  
-  onOpen() {
-    // UI 구성 및 이벤트 핸들러 연결
-  }
-  
-  // 마이크 관련 메소드, 제출 핸들러 등 구현
-}
-```
-
-### 7.4 potentiate.ts 수정 계획
-
-- [ ] 설정 확인 로직 추가
-- [ ] 노트 복기 모달 연동
-- [ ] 정확도 기반 강화 적용 로직 구현
-
-```typescript
-// src/modules/command/update/potentiate.ts
-
-import { Editor, MarkdownView } from 'obsidian';
-import { NoteRecallModal } from 'src/components/potentiateUI/noteRecallModal';
-
-export const potentiateCommand = async (editor: Editor, view: MarkdownView, plugin: AILSSPlugin) => {
-  // 설정 확인
-  if (!plugin.settings.enablePotentiateAccuracyCheck) {
-    // 기존 강화 로직 실행
-    return;
-  }
-  
-  // 노트 내용 가져오기
-  const noteContent = editor.getValue();
-  
-  // 노트 복기 모달 열기
-  const modal = new NoteRecallModal(plugin.app, noteContent, (accuracy) => {
-    // 정확도에 따른 강화 처리
-    if (accuracy >= 75) {
-      // 강화 로직 실행
-      // ...
-    } else {
-      // 실패 알림
-      // ...
-    }
-  });
-  
-  modal.open();
-};
-```
-
-## 8. 기술 스택 및 의존성
-
-- [ ] **AI API**: settings.ts에 설정된 AI 모델 (Claude, OpenAI 등)
-- [ ] **음성 변환**: OpenAI Whisper API
-- [ ] **UI 컴포넌트**: Obsidian Modal, Setting 컴포넌트 활용
-- [ ] **데이터 저장**: Frontmatter 메타데이터 활용
-- [ ] **이벤트 처리**: 브라우저 MediaRecorder API
-
-## 9. 구현 시 고려사항
-
-- [ ] **UI 일관성**: 모든 UI 요소는 Obsidian 테마와 일관성 유지
-- [ ] **오프라인 대응**: 오프라인 환경에서는 정확도 검증 기능 비활성화 처리
-- [ ] **오류 처리**: 마이크 권한 요청 및 API 오류 처리 로직 추가
-- [ ] **성능 최적화**: API 호출 최소화, 결과 캐싱 등 성능 고려
-- [ ] **접근성**: UI 컴포넌트의 접근성 고려 (키보드 네비게이션, 스크린 리더 지원 등)
-- [ ] **보안**: API 키 관리 및 음성 데이터 처리에 대한 보안 고려
-
-## 10. whisperUtils.ts 구현 고려사항
-
-OpenAI Whisper API 활용 시 다음 기술적 사항들을 고려하여 구현합니다:
-
-### 10.1 API 관련 고려사항
-
-#### 파일 제한 및 형식
-- [ ] 최대 25MB 크기 제한
-- [ ] 지원 형식: mp3, mp4, mpeg, mpga, m4a, wav, webm
-- [ ] 브라우저에서 수집된 오디오는 일반적으로 webm 형식으로 저장
-
-#### 모델 선택
-- [ ] `whisper-1`: 기본 모델, 다양한 응답 형식 지원
-- [ ] `gpt-4o-mini-transcribe`: 고품질 모델(신규)
-- [ ] `gpt-4o-transcribe`: 최고 품질 모델(신규)
-
-#### 응답 형식
-- [ ] `whisper-1`: json, text, srt, verbose_json, vtt 형식 지원
-- [ ] 신규 모델: 현재 json 또는 text 형식만 지원
-
-### 10.2 브라우저 오디오 녹음 구현
-
-#### MediaRecorder API 활용
-- [ ] 마이크 접근 권한 요청 기능 구현
-- [ ] 오디오 데이터 수집 및 저장 로직 구현
-- [ ] 녹음 시작/정지 인터페이스 구현
-
-### 10.3. Whisper API 호출 구현
-
-- [ ] FormData 구성 및 API 요청 기능 구현
-- [ ] 응답 처리 및 오류 핸들링 구현
-- [ ] API 키 관리 및 설정 연동
-
-### 10.4 정확도 향상을 위한 프롬프트 활용
-
-- [ ] 프롬프트 기반 정확도 향상 기능 구현
-- [ ] 노트 컨텍스트 기반 프롬프트 자동 생성 지원
-
-### 10.5 구현 시 고려사항
-
-- [ ] **오프라인 상태 처리**: 네트워크 연결 상태 확인 및 오류 메시지 표시
-- [ ] **마이크 권한**: 사용자에게 마이크 접근 권한을 요청하고 거부 시 적절한 안내 제공
-- [ ] **녹음 상태 표시**: 녹음 중임을 사용자에게 시각적으로 표시
-- [ ] **API 키 관리**: API 키를 안전하게 관리하고 설정에서 가져오기
-- [ ] **크기 제한 처리**: 긴 녹음의 경우 25MB 제한을 넘지 않도록 오디오 품질 조정
-- [ ] **오류 복구**: API 호출 실패 시 재시도 로직 구현
-
-### 10.6 성능 최적화
-
-- [ ] 짧은 녹음(1-2분 이내)에 최적화하여 UI 응답성 유지
-- [ ] 마이크 입력 볼륨 자동 조정으로 인식률 향상
-- [ ] 백그라운드에서 API 호출 처리하여 UI 차단 방지
-
-이러한 기술적 고려사항을 바탕으로 whisperUtils.ts를 구현하면 노트 복기 모달에서 안정적인 음성 인식 기능을 제공할 수 있습니다.
-
-
----
-
+- 마이크 녹음 시 음질 및 최대 길이 제한 설정 추가
+- 정확도 평가 기준에 대한 사용자 설정 옵션 (기본값 75% 외에 조정 가능하도록)
+- 오프라인 모드에서의 정확도 검증 방법 고려
+- 성능 최적화 및 API 호출 최소화 방안

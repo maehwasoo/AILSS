@@ -81,6 +81,7 @@ export interface AILSSSettings {
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
     convertSelectionToLink: boolean;
+    enablePotentiateAccuracyCheck: boolean;  // 노트 강화 시 정확도 검증 활성화 여부
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
@@ -98,6 +99,7 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
     convertSelectionToLink: true,
+    enablePotentiateAccuracyCheck: true,  // 기본값은 활성화
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -117,6 +119,11 @@ export class AILSSSettingTab extends PluginSettingTab {
         containerEl.createEl('h2', { text: '통계' });
         const statisticsContainer = containerEl.createDiv('statistics-section');
         this.addStatistics(statisticsContainer);
+
+        // 노트 강화 설정 섹션
+        containerEl.createEl('h2', { text: '노트 강화 설정' });
+        const potentiateSettingsContainer = containerEl.createDiv('potentiate-settings-section');
+        this.addPotentiateSettings(potentiateSettingsContainer);
 
         // AI 설정 섹션
         containerEl.createEl('h2', { text: 'AI 모델 설정' });
@@ -311,6 +318,18 @@ export class AILSSSettingTab extends PluginSettingTab {
                     this.plugin.settings.googleAIModel = value;
                     await this.plugin.saveSettings();
                 })));
+    }
+
+    private addPotentiateSettings(containerEl: HTMLElement) {
+        new Setting(containerEl)
+            .setName('노트 강화 정확도 검증')
+            .setDesc('노트 강화 시 내용 복기를 통한 정확도 검증을 활성화합니다 (75% 이상일 때만 강화)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enablePotentiateAccuracyCheck)
+                .onChange(async (value) => {
+                    this.plugin.settings.enablePotentiateAccuracyCheck = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 
     private addMaskedApiKeySetting(containerEl: HTMLElement, name: string, settingKey: keyof AILSSSettings & string) {
