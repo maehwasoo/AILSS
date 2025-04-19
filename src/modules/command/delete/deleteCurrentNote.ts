@@ -1,9 +1,9 @@
 import { App, Notice, TFile } from 'obsidian';
 import type AILSSPlugin from '../../../../main';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
-import { CleanEmptyFolders } from '../../maintenance/utils/cleanEmptyFolders';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
+import { CleanEmptyFolders } from '../../../core/utils/cleanEmptyFolders';
 import { RemoveNoteLinks } from './removeNoteLinks';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 export class DeleteCurrentNote {
     private app: App;

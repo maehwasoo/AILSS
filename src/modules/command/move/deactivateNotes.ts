@@ -1,9 +1,9 @@
-import { App, Notice, TFile, Modal } from 'obsidian';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
-import { showTagSelectionDialog } from '../../../components/tagSelectionModal';
-import { CleanEmptyFolders } from '../../maintenance/utils/cleanEmptyFolders';
+import { App, Notice, TFile } from 'obsidian';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
+import { showTagSelectionDialog } from '../../../components/tagUI/tagSelectionModal';
+import { CleanEmptyFolders } from '../../../core/utils/cleanEmptyFolders';
 import type AILSSPlugin from '../../../../main';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
+import { PathSettings } from '../../../core/settings/pathSettings';
 export class DeactivateNotes {
     private static readonly DEACTIVATED_ROOT = PathSettings.DEACTIVATED_ROOT;
     

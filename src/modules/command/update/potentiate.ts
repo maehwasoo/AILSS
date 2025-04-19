@@ -1,7 +1,7 @@
 import { App, Notice } from 'obsidian';
 import type AILSSPlugin from '../../../../main';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
 import { moment } from 'obsidian';
 
 export class Potentiate {

@@ -1,9 +1,6 @@
-import { App, Notice } from 'obsidian';
-import { moment } from 'obsidian';
+import { App, Notice, MarkdownView } from 'obsidian';
 import type AILSSPlugin from 'main';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
-import { MarkdownView } from 'obsidian';
+import { PathSettings } from '../../../core/settings/pathSettings';
 
 export class NewNote {
     constructor(

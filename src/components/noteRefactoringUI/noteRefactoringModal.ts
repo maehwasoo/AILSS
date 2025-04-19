@@ -1,7 +1,7 @@
 import { App, Modal, TFile, Notice, setIcon } from 'obsidian';
-import AILSSPlugin from '../../main';
-import { FrontmatterManager } from '../modules/maintenance/utils/frontmatterManager';
-import { AINoteRefactor } from '../modules/ai/text/aiNoteRefactor';
+import AILSSPlugin from '../../../main';
+import { FrontmatterManager } from '../../core/utils/frontmatterManager';
+import { AINoteRefactor } from '../../modules/ai/text/aiNoteRefactor';
 
 interface NoteRefactoringModalOptions {
     file: TFile;

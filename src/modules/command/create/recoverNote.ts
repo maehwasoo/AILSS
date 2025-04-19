@@ -1,7 +1,7 @@
-import { App, Notice, MarkdownView, TFile, TFolder, Editor } from 'obsidian';
+import { App, Notice, MarkdownView, TFile, Editor } from 'obsidian';
 import type AILSSPlugin from 'main';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
-import { CleanEmptyFolders } from '../../maintenance/utils/cleanEmptyFolders';
+import { PathSettings } from '../../../core/settings/pathSettings';
+import { CleanEmptyFolders } from '../../../core/utils/cleanEmptyFolders';
 import { RemoveNoteLinks } from '../delete/removeNoteLinks';
 
 export class RecoverNote {

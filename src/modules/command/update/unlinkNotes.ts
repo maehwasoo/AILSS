@@ -1,6 +1,6 @@
 import { App, Notice, TFile } from 'obsidian';
 import type AILSSPlugin from '../../../../main';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
 
 export class UnlinkNotes {
     private app: App;

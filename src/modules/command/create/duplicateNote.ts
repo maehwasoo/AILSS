@@ -1,8 +1,8 @@
-import { App, TFile, Notice } from 'obsidian';
+import { App, Notice } from 'obsidian';
 import { moment } from 'obsidian';
 import type AILSSPlugin from 'main';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
+import { PathSettings } from '../../../core/settings/pathSettings';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 export class DuplicateNote {
     constructor(

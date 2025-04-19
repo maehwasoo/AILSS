@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Notice } from 'obsidian';
+import { App, Editor, MarkdownView } from 'obsidian';
 
 export class AIEditorUtils {
     static getActiveEditor(app: App): Editor {

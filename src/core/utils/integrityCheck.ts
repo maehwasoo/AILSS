@@ -3,7 +3,7 @@ import { moment } from 'obsidian';
 import type AILSSPlugin from 'main';
 import { PathSettings } from '../settings/pathSettings';
 import { FrontmatterManager, DefaultFrontmatterConfig } from './frontmatterManager';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
+import { showConfirmationDialog } from '../../components/commonUI/confirmationModal';
 
 interface IntegrityCheckOptions {
     path: string;

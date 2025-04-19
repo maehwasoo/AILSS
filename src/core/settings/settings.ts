@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
-import AILSSPlugin from '../../../../main';
+import AILSSPlugin from '../../../main';
 import { FileCountManager } from '../utils/fileCountManager';
 import { PathSettings } from './pathSettings';
 

@@ -1,7 +1,7 @@
-import { Editor, MarkdownView } from 'obsidian';
+import { MarkdownView } from 'obsidian';
 import AILSSPlugin from '../../main';
 import { ServiceRegistry } from './serviceRegistry';
-import { NoteRefactoringModal } from '../components/noteRefactoringModal';
+import { NoteRefactoringModal } from '../components/noteRefactoringUI/noteRefactoringModal';
 
 /**
  * 플러그인의 모든 리본 메뉴를 관리하는 레지스트리

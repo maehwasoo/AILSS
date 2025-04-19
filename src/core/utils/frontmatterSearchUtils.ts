@@ -1,6 +1,6 @@
 import { App, TFile } from 'obsidian';
 import { FrontmatterManager } from './frontmatterManager';
-import { showTitleSearchModal } from '../../../components/titleSearchModal';
+import { showTitleSearchModal } from '../../components/commonUI/titleSearchModal';
 
 /**
  * 프론트매터 title 검색 관련 유틸리티

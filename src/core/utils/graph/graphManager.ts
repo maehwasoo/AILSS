@@ -1,6 +1,6 @@
 import { App, Notice } from 'obsidian';
 import { DEFAULT_GRAPH_CONFIG } from './defaultGraphConfig';
-import AILSSPlugin from '../../../../../main';
+import AILSSPlugin from '../../../../main';
 
 export class GraphManager {
     constructor(

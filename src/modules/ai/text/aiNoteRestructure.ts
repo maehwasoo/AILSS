@@ -2,8 +2,8 @@ import { App, Notice, MarkdownView } from 'obsidian';
 import AILSSPlugin from '../../../../main';
 import { AIEditorUtils } from '../ai_utils/aiEditorUtils';
 import { requestToAI } from '../ai_utils/aiUtils';
-import { getContentWithoutFrontmatter } from '../../../modules/maintenance/utils/contentUtils';
-import { FrontmatterManager } from '../../../modules/maintenance/utils/frontmatterManager';
+import { getContentWithoutFrontmatter } from '../../../core/utils/contentUtils';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 export class AINoteRestructure {
     private app: App;

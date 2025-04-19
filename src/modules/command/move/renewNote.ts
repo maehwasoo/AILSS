@@ -1,9 +1,9 @@
 import { App, TFile, Notice } from 'obsidian';
 import { moment } from 'obsidian';
 import type AILSSPlugin from 'main';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
-import { CleanEmptyFolders } from '../../maintenance/utils/cleanEmptyFolders';
+import { PathSettings } from '../../../core/settings/pathSettings';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
+import { CleanEmptyFolders } from '../../../core/utils/cleanEmptyFolders';
 
 export class RenewNote {
     private app: App;

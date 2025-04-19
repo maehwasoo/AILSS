@@ -1,11 +1,11 @@
 import { App, Notice, MarkdownView, moment, TFile } from 'obsidian';
 import type AILSSPlugin from '../../../../main';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
+import { PathSettings } from '../../../core/settings/pathSettings';
 import { requestToAI } from '../ai_utils/aiUtils';
-import { getContentWithoutFrontmatter } from '../../maintenance/utils/contentUtils';
-import { FrontmatterSearchUtils } from '../../maintenance/utils/frontmatterSearchUtils';
-import { showTitleSearchModal } from '../../../components/titleSearchModal';
+import { getContentWithoutFrontmatter } from '../../../core/utils/contentUtils';
+import { FrontmatterSearchUtils } from '../../../core/utils/frontmatterSearchUtils';
+import { showTitleSearchModal } from '../../../components/commonUI/titleSearchModal';
 
 export class AILinkNote {
     constructor(

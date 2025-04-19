@@ -1,9 +1,9 @@
 import { App, TFile, Notice } from 'obsidian';
 import AILSSPlugin from '../../../../main';
 import { requestToAI } from '../ai_utils/aiUtils';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
-import { getContentWithoutFrontmatter } from '../../maintenance/utils/contentUtils';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
+import { PathSettings } from '../../../core/settings/pathSettings';
+import { getContentWithoutFrontmatter } from '../../../core/utils/contentUtils';
 
 export class AINoteRefactor {
     private app: App;

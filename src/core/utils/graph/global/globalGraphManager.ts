@@ -1,5 +1,5 @@
 import { App, Notice } from 'obsidian';
-import AILSSPlugin from '../../../../../../main';
+import AILSSPlugin from '../../../../../main';
 import { DEFAULT_GLOBAL_GRAPH } from './defaultGlobalGraph';
 
 export class GlobalGraphManager {
