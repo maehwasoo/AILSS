@@ -42,21 +42,36 @@ export class NoteRecallModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         
-        // 모달 제목
-        contentEl.createEl('h2', { text: '노트 복기', cls: 'note-recall-title' });
+        // 모달 컨텐츠 영역 패딩 추가
+        contentEl.style.padding = '1rem';
         
-        // 안내 텍스트
-        const instructionsEl = contentEl.createEl('p', { 
-            text: '이 노트의 내용을 기억나는 대로 작성하거나 음성으로 말해보세요. 정확도가 75% 이상이어야 강화가 적용됩니다.',
-            cls: 'note-recall-instructions'
-        });
+        // 헤더 컨테이너 (제목과 버튼을 같은 줄에 배치)
+        const headerContainerEl = contentEl.createDiv({ cls: 'note-recall-header-container' });
+        
+        // 모달 제목 (좌측 배치)
+        headerContainerEl.createEl('h2', { text: '노트 복기', cls: 'note-recall-title' });
+        
+        // 버튼 컨테이너 (우측 배치)
+        const buttonContainerEl = headerContainerEl.createDiv({ cls: 'note-recall-button-container' });
+        
+        // 마이크 버튼
+        this.micButton = new ButtonComponent(buttonContainerEl)
+            .setButtonText('음성 인식')
+            .setClass('note-recall-mic-button')
+            .onClick(() => this.toggleRecording());
+        
+        // 제출 버튼
+        this.submitButton = new ButtonComponent(buttonContainerEl)
+            .setButtonText('제출')
+            .setClass('note-recall-submit-button')
+            .onClick(() => this.submitRecall());
         
         // 입력 영역
         const inputContainerEl = contentEl.createDiv({ cls: 'note-recall-input-container' });
         this.inputEl = inputContainerEl.createEl('textarea', {
             attr: { 
                 placeholder: '노트 내용을 기억나는 대로 입력하거나 마이크 버튼을 눌러 말하세요...',
-                rows: '10'
+                rows: '25'
             },
             cls: 'note-recall-textarea'
         });
@@ -68,27 +83,6 @@ export class NoteRecallModal extends Modal {
             cls: 'note-recall-timer'
         });
         
-        // 버튼 컨테이너
-        const buttonContainerEl = contentEl.createDiv({ cls: 'note-recall-button-container' });
-        
-        // 마이크 버튼
-        this.micButton = new ButtonComponent(buttonContainerEl)
-            .setButtonText('🎤 녹음')
-            .setClass('note-recall-mic-button')
-            .onClick(() => this.toggleRecording());
-        
-        // 제출 버튼
-        this.submitButton = new ButtonComponent(buttonContainerEl)
-            .setButtonText('제출')
-            .setClass('note-recall-submit-button')
-            .onClick(() => this.submitRecall());
-        
-        // 취소 버튼
-        new ButtonComponent(buttonContainerEl)
-            .setButtonText('취소')
-            .setClass('note-recall-cancel-button')
-            .onClick(() => this.close());
-        
         // CSS 스타일 적용
         this.applyStyles();
     }
@@ -99,25 +93,57 @@ export class NoteRecallModal extends Modal {
     private applyStyles() {
         const { contentEl } = this;
         
-        // 타이틀 스타일
-        contentEl.querySelector('.note-recall-title').addClass('title-text');
+        // 헤더 컨테이너 스타일
+        const headerContainerEl = contentEl.querySelector('.note-recall-header-container') as HTMLElement;
+        if (headerContainerEl) {
+            headerContainerEl.style.display = 'flex';
+            headerContainerEl.style.justifyContent = 'space-between';
+            headerContainerEl.style.alignItems = 'center';
+            headerContainerEl.style.marginBottom = '1rem';
+        }
         
-        // 입력 영역 스타일
-        contentEl.querySelector('.note-recall-textarea').style.width = '100%';
-        contentEl.querySelector('.note-recall-textarea').style.minHeight = '150px';
-        contentEl.querySelector('.note-recall-textarea').style.resize = 'vertical';
-        contentEl.querySelector('.note-recall-textarea').style.marginBottom = '1rem';
+        // 타이틀 스타일
+        const titleEl = contentEl.querySelector('.note-recall-title');
+        if (titleEl) {
+            (titleEl as HTMLElement).addClass('title-text');
+            (titleEl as HTMLElement).style.margin = '0';
+        }
         
         // 버튼 컨테이너 스타일
-        contentEl.querySelector('.note-recall-button-container').style.display = 'flex';
-        contentEl.querySelector('.note-recall-button-container').style.justifyContent = 'flex-end';
-        contentEl.querySelector('.note-recall-button-container').style.gap = '0.5rem';
+        const buttonContainerEl = contentEl.querySelector('.note-recall-button-container') as HTMLElement;
+        if (buttonContainerEl) {
+            buttonContainerEl.style.display = 'flex';
+            buttonContainerEl.style.justifyContent = 'flex-end';
+            buttonContainerEl.style.gap = '0.5rem';
+            buttonContainerEl.style.alignItems = 'center';
+        }
+        
+        // 입력 영역 스타일
+        const textareaEl = contentEl.querySelector('.note-recall-textarea') as HTMLTextAreaElement;
+        if (textareaEl) {
+            textareaEl.style.width = '100%';
+            textareaEl.style.minHeight = '250px';
+            textareaEl.style.resize = 'vertical';
+        }
+        
+        // 입력 컨테이너 스타일
+        const inputContainerEl = contentEl.querySelector('.note-recall-input-container') as HTMLElement;
+        if (inputContainerEl) {
+            inputContainerEl.style.marginBottom = '1rem';
+            inputContainerEl.style.height = 'auto';
+        }
         
         // 마이크 버튼 스타일
-        contentEl.querySelector('.note-recall-mic-button').addClass('mod-warning');
+        const micButtonEl = contentEl.querySelector('.note-recall-mic-button');
+        if (micButtonEl) {
+            (micButtonEl as HTMLElement).addClass('mod-warning');
+        }
         
         // 제출 버튼 스타일
-        contentEl.querySelector('.note-recall-submit-button').addClass('mod-cta');
+        const submitButtonEl = contentEl.querySelector('.note-recall-submit-button');
+        if (submitButtonEl) {
+            (submitButtonEl as HTMLElement).addClass('mod-cta');
+        }
     }
     
     /**
@@ -171,7 +197,7 @@ export class NoteRecallModal extends Modal {
             }
             
             // UI 업데이트
-            this.micButton.setButtonText('🎤 녹음');
+            this.micButton.setButtonText('음성 인식');
             this.micButton.buttonEl.removeClass('recording');
             this.statusEl.setText('변환 중...');
             

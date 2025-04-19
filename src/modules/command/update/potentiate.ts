@@ -50,13 +50,26 @@ export class Potentiate {
             }
         }
 
-        // 정확도 검증 활성화 여부 확인
+        // 항상 먼저 확인 대화상자 표시
+        const confirmed = await showConfirmationDialog(this.app, {
+            title: "노트 강화 확인",
+            message: `현재 노트의 강화 지수를 ${currentPotentiation} → ${currentPotentiation + FrontmatterManager.getPotentiationIncrement()}로 증가시키시겠습니까?`,
+            confirmText: "강화",
+            cancelText: "취소"
+        });
+
+        if (!confirmed) {
+            new Notice("강화가 취소되었습니다.");
+            return;
+        }
+
+        // 확인 후 정확도 검증 활성화 여부에 따라 처리
         if (this.plugin.settings.enablePotentiateAccuracyCheck) {
             // 정확도 검증 활성화 - 노트 복기 모달 표시
             this.showNoteRecallModal(activeFile, fileContent, currentPotentiation);
         } else {
-            // 정확도 검증 비활성화 - 기존 로직 실행
-            await this.showConfirmationAndPotentiate(activeFile, fileContent, currentPotentiation);
+            // 정확도 검증 비활성화 - 바로 강화 적용
+            await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
         }
     }
 
@@ -87,27 +100,6 @@ export class Potentiate {
         );
         
         modal.open();
-    }
-
-    /**
-     * 확인 대화상자를 표시하고 강화를 적용합니다.
-     */
-    private async showConfirmationAndPotentiate(activeFile: any, fileContent: string, currentPotentiation: number) {
-        // 사용자 확인 추가
-        const confirmed = await showConfirmationDialog(this.app, {
-            title: "노트 강화 확인",
-            message: `현재 노트의 강화 지수를 ${currentPotentiation} → ${currentPotentiation + FrontmatterManager.getPotentiationIncrement()}로 증가시키시겠습니까?`,
-            confirmText: "강화",
-            cancelText: "취소"
-        });
-
-        if (!confirmed) {
-            new Notice("강화가 취소되었습니다.");
-            return;
-        }
-
-        // 강화 적용
-        await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
     }
 
     /**

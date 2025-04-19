@@ -330,6 +330,9 @@ export class AILSSSettingTab extends PluginSettingTab {
                     this.plugin.settings.enablePotentiateAccuracyCheck = value;
                     await this.plugin.saveSettings();
                 }));
+                
+        // 구분선 추가
+        containerEl.createEl('hr');
     }
 
     private addMaskedApiKeySetting(containerEl: HTMLElement, name: string, settingKey: keyof AILSSSettings & string) {
