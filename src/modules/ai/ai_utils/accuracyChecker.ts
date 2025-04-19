@@ -61,6 +61,7 @@ ${userInput}
 
 1. 0-100 사이의 점수로 정확도를 평가해주세요. 이 점수는 사용자가 원본 텍스트의 핵심 개념과 중요 내용을 얼마나 정확히 기억하고 표현했는지를 나타냅니다.
 2. 간단한 피드백을 제공해주세요. 잘한 점과 놓친 핵심 내용이 있다면 언급해주세요.
+3. 피드백 내용은 짧고 간결하게 작성해주세요.
 
 응답 형식은 다음과 같이 JSON 형식으로 작성해주세요:
 {
@@ -113,14 +114,14 @@ export async function checkAccuracy(
         // 토큰 제한 체크
         const tokenCheck = checkTokenLimit(originalText, userInput);
         if (tokenCheck.status === 2) {
-            new Notice(`텍스트가 너무 깁니다 (약 ${tokenCheck.estimatedTokens}토큰). AI 모델 토큰 한도를 초과할 수 있습니다.\n핵심 내용만 복기해주세요.`, 10000);
+            new Notice(`텍스트가 너무 깁니다\n약 ${tokenCheck.estimatedTokens} 토큰 감지됨\nAI 모델 토큰 한도를 초과할 수 있습니다`, 50000);
             return {
                 success: false,
                 score: 0,
                 feedback: "텍스트가 너무 깁니다. AI 모델의 처리 한도를 초과합니다. 핵심 내용만 복기해주세요."
             };
         } else if (tokenCheck.status === 1) {
-            new Notice(`텍스트가 길어 정확도 평가가 부정확할 수 있습니다 (약 ${tokenCheck.estimatedTokens}토큰).\n핵심 내용 위주로 평가합니다.`, 5000);
+            new Notice(`텍스트가 길어 정확도 평가가 부정확할 수 있습니다\n약 ${tokenCheck.estimatedTokens} 토큰 감지됨\n핵심 내용 위주로 평가합니다`, 50000);
         }
         
         // 프롬프트 생성

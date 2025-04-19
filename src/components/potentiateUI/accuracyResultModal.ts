@@ -1,4 +1,4 @@
-import { App, Modal, setIcon } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import { AccuracyResult } from '../../modules/ai/ai_utils/accuracyChecker';
 
 /**
@@ -37,20 +37,14 @@ export class AccuracyResultModal extends Modal {
             themeColor = 'var(--color-red)';
         }
         
-        // 아이콘 생성
-        const iconContainer = contentEl.createDiv({ cls: 'accuracy-result-icon' });
-        iconContainer.style.fontSize = '3em';
-        iconContainer.style.marginBottom = '15px';
-        iconContainer.style.color = themeColor;
-        setIcon(iconContainer, iconName);
-        
         // 결과 제목 생성
-        const titleEl = contentEl.createEl('h2', { 
+        const titleEl = contentEl.createEl('h1', { 
             text: this.result.success ? '정확도 검증 성공!' : '정확도 검증 실패', 
             cls: 'accuracy-result-title'
         });
         titleEl.style.color = themeColor;
-        titleEl.style.marginBottom = '15px';
+        titleEl.style.marginBottom = '25px';
+        titleEl.style.marginTop= '0px';
         
         // 점수 표시
         const scoreContainer = contentEl.createDiv({ cls: 'accuracy-score-container' });
@@ -103,12 +97,13 @@ export class AccuracyResultModal extends Modal {
             feedbackContainer.style.borderRadius = '4px';
             feedbackContainer.style.marginTop = '20px';
             
-            const feedbackEl = contentEl.createEl('p', { 
+            const feedbackEl = feedbackContainer.createEl('p', { 
                 text: this.result.feedback,
                 cls: 'accuracy-feedback'
             });
             feedbackEl.style.textAlign = 'center';
             feedbackEl.style.margin = '0';
+            feedbackEl.style.lineHeight = '1.5';
         }
     }
     

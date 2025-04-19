@@ -55,7 +55,7 @@ export class TokenWarningModal extends Modal {
         warningContainer.style.backgroundColor = 'var(--background-secondary)';
         warningContainer.style.padding = '15px';
         warningContainer.style.borderRadius = '5px';
-        warningContainer.style.marginBottom = '15px';
+        warningContainer.style.marginBottom = '30px';
         
         const warningEl = warningContainer.createDiv({ 
             text: warningMessage, 

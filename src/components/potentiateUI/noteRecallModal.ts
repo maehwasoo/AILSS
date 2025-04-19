@@ -1,4 +1,4 @@
-import { App, Modal, Setting, ButtonComponent, MarkdownRenderer, Notice } from 'obsidian';
+import { App, Modal, ButtonComponent, Notice } from 'obsidian';
 import { startRecording, stopRecording, transcribeAudio, RecordingSession, formatRecordingTime } from '../../modules/ai/ai_utils/whisperUtils';
 import { checkAccuracy, AccuracyResult } from '../../modules/ai/ai_utils/accuracyChecker';
 import { AILSSSettings } from '../../core/settings/settings';
