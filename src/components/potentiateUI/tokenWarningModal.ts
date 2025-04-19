@@ -37,7 +37,7 @@ export class TokenWarningModal extends Modal {
         let warningColor: string;
 
         if (this.tokenCount > 12000) {
-            warningMessage = '노트 길이가 매우 깁니다. 처리하는데 시간이 오래 걸리거나 일부 내용이 생략될 수 있습니다.';
+            warningMessage = '노트 길이가 매우 깁니다.\n처리하는데 시간이 오래 걸리거나 일부 내용이 생략될 수 있습니다.';
             recommendationMessage = '노트를 더 작은 부분으로 나누거나, 핵심 내용만 선택하여 진행하세요.';
             warningColor = 'var(--color-red)';
         } else if (this.tokenCount > 8000) {
@@ -57,13 +57,31 @@ export class TokenWarningModal extends Modal {
         warningContainer.style.borderRadius = '5px';
         warningContainer.style.marginBottom = '30px';
         
-        const warningEl = warningContainer.createDiv({ 
-            text: warningMessage, 
-            cls: 'token-warning-message' 
-        });
-        warningEl.style.color = warningColor;
-        warningEl.style.fontWeight = 'bold';
-        warningEl.style.marginBottom = '10px';
+        // 메시지를 두 부분으로 나누어 표시
+        if (this.tokenCount > 12000) {
+            const warningFirstLine = warningContainer.createDiv({
+                text: '노트 길이가 매우 깁니다.',
+                cls: 'token-warning-message'
+            });
+            warningFirstLine.style.color = warningColor;
+            warningFirstLine.style.fontWeight = 'bold';
+            
+            const warningSecondLine = warningContainer.createDiv({
+                text: '처리하는데 시간이 오래 걸리거나 일부 내용이 생략될 수 있습니다.',
+                cls: 'token-warning-message'
+            });
+            warningSecondLine.style.color = warningColor;
+            warningSecondLine.style.fontWeight = 'bold';
+            warningSecondLine.style.marginBottom = '10px';
+        } else {
+            const warningEl = warningContainer.createDiv({ 
+                text: warningMessage, 
+                cls: 'token-warning-message' 
+            });
+            warningEl.style.color = warningColor;
+            warningEl.style.fontWeight = 'bold';
+            warningEl.style.marginBottom = '10px';
+        }
 
         const recommendationEl = warningContainer.createDiv({ 
             text: recommendationMessage, 

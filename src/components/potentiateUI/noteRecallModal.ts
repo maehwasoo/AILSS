@@ -1,5 +1,14 @@
 import { App, Modal, ButtonComponent, Notice } from 'obsidian';
-import { startRecording, stopRecording, transcribeAudio, RecordingSession, formatRecordingTime } from '../../modules/ai/ai_utils/whisperUtils';
+import { 
+    startRecording, 
+    stopRecording, 
+    transcribeAudio, 
+    RecordingSession, 
+    formatRecordingTime,
+    startRealtimeSpeechRecognition,
+    stopRealtimeSpeechRecognition,
+    RealtimeSpeechSession
+} from '../../modules/ai/ai_utils/whisperUtils';
 import { checkAccuracy, AccuracyResult } from '../../modules/ai/ai_utils/accuracyChecker';
 import { AILSSSettings } from '../../core/settings/settings';
 import AILSSPlugin from '../../../main';
@@ -23,6 +32,7 @@ export class NoteRecallModal extends Modal {
     
     // 녹음 관련
     private recordingSession: RecordingSession | null = null;
+    private realtimeSpeechSession: RealtimeSpeechSession | null = null;
     private recordingTimer: number | null = null;
     private recordingStartTime: number = 0;
     
@@ -111,6 +121,7 @@ export class NoteRecallModal extends Modal {
         if (titleEl) {
             (titleEl as HTMLElement).addClass('title-text');
             (titleEl as HTMLElement).style.margin = '0';
+            (titleEl as HTMLElement).style.textAlign = 'left';
         }
         
         // 버튼 컨테이너 스타일
@@ -164,26 +175,62 @@ export class NoteRecallModal extends Modal {
      * 녹음 상태 토글
      */
     async toggleRecording() {
-        if (this.recordingSession && this.recordingSession.isRecording) {
-            await this.stopRecordingAndTranscribe();
+        if (this.realtimeSpeechSession && this.realtimeSpeechSession.isRecording) {
+            await this.stopRealtimeSpeechRecognition();
         } else {
-            await this.startRecordingAudio();
+            await this.startRealtimeSpeechRecognition();
         }
     }
     
     /**
-     * 오디오 녹음 시작
+     * 실시간 음성 인식 시작
      */
-    async startRecordingAudio() {
+    async startRealtimeSpeechRecognition() {
         try {
-            // 녹음 시작
-            this.recordingSession = await startRecording();
+            // API 키 확인
+            const apiKey = this.settings.openAIAPIKey;
+            if (!apiKey) {
+                new Notice('OpenAI API 키가 설정되지 않았습니다.');
+                return;
+            }
+            
             this.recordingStartTime = Date.now();
             
             // UI 업데이트
             this.micButton.setButtonText('■ 중지');
             this.micButton.buttonEl.addClass('recording');
-            this.statusEl.setText('녹음 중...');
+            this.statusEl.setText('실시간 인식 중...');
+            
+            // 기존 텍스트 저장 (새 변수 추가)
+            const existingText = this.inputEl.value;
+            
+            // 실시간 음성 인식 시작 (3초마다 청크 처리)
+            this.realtimeSpeechSession = await startRealtimeSpeechRecognition(
+                3000, // 3초마다 음성 데이터 처리
+                apiKey,
+                (text, isFinal) => {
+                    // 텍스트 변환 결과를 입력창에 표시 (기존 텍스트 유지)
+                    if (existingText) {
+                        this.inputEl.value = existingText + ' ' + text;
+                    } else {
+                        this.inputEl.value = text;
+                    }
+                    
+                    // 변환 상태 업데이트
+                    if (!isFinal) {
+                        this.statusEl.setText('인식 중...');
+                    } else {
+                        this.statusEl.setText('인식 완료');
+                        
+                        // 3초 후 상태 메시지 제거
+                        setTimeout(() => {
+                            if (this.statusEl.getText() === '인식 완료') {
+                                this.statusEl.setText('');
+                            }
+                        }, 3000);
+                    }
+                }
+            );
             
             // 타이머 시작
             this.recordingTimer = window.setInterval(() => {
@@ -192,16 +239,16 @@ export class NoteRecallModal extends Modal {
             }, 1000);
             
         } catch (error) {
-            console.error('녹음 시작 오류:', error);
+            console.error('실시간 음성 인식 시작 오류:', error);
             new Notice('마이크 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
         }
     }
     
     /**
-     * 녹음 중지 및 텍스트 변환
+     * 실시간 음성 인식 중지
      */
-    async stopRecordingAndTranscribe() {
-        if (!this.recordingSession) return;
+    async stopRealtimeSpeechRecognition() {
+        if (!this.realtimeSpeechSession) return;
         
         try {
             // 타이머 중지
@@ -213,37 +260,23 @@ export class NoteRecallModal extends Modal {
             // UI 업데이트
             this.micButton.setButtonText('음성 인식');
             this.micButton.buttonEl.removeClass('recording');
-            this.statusEl.setText('변환 중...');
+            this.statusEl.setText('변환 완료 중...');
             
-            // 녹음 중지 및 오디오 데이터 가져오기
-            const audioBlob = await stopRecording(this.recordingSession);
-            this.recordingSession = null;
+            // 실시간 음성 인식 중지
+            const finalText = await stopRealtimeSpeechRecognition(this.realtimeSpeechSession);
+            this.realtimeSpeechSession = null;
             
-            // API 키 확인
-            const apiKey = this.settings.openAIAPIKey;
-            if (!apiKey) {
-                new Notice('OpenAI API 키가 설정되지 않았습니다.');
-                this.statusEl.setText('');
-                return;
-            }
+            // 최종 텍스트 설정 - 기존 텍스트 유지 (이미 처리됨)
+            this.statusEl.setText('인식 완료');
             
-            // 오디오를 텍스트로 변환
-            const result = await transcribeAudio(audioBlob, apiKey);
-            
-            // 변환된 텍스트를 입력창에 표시
-            this.inputEl.value = result.text;
-            this.statusEl.setText('변환 완료');
-            
-            // 3초 후 상태 메시지 제거
+            // 상태 메시지를 바로 비움 (기존 3초 타이머 제거)
             setTimeout(() => {
-                if (this.statusEl.getText() === '변환 완료') {
-                    this.statusEl.setText('');
-                }
-            }, 3000);
+                this.statusEl.setText('');
+            }, 2000);
             
         } catch (error) {
-            console.error('녹음 처리 오류:', error);
-            new Notice('오디오 처리 중 오류가 발생했습니다.');
+            console.error('실시간 음성 인식 중지 오류:', error);
+            new Notice('음성 인식 처리 중 오류가 발생했습니다.');
             this.statusEl.setText('');
         }
     }
@@ -293,11 +326,11 @@ export class NoteRecallModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         
-        // 녹음 중이라면 중지
-        if (this.recordingSession && this.recordingSession.isRecording) {
-            this.recordingSession.recorder.stop();
-            if (this.recordingSession.recorder.stream) {
-                this.recordingSession.recorder.stream.getTracks().forEach(track => track.stop());
+        // 실시간 음성 인식 중이라면 중지
+        if (this.realtimeSpeechSession && this.realtimeSpeechSession.isRecording) {
+            this.realtimeSpeechSession.recorder.stop();
+            if (this.realtimeSpeechSession.recorder.stream) {
+                this.realtimeSpeechSession.recorder.stream.getTracks().forEach(track => track.stop());
             }
         }
         
