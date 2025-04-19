@@ -2,6 +2,7 @@ import { App, Modal, Setting, ButtonComponent, MarkdownRenderer, Notice } from '
 import { startRecording, stopRecording, transcribeAudio, RecordingSession, formatRecordingTime } from '../../modules/ai/ai_utils/whisperUtils';
 import { checkAccuracy, AccuracyResult } from '../../modules/ai/ai_utils/accuracyChecker';
 import { AILSSSettings } from '../../core/settings/settings';
+import AILSSPlugin from '../../../main';
 
 /**
  * 노트 복기 모달 UI
@@ -11,6 +12,7 @@ export class NoteRecallModal extends Modal {
     private noteContent: string;
     private onAccuracyResult: (result: AccuracyResult) => void;
     private settings: AILSSSettings;
+    private plugin: AILSSPlugin;
     
     // UI 요소
     private inputEl: HTMLTextAreaElement;
@@ -31,11 +33,13 @@ export class NoteRecallModal extends Modal {
         app: App, 
         noteContent: string, 
         settings: AILSSSettings,
+        plugin: AILSSPlugin,
         onAccuracyResult: (result: AccuracyResult) => void
     ) {
         super(app);
         this.noteContent = noteContent;
         this.settings = settings;
+        this.plugin = plugin;
         this.onAccuracyResult = onAccuracyResult;
     }
     
@@ -264,11 +268,12 @@ export class NoteRecallModal extends Modal {
             this.submitButton.setDisabled(true);
             this.statusEl.setText('정확도 분석 중...');
             
-            // 정확도 검증 수행
+            // 정확도 검증 수행 - plugin 객체 전달
             const result = await checkAccuracy(
                 this.noteContent,
                 userInput,
-                this.settings
+                this.settings,
+                this.plugin
             );
             
             // 결과 전달 및 모달 닫기

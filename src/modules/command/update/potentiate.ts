@@ -81,6 +81,7 @@ export class Potentiate {
             this.app,
             fileContent,
             this.plugin.settings,
+            this.plugin,
             async (result: AccuracyResult) => {
                 // 정확도 결과에 따라 강화 적용
                 if (result.success) {
