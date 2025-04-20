@@ -5,8 +5,12 @@ import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 import { PathSettings } from '../../../core/settings/pathSettings';
 import { 
     getContentWithoutFrontmatter, 
-    replaceLinksWithPlaceholders, 
-    restoreLinksFromPlaceholders 
+    prepareLinksForAI,
+    restoreLinksFromAI,
+    extractLinks,
+    LinkType,
+    moveAttachmentLinksToBottom,
+    LinkInfo
 } from '../../../core/utils/contentUtils';
 
 export class AINoteRefactor {
@@ -404,7 +408,8 @@ export class AINoteRefactor {
 - 통합된 내용의 일관성과 응집성 유지
 - 각 섹션과 하위 섹션 간의 균형 유지
 - 모든 출처의 핵심 내용이 보존되었는지 확인
-- 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
+- 노트 링크 내의 별칭은 일반 텍스트로 취급하고 관련 문맥에 맞게 배치
+- 첨부 파일 링크는 문맥상 관련 있는 위치에 배치하되, 위치가 애매하다면 문서 하단에 별도 섹션으로 배치
 
 용어 분석 및 통합 원칙:
 - 각 문서에서 동일한 용어가 어떤 맥락과 관점에서 사용되었는지 분석
@@ -416,17 +421,26 @@ export class AINoteRefactor {
 - 학문 분야나 이론적 배경에 따른 용어 해석 차이를 명확히 구분
 ${AINoteRefactor.FORMATTING_RULES}`;
 
-        // 링크를 플레이스홀더로 대체
+        // 대상 노트와 소스 노트들의 모든 첨부 파일 링크 추출
+        const targetAttachmentLinks = extractLinks(targetContent, LinkType.AttachmentLink);
+        const allSourceAttachmentLinks: LinkInfo[] = [];
+        
+        // 링크를 AI 처리를 위해 변환
         const { modifiedContent: processedTargetContent, linkPlaceholders: targetLinkPlaceholders } = 
-            replaceLinksWithPlaceholders(targetContent);
+            prepareLinksForAI(targetContent);
             
         // 소스 내용 결합 및 링크 처리
         let sourcesDescription = '';
         let allLinkPlaceholders = [...targetLinkPlaceholders];
         
         for (let i = 0; i < sourceTitles.length; i++) {
+            // 소스 노트의 첨부 파일 링크 추출
+            const sourceAttachmentLinks = extractLinks(sourceContents[i], LinkType.AttachmentLink);
+            allSourceAttachmentLinks.push(...sourceAttachmentLinks);
+            
+            // 링크를 AI 처리에 적합하게 변환
             const { modifiedContent: processedSourceContent, linkPlaceholders: sourceLinkPlaceholders } = 
-                replaceLinksWithPlaceholders(sourceContents[i]);
+                prepareLinksForAI(sourceContents[i]);
                 
             sourcesDescription += `\n\n문서 ${i + 1} (${sourceTitles[i]}):\n${processedSourceContent}`;
             allLinkPlaceholders = [...allLinkPlaceholders, ...sourceLinkPlaceholders];
@@ -443,6 +457,8 @@ ${processedTargetContent}
 
 위 모든 문서의 내용을 분석하여 하나의 체계적이고 포괄적인 문서로 통합해주세요. 주요 개념은 적절한 헤더로 구분하고, 논리적 흐름을 가진 일관된 문서를 생성해주세요. 중복 내용은 제거하고, 모든 문서의 중요한 정보가 손실되지 않도록 해주세요.
 
+노트 내의 링크 별칭들이 텍스트 사이에 있을 수 있습니다. 이 별칭 텍스트를 일반 텍스트처럼 취급하여 적절한 문맥 속에 배치해주세요. 별칭은 해당 개념을 설명하는 단어일 가능성이 높으므로 원래 문맥을 고려하여 통합해주세요.
+
 문서들 사이에 공통으로 등장하는 주요 용어나 개념을 찾아 분석해주세요:
 1. 각 문서에서 동일 용어가 어떻게 다르게 정의되거나 사용되었는지 비교하세요.
 2. 용어의 공통 의미와 각 문서별 특수한 의미를 구분하여 설명하세요.
@@ -455,8 +471,13 @@ ${processedTargetContent}
             userPrompt
         });
 
-        // AI 응답에서 플레이스홀더를 원래 링크로 복원
-        const restoredContent = restoreLinksFromPlaceholders(response, allLinkPlaceholders);
+        // AI 응답에서 링크 플레이스홀더를 원래 링크로 복원
+        let restoredContent = restoreLinksFromAI(response, allLinkPlaceholders);
+        
+        // 소스 노트들의 첨부 파일 링크를 통합 노트 하단으로 이동
+        if (allSourceAttachmentLinks.length > 0) {
+            restoredContent = moveAttachmentLinksToBottom(restoredContent, allSourceAttachmentLinks);
+        }
 
         return restoredContent;
     }
@@ -491,7 +512,7 @@ ${AINoteRefactor.FORMATTING_RULES}`;
 
         // 링크를 플레이스홀더로 대체
         const { modifiedContent: processedContent, linkPlaceholders } = 
-            replaceLinksWithPlaceholders(sourceContent);
+            prepareLinksForAI(sourceContent);
 
         const userPrompt = `${systemPrompt}
 
@@ -538,7 +559,7 @@ ${processedContent}
             const parsedResult = JSON.parse(jsonContent);
             
             // 플레이스홀더를 원래 링크로 복원
-            const restoredMainContent = restoreLinksFromPlaceholders(
+            const restoredMainContent = restoreLinksFromAI(
                 parsedResult.mainContent || '', 
                 linkPlaceholders
             );
@@ -547,7 +568,7 @@ ${processedContent}
             const restoredSplitContents = (parsedResult.splitContents || []).map(
                 (splitContent: {title: string; content: string}) => ({
                     title: splitContent.title,
-                    content: restoreLinksFromPlaceholders(splitContent.content, linkPlaceholders)
+                    content: restoreLinksFromAI(splitContent.content, linkPlaceholders)
                 })
             );
             
@@ -596,7 +617,7 @@ ${AINoteRefactor.FORMATTING_RULES}`;
         
         for (let i = 0; i < notes.length; i++) {
             // 링크를 플레이스홀더로 대체
-            const { modifiedContent, linkPlaceholders } = replaceLinksWithPlaceholders(notes[i].content);
+            const { modifiedContent, linkPlaceholders } = prepareLinksForAI(notes[i].content);
             
             // 처리된 내용 저장
             processedNotes.push({
@@ -651,7 +672,7 @@ ${modifiedContent}`;
             
             // 응답에서 플레이스홀더를 원래 링크로 복원
             const restoredNoteContents = (parsedResult.noteContents || []).map(
-                (content: string) => restoreLinksFromPlaceholders(content, allLinkPlaceholders)
+                (content: string) => restoreLinksFromAI(content, allLinkPlaceholders)
             );
             
             return {
