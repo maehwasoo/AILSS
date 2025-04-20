@@ -96,12 +96,16 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string):
     // Responses API 형식에 맞게 요청 데이터 구성
     const data: any = {
         model: model,
-        input: prompt.userPrompt
+        input: prompt.userPrompt,
+        stream: true // 응답 스트리밍 활성화
     };
 
     // 추가 옵션 설정 (필요한 경우)
     if (prompt.temperature !== undefined) {
         data.temperature = prompt.temperature;
+    } else {
+        // 기본값 설정 (temperature는 기본값이 1)
+        data.temperature = 1;
     }
 
     if (prompt.max_tokens !== undefined) {
@@ -113,6 +117,9 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string):
         data.reasoning = { effort: 'high' };
         new Notice(`${model} 모델\n최대 연산 능력(reasoning effort high) 적용됨`, 3000);
     }
+
+    // 서비스 티어 설정 (기본값은 'auto')
+    data.service_tier = 'auto';
 
     const params: RequestUrlParam = {
         url: url,
