@@ -5,12 +5,12 @@ import { AINoteRefactor } from '../../modules/ai/text/aiNoteRefactor';
 import { PathSettings } from '../../core/settings/pathSettings';
 
 // 원자적 컴포넌트 임포트
-import { OptionSelectionComponent } from './atomic/OptionSelectionComponent';
-import { NoteSearchComponent } from './atomic/NoteSearchComponent';
-import { SplitConfirmationComponent } from './atomic/SplitConfirmationComponent';
-import { OperationPreviewComponent } from './atomic/OperationPreviewComponent';
-import { AIResultPreviewComponent } from './atomic/AIResultPreviewComponent';
-import { RefactoringComponentProps, RefactoringOption } from './atomic/types';
+import { OptionSelectionComponent } from './atomicComponents/OptionSelectionComponent';
+import { NoteSearchComponent } from './atomicComponents/NoteSearchComponent';
+import { SplitConfirmationComponent } from './atomicComponents/SplitConfirmationComponent';
+import { OperationPreviewComponent } from './atomicComponents/OperationPreviewComponent';
+import { AIResultPreviewComponent } from './atomicComponents/AIResultPreviewComponent';
+import { RefactoringComponentProps, RefactoringOption } from './atomicComponents/types';
 
 interface NoteRefactoringModalOptions {
     file: TFile;

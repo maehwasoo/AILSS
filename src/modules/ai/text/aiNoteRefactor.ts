@@ -612,7 +612,12 @@ ${AINoteRefactor.FORMATTING_RULES}`;
 
         // 각 노트의 내용을 처리하고 모든 링크 플레이스홀더 수집
         let notesDescription = '';
-        const allLinkPlaceholders = [];
+        // 명시적인 타입 선언 추가
+        const allLinkPlaceholders: {
+            placeholder: string;
+            originalLink: string;
+            linkInfo: LinkInfo;
+        }[] = [];
         const processedNotes = [];
         
         for (let i = 0; i < notes.length; i++) {
