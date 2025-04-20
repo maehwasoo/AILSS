@@ -2,6 +2,7 @@ import { App, Modal, TFile, Notice, setIcon } from 'obsidian';
 import AILSSPlugin from '../../../main';
 import { FrontmatterManager } from '../../core/utils/frontmatterManager';
 import { AINoteRefactor } from '../../modules/ai/text/aiNoteRefactor';
+import { PathSettings } from '../../core/settings/pathSettings';
 
 interface NoteRefactoringModalOptions {
     file: TFile;
@@ -53,6 +54,8 @@ export class NoteRefactoringModal extends Modal {
     private searchResults: HTMLElement;
     private previewContainer: HTMLElement;
     private stepContainer: HTMLElement;
+    // AI 처리 결과를 저장할 변수
+    private aiProcessResult: any = null;
 
     constructor(app: App, plugin: AILSSPlugin, options: NoteRefactoringModalOptions) {
         super(app);
@@ -692,6 +695,9 @@ export class NoteRefactoringModal extends Modal {
             
             loadingNotice.hide();
             
+            // AI 처리 결과 저장
+            this.aiProcessResult = mergeResult;
+            
             // 결과 미리보기 모달 표시
             this.showAiResultPreview('merge', mergeResult);
         } catch (error: any) {
@@ -711,6 +717,9 @@ export class NoteRefactoringModal extends Modal {
             
             loadingNotice.hide();
             
+            // AI 처리 결과 저장
+            this.aiProcessResult = splitResult;
+            
             // 결과 미리보기 모달 표시
             this.showAiResultPreview('split', splitResult);
         } catch (error: any) {
@@ -729,6 +738,9 @@ export class NoteRefactoringModal extends Modal {
             const adjustResult = await aiRefactor.adjustNotes(this.options.file, this.selectedNotes, false);
             
             loadingNotice.hide();
+            
+            // AI 처리 결과 저장
+            this.aiProcessResult = adjustResult;
             
             // 결과 미리보기 모달 표시
             this.showAiResultPreview('adjust', adjustResult);
@@ -819,17 +831,44 @@ export class NoteRefactoringModal extends Modal {
             const loadingNotice = new Notice('변경사항 적용 중...', 0);
             
             try {
+                // 이미 저장된 AI 처리 결과가 있는지 확인
+                if (!this.aiProcessResult) {
+                    throw new Error('AI 처리 결과가 없습니다. 다시 시도해주세요.');
+                }
+                
                 const aiRefactor = new AINoteRefactor(this.app, this.plugin);
                 
                 if (mode === 'merge') {
-                    await aiRefactor.mergeNotes(this.options.file, this.selectedNotes, true);
+                    // 저장된 결과를 사용하여 직접 파일을 수정
+                    await this.app.vault.modify(this.options.file, this.aiProcessResult.newContent);
                     new Notice('노트 통합이 완료되었습니다.');
                 } else if (mode === 'split') {
-                    await aiRefactor.splitNote(this.options.file, true);
-                    new Notice(`노트 분할이 완료되었습니다. ${result.newNotes.length}개의 새 노트가 생성되었습니다.`);
+                    // 원본 노트 업데이트
+                    await this.app.vault.modify(this.options.file, this.aiProcessResult.originalFile.newContent);
+                    
+                    // 분할된 노트들 생성
+                    const createdNotes: TFile[] = [];
+                    
+                    for (const noteInfo of this.aiProcessResult.newNotes) {
+                        // 새 노트 생성
+                        const { file } = await PathSettings.createNote({
+                            app: this.app,
+                            frontmatterConfig: noteInfo.frontmatter,
+                            content: noteInfo.content,
+                            isInherited: false
+                        });
+                        
+                        createdNotes.push(file);
+                    }
+                    
+                    new Notice(`노트 분할이 완료되었습니다. ${createdNotes.length}개의 새 노트가 생성되었습니다.`);
                 } else if (mode === 'adjust') {
-                    await aiRefactor.adjustNotes(this.options.file, this.selectedNotes, true);
-                    new Notice(`노트 조정이 완료되었습니다. ${result.length}개의 노트가 업데이트되었습니다.`);
+                    // 각 노트 업데이트
+                    for (const note of this.aiProcessResult) {
+                        await this.app.vault.modify(note.file, note.newContent);
+                    }
+                    
+                    new Notice(`노트 조정이 완료되었습니다. ${this.aiProcessResult.length}개의 노트가 업데이트되었습니다.`);
                 }
                 
                 this.close();
