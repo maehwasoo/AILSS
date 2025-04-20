@@ -63,6 +63,14 @@ export class AIModelStatusBar {
     }
     
     /**
+     * 외부에서 호출 가능한 상태 업데이트 메서드
+     * 설정이 변경되었을 때 상태 표시줄을 업데이트하기 위해 사용
+     */
+    public updateStatus(): void {
+        this.updateAIModelStatusBar();
+    }
+    
+    /**
      * 현재 선택된 모델명 가져오기
      */
     private getSelectedModelName(): string {

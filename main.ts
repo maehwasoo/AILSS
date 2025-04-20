@@ -63,5 +63,9 @@ export default class AILSSPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		// 설정이 변경될 때마다 상태 표시줄 업데이트
+		if (this.aiModelStatusBar) {
+			this.aiModelStatusBar.updateStatus();
+		}
 	}
 }
