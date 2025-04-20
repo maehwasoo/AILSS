@@ -77,6 +77,7 @@ export interface AILSSSettings {
     ttsVoice: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
     convertSelectionToLink: boolean;
     enablePotentiateAccuracyCheck: boolean;  // 노트 강화 시 정확도 검증 활성화 여부
+    enableWebSearch: boolean;  // OpenAI 웹 검색 도구 사용 여부
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
@@ -95,6 +96,7 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     ttsVoice: 'nova',
     convertSelectionToLink: true,
     enablePotentiateAccuracyCheck: true,  // 기본값은 활성화
+    enableWebSearch: false,  // 기본값은 비활성화
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -254,6 +256,8 @@ export class AILSSSettingTab extends PluginSettingTab {
     }
 
     private addAPISettings(containerEl: HTMLElement) {
+        // OpenAI 설정
+        containerEl.createEl('h3', { text: 'OpenAI 설정' });
         this.addMaskedApiKeySetting(containerEl, 'OpenAI API Key', 'openAIAPIKey');
         new Setting(containerEl)
             .setName('OpenAI 모델')
@@ -269,6 +273,21 @@ export class AILSSSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })));
 
+        // OpenAI 웹 검색 설정 - 항상 보이도록 수정
+        new Setting(containerEl)
+            .setName('OpenAI 웹 검색 활성화')
+            .setDesc('OpenAI 모델에서 웹 검색 도구를 활성화합니다 (데이터 최신화)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableWebSearch)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableWebSearch = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        containerEl.createEl('hr');
+
+        // Claude 설정
+        containerEl.createEl('h3', { text: 'Claude 설정' });
         this.addMaskedApiKeySetting(containerEl, 'Claude API Key', 'claudeAPIKey');
         new Setting(containerEl)
             .setName('Claude 모델')
@@ -284,6 +303,10 @@ export class AILSSSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })));
 
+        containerEl.createEl('hr');
+
+        // Perplexity 설정
+        containerEl.createEl('h3', { text: 'Perplexity 설정' });
         this.addMaskedApiKeySetting(containerEl, 'Perplexity API Key', 'perplexityAPIKey');
         new Setting(containerEl)
             .setName('Perplexity 모델')
@@ -299,6 +322,10 @@ export class AILSSSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })));
 
+        containerEl.createEl('hr');
+
+        // Google AI 설정
+        containerEl.createEl('h3', { text: 'Google AI 설정' });
         this.addMaskedApiKeySetting(containerEl, 'Google AI API Key', 'googleAIAPIKey');
         new Setting(containerEl)
             .setName('Google AI 모델')

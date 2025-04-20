@@ -41,13 +41,13 @@ function logAPIResponse(provider: string, response: string, usage: any): string 
 }
 
 export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promise<string> {
-    const { selectedAIModel, openAIModel, claudeModel, perplexityModel, googleAIModel, googleAIAPIKey } = plugin.settings; // googleAIModel, googleAIAPIKey 추가
+    const { selectedAIModel, openAIModel, claudeModel, perplexityModel, googleAIModel, googleAIAPIKey, enableWebSearch } = plugin.settings; // enableWebSearch 추가
     
     // 모델 이름 결정 로직 수정
     const modelName = selectedAIModel === 'openai' ? openAIModel :
                     selectedAIModel === 'claude' ? claudeModel :
                     selectedAIModel === 'perplexity' ? perplexityModel :
-                    selectedAIModel === 'google' ? googleAIModel : 'Unknown Model'; // google 케이스 추가
+                    selectedAIModel === 'google' ? googleAIModel : 'Unknown Model';
     
     // 사용자에게 보여줄 초기 메시지
     const userMessage = `🤖 AI 요청 정보:\n` +
@@ -67,12 +67,12 @@ export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promis
     try {
         let response = '';
         if (selectedAIModel === 'openai') {
-            response = await requestToOpenAI(plugin.settings.openAIAPIKey, combinedPrompt, openAIModel);
+            response = await requestToOpenAI(plugin.settings.openAIAPIKey, combinedPrompt, openAIModel, enableWebSearch); // enableWebSearch 파라미터 추가
         } else if (selectedAIModel === 'claude') {
             response = await requestToClaude(plugin.settings.claudeAPIKey, combinedPrompt, claudeModel);
         } else if (selectedAIModel === 'perplexity') {
             response = await requestToPerplexity(plugin.settings.perplexityAPIKey, combinedPrompt, perplexityModel);
-        } else if (selectedAIModel === 'google') { // google 케이스 추가
+        } else if (selectedAIModel === 'google') {
             response = await requestToGoogleAI(googleAIAPIKey, combinedPrompt, googleAIModel);
         } else {
             throw new Error('유효하지 않은 AI 모델이 선택되었습니다.');
@@ -84,7 +84,7 @@ export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promis
     }
 }
 
-async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
+async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, enableWebSearch: boolean): Promise<string> { // enableWebSearch 파라미터 추가
     new Notice('OpenAI API 요청 시작');
     
     const url = 'https://api.openai.com/v1/responses';
@@ -115,11 +115,17 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string):
     // o4-mini, o3 등 reasoning 모델에 reasoning_effort 추가
     if (model === 'o4-mini' || model === 'o3' || model === 'o1-pro') {
         data.reasoning = { effort: 'high' };
-        new Notice(`${model} 모델\n최대 연산 능력(reasoning effort high) 적용됨`, 3000);
+        new Notice(`${model} 모델\n최대 연산 능력(high) 적용됨`, 10000);
     }
 
     // 서비스 티어 설정 (기본값은 'auto')
     data.service_tier = 'auto';
+
+    // enableWebSearch 옵션에 따라 웹 검색 도구 활성화
+    if (enableWebSearch) {
+        data.tools = [{ type: 'web_search' }];
+        new Notice('웹 검색 도구 활성화됨', 7000);
+    }
 
     const params: RequestUrlParam = {
         url: url,
