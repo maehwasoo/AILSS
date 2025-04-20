@@ -126,6 +126,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
         data.tools = [{ 
             type: 'web_search',
             user_location: {
+                type: "approximate",
                 city: "Seoul",
                 region: "Seoul",
                 country: "KR",
@@ -145,41 +146,70 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
     try {
         const response = await requestUrl(params);
         if (response.status === 200) {
-            // Responses API 응답 구조 처리
-            if (response.json.output && 
-                response.json.output.length > 0 && 
-                response.json.output[0].content && 
-                response.json.output[0].content.length > 0 && 
-                response.json.output[0].content[0].type === 'output_text') {
+            console.log('OpenAI 응답 구조:', response.json);
+            
+            // 응답 구조 분석하여 텍스트 추출
+            let aiResponse = '';
+            let usage = {
+                prompt_tokens: response.json.usage?.input_tokens || 0,
+                completion_tokens: response.json.usage?.output_tokens || 0,
+                total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
+            };
+            
+            // 추론형 모델 (o-series) 응답 처리
+            if (response.json.output && Array.isArray(response.json.output)) {
+                // 추론형 모델은 보통 output[1]에 message 타입으로 응답을 반환
+                const messageOutput = response.json.output.find((item: { type: string }) => item.type === 'message');
+                if (messageOutput && messageOutput.content && Array.isArray(messageOutput.content) && messageOutput.content.length > 0) {
+                    // message.content[0].text에서 응답 텍스트 추출
+                    const textContent = messageOutput.content[0];
+                    if (textContent.text) {
+                        aiResponse = textContent.text.trim();
+                        new Notice(`${model} 모델 응답 성공`, 3000);
+                    }
+                }
                 
-                // 텍스트 추출
-                const aiResponse = response.json.output[0].content[0].text.trim();
-                
-                // 토큰 사용량 형식 변환
-                const usage = {
-                    prompt_tokens: response.json.usage?.input_tokens || 0,
-                    completion_tokens: response.json.usage?.output_tokens || 0,
-                    total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
-                };
-                
-                return logAPIResponse('OpenAI', aiResponse, usage);
-            } else if (response.json.output_text) {
-                // 일부 모델은 output_text 형태로 직접 응답할 수 있음
-                const aiResponse = response.json.output_text.trim();
-                
-                // 토큰 사용량 형식 변환
-                const usage = {
-                    prompt_tokens: response.json.usage?.input_tokens || 0,
-                    completion_tokens: response.json.usage?.output_tokens || 0,
-                    total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
-                };
-                
-                return logAPIResponse('OpenAI', aiResponse, usage);
-            } else {
-                new Notice('OpenAI API 응답 구조 오류');
-                console.error('OpenAI 응답 구조:', response.json);
+                // 메시지 출력을 찾지 못한 경우 다른 형식 시도
+                if (!aiResponse && response.json.output.length > 0) {
+                    // 다양한 응답 형식 처리 시도
+                    for (const output of response.json.output) {
+                        // 각 출력 항목의 content 배열을 확인
+                        if (output.content && Array.isArray(output.content) && output.content.length > 0) {
+                            for (const content of output.content) {
+                                // text 속성이 있으면 바로 사용
+                                if (content.text) {
+                                    aiResponse = content.text.trim();
+                                    break;
+                                } else if (content.type === 'output_text' && content.text) {
+                                    aiResponse = content.text.trim();
+                                    break;
+                                }
+                            }
+                        }
+                        if (aiResponse) break;
+                    }
+                }
+            }
+            // 일반 모델이나 다른 형식의 응답 처리
+            else if (response.json.output_text) {
+                // 일부 모델은 최상위 레벨에 output_text 속성을 가질 수 있음
+                aiResponse = response.json.output_text.trim();
+            } else if (response.json.choices && response.json.choices.length > 0) {
+                // Chat Completions API 스타일 응답 구조 처리 (하위 호환성)
+                const choice = response.json.choices[0];
+                if (choice.message && choice.message.content) {
+                    aiResponse = choice.message.content.trim();
+                }
+            }
+            
+            if (!aiResponse) {
+                // 응답 구조 상세 로깅
+                console.error('응답 구조 상세:', JSON.stringify(response.json));
+                new Notice('OpenAI API 응답 구조 오류: 텍스트를 추출할 수 없습니다');
                 throw new Error('OpenAI API 응답 구조가 예상과 다릅니다.');
             }
+            
+            return logAPIResponse('OpenAI', aiResponse, usage);
         } else {
             new Notice(`OpenAI API 오류 응답: ${response.status}`);
             const errorBody = JSON.parse(response.text);
