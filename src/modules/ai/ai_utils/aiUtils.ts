@@ -183,17 +183,30 @@ async function requestToO1Pro(apiKey: string, prompt: AIPrompt): Promise<string>
     try {
         const response = await requestUrl(params);
         if (response.status === 200) {
-            // o1-pro의 응답 형식은 다른 모델과 다름
-            const aiResponse = response.json.content.trim();
-            
-            // 토큰 사용량 형식 변환
-            const usage = {
-                prompt_tokens: response.json.usage?.input_tokens || 0,
-                completion_tokens: response.json.usage?.output_tokens || 0,
-                total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
-            };
-            
-            return logAPIResponse('OpenAI o1-pro', aiResponse, usage);
+            // o1-pro의 응답 형식 구조를 수정 (예: output[0].content[0].text)
+            // 응답 구조 확인
+            if (response.json.output && 
+                response.json.output.length > 0 && 
+                response.json.output[0].content && 
+                response.json.output[0].content.length > 0 && 
+                response.json.output[0].content[0].type === 'output_text') {
+                
+                // 올바른 응답 구조에서 텍스트 추출
+                const aiResponse = response.json.output[0].content[0].text.trim();
+                
+                // 토큰 사용량 형식 변환
+                const usage = {
+                    prompt_tokens: response.json.usage?.input_tokens || 0,
+                    completion_tokens: response.json.usage?.output_tokens || 0,
+                    total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
+                };
+                
+                return logAPIResponse('OpenAI o1-pro', aiResponse, usage);
+            } else {
+                new Notice('OpenAI o1-pro API 응답 구조 오류');
+                console.error('o1-pro 응답 구조:', response.json);
+                throw new Error('OpenAI o1-pro API 응답 구조가 예상과 다릅니다.');
+            }
         } else {
             new Notice(`OpenAI o1-pro API 오류 응답: ${response.status}`);
             const errorBody = JSON.parse(response.text);
