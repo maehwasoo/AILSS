@@ -131,7 +131,8 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
                 region: "Seoul",
                 country: "KR",
                 timezone: "Asia/Seoul"
-            }
+            },
+            search_context_size: "high"
         }];
         new Notice('웹 검색 도구 활성화됨 (서울 위치 기준)', 5000);
     }
