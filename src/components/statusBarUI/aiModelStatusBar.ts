@@ -1,5 +1,5 @@
 import { App, Notice, Plugin } from 'obsidian';
-import { AILSSSettings, OPENAI_MODELS, CLAUDE_MODELS, PERPLEXITY_MODELS, GOOGLE_MODELS } from '../modules/maintenance/settings/settings';
+import { AILSSSettings, OPENAI_MODELS, CLAUDE_MODELS, PERPLEXITY_MODELS, GOOGLE_MODELS } from '../../core/settings/settings';
 
 export class AIModelStatusBar {
     private aiModelStatusBarItem: HTMLElement;

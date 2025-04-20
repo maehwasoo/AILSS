@@ -1,5 +1,5 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
-import AILSSPlugin from '../../../../main';
+import { App, PluginSettingTab, Setting } from 'obsidian';
+import AILSSPlugin from '../../../main';
 import { FileCountManager } from '../utils/fileCountManager';
 import { PathSettings } from './pathSettings';
 
@@ -16,6 +16,7 @@ export const OPENAI_MODELS: AIModelOption[] = [
     { id: 'o1-mini', name: 'o1-mini' },
     { id: 'o3-mini', name: 'o3-mini' },
     { id: 'o1', name: 'o1' },
+    { id: 'o3', name: 'o3' },
     { id: 'o1-pro', name: 'o1-pro' },
     { id: 'gpt-4o-search-preview', name: 'GPT-4o Search Preview' },
     { id: 'gpt-4o-mini-search-preview', name: 'GPT-4o Mini Search Preview' },
@@ -81,6 +82,7 @@ export interface AILSSSettings {
     ttsModel: 'tts-1' | 'tts-1-hd';
     ttsVoice: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
     convertSelectionToLink: boolean;
+    enablePotentiateAccuracyCheck: boolean;  // 노트 강화 시 정확도 검증 활성화 여부
 }
 
 export const DEFAULT_SETTINGS: AILSSSettings = {
@@ -98,6 +100,7 @@ export const DEFAULT_SETTINGS: AILSSSettings = {
     ttsModel: 'tts-1-hd',
     ttsVoice: 'nova',
     convertSelectionToLink: true,
+    enablePotentiateAccuracyCheck: true,  // 기본값은 활성화
 };
 
 export class AILSSSettingTab extends PluginSettingTab {
@@ -117,6 +120,11 @@ export class AILSSSettingTab extends PluginSettingTab {
         containerEl.createEl('h2', { text: '통계' });
         const statisticsContainer = containerEl.createDiv('statistics-section');
         this.addStatistics(statisticsContainer);
+
+        // 노트 강화 설정 섹션
+        containerEl.createEl('h2', { text: '노트 강화 설정' });
+        const potentiateSettingsContainer = containerEl.createDiv('potentiate-settings-section');
+        this.addPotentiateSettings(potentiateSettingsContainer);
 
         // AI 설정 섹션
         containerEl.createEl('h2', { text: 'AI 모델 설정' });
@@ -311,6 +319,21 @@ export class AILSSSettingTab extends PluginSettingTab {
                     this.plugin.settings.googleAIModel = value;
                     await this.plugin.saveSettings();
                 })));
+    }
+
+    private addPotentiateSettings(containerEl: HTMLElement) {
+        new Setting(containerEl)
+            .setName('노트 강화 정확도 검증')
+            .setDesc('노트 강화 시 내용 복기를 통한 정확도 검증을 활성화합니다 (75% 이상일 때만 강화)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enablePotentiateAccuracyCheck)
+                .onChange(async (value) => {
+                    this.plugin.settings.enablePotentiateAccuracyCheck = value;
+                    await this.plugin.saveSettings();
+                }));
+                
+        // 구분선 추가
+        containerEl.createEl('hr');
     }
 
     private addMaskedApiKeySetting(containerEl: HTMLElement, name: string, settingKey: keyof AILSSSettings & string) {

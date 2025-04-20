@@ -1,9 +1,7 @@
-import { App, Notice, TFile, Modal } from 'obsidian';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
-import { showTagSelectionDialog } from '../../../components/tagSelectionModal';
-import { CleanEmptyFolders } from '../../maintenance/utils/cleanEmptyFolders';
+import { App, Notice, TFile } from 'obsidian';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
+import { showTagSelectionDialog } from '../../../components/tagUI/tagSelectionModal';
 import type AILSSPlugin from '../../../../main';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
 
 export class ExportNotes {
     private static readonly EXPORT_ROOT = 'export';

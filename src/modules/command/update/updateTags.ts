@@ -1,8 +1,8 @@
 import { App, Notice, TFile } from 'obsidian';
 import AILSSPlugin from '../../../../main';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
-import { TagSyncModal } from '../../../components/tagSyncModal';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
+import { TagSyncModal } from '../../../components/tagUI/tagSyncModal';
 
 export class UpdateTags {
     private app: App;

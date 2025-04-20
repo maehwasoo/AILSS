@@ -1,7 +1,7 @@
 import { App, Editor, MarkdownView, Notice, TFile } from 'obsidian';
 import AILSSPlugin from '../../../../main';
 import { requestToAI } from '../ai_utils/aiUtils';
-import { FrontmatterManager } from '../../maintenance/utils/frontmatterManager';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 interface AITagAliasResponse {
     tagsToKeep: string[];

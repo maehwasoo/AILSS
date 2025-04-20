@@ -1,5 +1,5 @@
 import { App, Notice, TFolder } from 'obsidian';
-import type AILSSPlugin from '../../../../main';
+import type AILSSPlugin from '../../../main';
 import { PathSettings } from '../settings/pathSettings';
 
 export class CleanEmptyFolders {

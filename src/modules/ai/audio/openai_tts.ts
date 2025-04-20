@@ -1,6 +1,5 @@
 import { Editor, Notice, requestUrl, RequestUrlParam, TFile } from 'obsidian';
 import AILSSPlugin from 'main';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
 import { moment } from 'obsidian';
 
 export interface TTSOptions {

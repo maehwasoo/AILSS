@@ -86,3 +86,129 @@ If your plugin does not need CSS, delete this file.
 .ailss-dropdown {
   min-width: 200px;
 }
+
+/* 노트 복기 모달 스타일 */
+.note-recall-modal {
+    padding: 0;
+    width: 80vw;
+    height: 80vh;
+    max-width: 1000px;
+}
+
+.note-recall-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+}
+
+.note-recall-nav-button {
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    color: var(--text-muted);
+    margin: 0 5px;
+}
+
+.note-recall-nav-button:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
+.note-recall-title {
+    flex: 1;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-recall-close-button {
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    color: var(--text-muted);
+}
+
+.note-recall-close-button:hover {
+    color: var(--text-error);
+    background-color: var(--background-modifier-hover);
+}
+
+.note-recall-content {
+    padding: 20px;
+    overflow-y: auto;
+    height: calc(80vh - 50px);
+    background-color: var(--background-primary);
+}
+
+/* 노트 복기 모달 - 다크 모드 지원 */
+.theme-dark .note-recall-header {
+    background-color: var(--background-secondary-alt);
+}
+
+.theme-dark .note-recall-content {
+    background-color: var(--background-primary);
+}
+
+/* 노트 복기 - 모바일 대응 */
+@media (max-width: 768px) {
+    .note-recall-modal {
+        width: 95vw;
+        height: 90vh;
+    }
+    
+    .note-recall-content {
+        height: calc(90vh - 50px);
+        padding: 15px;
+    }
+    
+    .note-recall-title {
+        font-size: 1em;
+    }
+}
+
+/* 노트 복기 에디터 모드 스타일 */
+.note-recall-editor-navbar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    z-index: 10;
+    justify-content: space-between;
+}
+
+.note-recall-status {
+    flex: 1;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    margin: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-normal);
+}
+
+.note-recall-editor-navbar .clickable-icon {
+    color: var(--text-muted);
+    border-radius: 4px;
+    margin: 0 3px;
+}
+
+.note-recall-editor-navbar .clickable-icon:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
+/* 다크 모드 지원 */
+.theme-dark .note-recall-editor-navbar {
+    background-color: var(--background-secondary-alt);
+}

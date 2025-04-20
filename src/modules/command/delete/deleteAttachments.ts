@@ -1,8 +1,8 @@
-import { App, Notice, TFile, TFolder } from 'obsidian';
+import { App, Notice, TFile } from 'obsidian';
 import type AILSSPlugin from '../../../../main';
-import { showConfirmationDialog } from '../../../components/confirmationModal';
-import { CleanEmptyFolders } from '../../maintenance/utils/cleanEmptyFolders';
-import { PathSettings } from '../../maintenance/settings/pathSettings';
+import { showConfirmationDialog } from '../../../components/commonUI/confirmationModal';
+import { CleanEmptyFolders } from '../../../core/utils/cleanEmptyFolders';
+import { PathSettings } from '../../../core/settings/pathSettings';
 
 export class DeleteAttachment {
     private app: App;

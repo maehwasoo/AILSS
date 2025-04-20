@@ -1,6 +1,6 @@
 import { App, TFile } from 'obsidian';
 import { FrontmatterManager } from './frontmatterManager';
-import { showTitleSearchModal } from '../../../components/titleSearchModal';
+import { showTitleSearchModal } from '../../components/commonUI/titleSearchModal';
 
 /**
  * 프론트매터 title 검색 관련 유틸리티
@@ -20,7 +20,7 @@ export class FrontmatterSearchUtils {
         app: App, 
         searchText: string, 
         fuzzyMatch: boolean = true,
-        maxResults: number = 10
+        maxResults: number = 20
     ): Promise<{file: TFile, title: string, matchType: 'title'|'alias'|'both'}[]> {
         // 검색어가 없으면 빈 배열 반환
         if (!searchText) {

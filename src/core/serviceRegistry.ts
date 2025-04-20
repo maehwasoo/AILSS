@@ -11,16 +11,16 @@ import { DeleteCurrentNote } from '../modules/command/delete/deleteCurrentNote';
 import { DeactivateNotes } from '../modules/command/move/deactivateNotes';
 import { ActivateNotes } from '../modules/command/move/activateNotes';
 import { ExportNotes } from '../modules/command/move/exportNotes';
-import { GraphManager } from '../modules/maintenance/utils/graph/graphManager';
+import { GraphManager } from '../core/utils/graph/graphManager';
 import { AIImageAnalyzer } from '../modules/ai/image/aiImageAnalyzer';
 import { AIAnswer } from '../modules/ai/text/aiAnswer';
 import { AILinkNote } from '../modules/ai/text/aiLinkNote';
 import { AILatexMath } from '../modules/ai/text/aiLatexMath';
 import { AIVisualizer } from '../modules/ai/text/aiVisualizer';
-import { FileCountManager } from '../modules/maintenance/utils/fileCountManager';
+import { FileCountManager } from '../core/utils/fileCountManager';
 import { UpdateAttachments } from '../modules/command/update/updateAttachments';
-import { IntegrityCheck } from '../modules/maintenance/utils/integrityCheck';
-import { GlobalGraphManager } from '../modules/maintenance/utils/graph/global/globalGraphManager';
+import { IntegrityCheck } from '../core/utils/integrityCheck';
+import { GlobalGraphManager } from '../core/utils/graph/global/globalGraphManager';
 import { RenewNote } from '../modules/command/move/renewNote';
 import { CopyNote } from '../modules/command/create/copyNote';
 import { RecoverNote } from '../modules/command/create/recoverNote';
@@ -35,6 +35,7 @@ import { AINoteRestructure } from '../modules/ai/text/aiNoteRestructure';
 import { AINoteRefactor } from '../modules/ai/text/aiNoteRefactor';
 import { AITagAliasRefactor } from '../modules/ai/text/aiTagAliasRefactor';
 import { DuplicateNote } from '../modules/command/create/duplicateNote';
+import { NoteRecall } from '../modules/command/update/noteRecall';
 
 /**
  * 모든 서비스/매니저 객체를 초기화하고 관리하는 레지스트리
@@ -53,6 +54,7 @@ export class ServiceRegistry {
     private potentiateManager: Potentiate;
     private updateAttachmentsManager: UpdateAttachments;
     private unlinkNotesManager: UnlinkNotes;
+    private noteRecallManager: NoteRecall;
     
     // 노트 삭제 관련 서비스
     private deleteAttachmentManager: DeleteAttachment;
@@ -126,6 +128,7 @@ export class ServiceRegistry {
         this.potentiateManager = new Potentiate(this.app, this.plugin);
         this.updateAttachmentsManager = new UpdateAttachments(this.app, this.plugin);
         this.unlinkNotesManager = new UnlinkNotes(this.app, this.plugin);
+        this.noteRecallManager = new NoteRecall(this.app, this.plugin);
     }
     
     /**
@@ -219,6 +222,10 @@ export class ServiceRegistry {
     
     public getUnlinkNotesManager(): UnlinkNotes {
         return this.unlinkNotesManager;
+    }
+    
+    public getNoteRecallManager(): NoteRecall {
+        return this.noteRecallManager;
     }
     
     // 게터 메소드들 - 노트 삭제 관련

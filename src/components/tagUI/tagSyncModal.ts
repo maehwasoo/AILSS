@@ -1,7 +1,7 @@
 import { App, Modal, TFile, Notice, setIcon } from 'obsidian';
-import AILSSPlugin from '../../main';
-import { FrontmatterManager } from '../modules/maintenance/utils/frontmatterManager';
-import { UpdateTags } from '../modules/command/update/updateTags';
+import AILSSPlugin from '../../../main';
+import { FrontmatterManager } from '../../core/utils/frontmatterManager';
+import { UpdateTags } from '../../modules/command/update/updateTags';
 
 /**
  * 태그 동기화 작업을 위한 모달

@@ -1,9 +1,9 @@
-import { Plugin, MarkdownView } from 'obsidian';
-import { AILSSSettings, DEFAULT_SETTINGS, AILSSSettingTab } from './src/modules/maintenance/settings/settings';
+import { Plugin } from 'obsidian';
+import { AILSSSettings, DEFAULT_SETTINGS, AILSSSettingTab } from './src/core/settings/settings';
 import { ServiceRegistry } from './src/core/serviceRegistry';
 import { CommandRegistry } from './src/core/commandRegistry';
 import { RibbonRegistry } from './src/core/ribbonRegistry';
-import { AIModelStatusBar } from './src/components/aiModelStatusBar';
+import { AIModelStatusBar } from './src/components/statusBarUI/aiModelStatusBar';
 import { AINoteRefactor } from './src/modules/ai/text/aiNoteRefactor';
 
 export default class AILSSPlugin extends Plugin {
