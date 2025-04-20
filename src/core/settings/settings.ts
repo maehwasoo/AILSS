@@ -13,8 +13,6 @@ export const OPENAI_MODELS: AIModelOption[] = [
     { id: 'gpt-4o', name: 'GPT-4o' },
     { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview' },
     { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
-    { id: 'o1-mini', name: 'o1-mini' },
-    { id: 'o3-mini', name: 'o3-mini' },
     { id: 'o1', name: 'o1' },
     { id: 'o3', name: 'o3' },
     { id: 'o1-pro', name: 'o1-pro' },

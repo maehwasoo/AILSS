@@ -94,12 +94,17 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string):
     };
     
     // 모든 모델에서 유저 프롬프트만 사용하도록 수정
-    const data = {
+    const data: any = {
         model: model,
         messages: [
             { role: 'user', content: prompt.userPrompt }
         ]
     };
+
+    // o4-mini 모델에 reasoning_effort 파라미터 추가
+    if (model === 'o4-mini') {
+        data.reasoning_effort = "high";
+    }
 
     const params: RequestUrlParam = {
         url: url,

@@ -113,6 +113,11 @@ export class AIVisionAPI {
                 temperature: 0.3,
                 max_tokens: 4000
             };
+            
+            // o4-mini 모델에 reasoning_effort 파라미터 추가
+            if (modelId === 'o4-mini') {
+                data.reasoning_effort = "high";
+            }
                 
             console.log('O 시리즈 요청 형식:', JSON.stringify(data).substring(0, 200) + '...');
         } else {
