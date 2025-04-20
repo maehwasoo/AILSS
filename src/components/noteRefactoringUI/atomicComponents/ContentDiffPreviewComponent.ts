@@ -1,22 +1,21 @@
 /**
  * 내용 비교 미리보기 컴포넌트
- * 원본 내용과 변경된 내용을 나란히 비교하여 보여줍니다.
  */
 export class ContentDiffPreviewComponent {
     /**
-     * 내용 비교 미리보기 UI 생성
-     * @param container 컨테이너 엘리먼트
-     * @param originalTitle 원본 제목
-     * @param newTitle 새 제목
+     * 내용 비교 UI를 렌더링합니다.
+     * @param container 컨테이너 요소
+     * @param originalTitle 원본 내용 제목
+     * @param newTitle 새 내용 제목
      * @param originalContent 원본 내용
      * @param newContent 새 내용
-     * @param compact 작은 화면에 맞춰 세로로 배치할지 여부
+     * @param compact 가로/세로 배치 모드 (기본값: false - 가로 배치)
      */
     static render(
-        container: HTMLElement, 
-        originalTitle: string, 
-        newTitle: string, 
-        originalContent: string, 
+        container: HTMLElement,
+        originalTitle: string,
+        newTitle: string,
+        originalContent: string,
         newContent: string,
         compact: boolean = false
     ): void {
@@ -69,7 +68,7 @@ export class ContentDiffPreviewComponent {
             }
         });
         
-        // frontmatter 제외 (이미 파라미터로 받은 newContent에서 처리했을 수도 있음)
+        // frontmatter 제외
         const cleanNewContent = newContent.replace(/---\n[\s\S]*?\n---\n\n/, '');
         
         newContentBox.createEl('pre', {

@@ -1,32 +1,30 @@
 import { Notice, TFile } from 'obsidian';
-import { RefactoringComponentProps, RefactoringOption } from './types';
+import { RefactoringComponentProps } from './types';
 
 /**
- * 노트 검색 컴포넌트
+ * 노트 검색 및 선택 컴포넌트
  */
 export class NoteSearchComponent {
     private props: RefactoringComponentProps;
     private onBack: () => void;
-    private onNext: () => void;
+    private onNext: (selectedNotes: TFile[]) => void;
+    
+    private selectedNotes: TFile[] = [];
     private searchInput: HTMLInputElement;
     private searchResults: HTMLElement;
     private selectedNotesList: HTMLElement;
     private nextButton: HTMLButtonElement;
-    private placeholder: string;
-    private allowMultiple: boolean;
     
     constructor(
         props: RefactoringComponentProps, 
         onBack: () => void, 
-        onNext: () => void, 
-        placeholder: string, 
-        allowMultiple: boolean = false
+        onNext: (selectedNotes: TFile[]) => void,
+        initialSelectedNotes: TFile[] = []
     ) {
         this.props = props;
         this.onBack = onBack;
         this.onNext = onNext;
-        this.placeholder = placeholder;
-        this.allowMultiple = allowMultiple;
+        this.selectedNotes = [...initialSelectedNotes];
     }
     
     /**
@@ -49,10 +47,12 @@ export class NoteSearchComponent {
             attr: { style: 'margin-bottom: 1.5rem;' }
         });
         
+        const placeholder = selectedOption === 'merge' ? '통합할 노트를 검색하세요' : '조정할 노트를 검색하세요';
+        
         this.searchInput = searchInputContainer.createEl('input', {
             attr: {
                 type: 'text',
-                placeholder: this.placeholder,
+                placeholder: placeholder,
                 style: 'width: 100%; padding: 0.8rem; border-radius: 4px;'
             }
         });
@@ -64,7 +64,7 @@ export class NoteSearchComponent {
             attr: { style: 'margin-top: 0.8rem; padding: 0.6rem 1.2rem; width: 100%; border-radius: 4px;' }
         });
         
-        // 검색 결과 컨테이너 - 카드 형식
+        // 검색 결과 컨테이너
         this.searchResults = searchContainer.createDiv({
             cls: 'search-results',
             attr: { style: 'max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; border-radius: 4px;' }
@@ -101,8 +101,8 @@ export class NoteSearchComponent {
             text: '다음',
             cls: 'mod-cta',
             attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
-        });
-        this.nextButton.disabled = true;
+        }) as HTMLButtonElement;
+        this.nextButton.disabled = this.selectedNotes.length === 0;
         
         // 이벤트 리스너
         searchButton.addEventListener('click', () => this.performSearch());
@@ -111,9 +111,10 @@ export class NoteSearchComponent {
         });
         
         backButton.addEventListener('click', () => this.onBack());
+        
         this.nextButton.addEventListener('click', () => {
-            if (this.props.selectedNotes.length > 0) {
-                this.onNext();
+            if (this.selectedNotes.length > 0) {
+                this.onNext(this.selectedNotes);
             } else {
                 new Notice('노트를 하나 이상 선택해주세요.');
             }
@@ -121,42 +122,6 @@ export class NoteSearchComponent {
         
         // 초기 상태 설정
         this.updateSelectedNotes();
-    }
-    
-    /**
-     * 선택된 노트 목록 업데이트
-     */
-    private updateSelectedNotes(): void {
-        this.selectedNotesList.empty();
-        if (this.props.selectedNotes.length === 0) {
-            this.selectedNotesList.createEl('li', { 
-                text: '선택된 노트 없음',
-                attr: { style: 'color: var(--text-muted);' }
-            });
-            this.nextButton.disabled = true;
-        } else {
-            this.props.selectedNotes.forEach(file => {
-                const item = this.selectedNotesList.createEl('li', {
-                    attr: { style: 'margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;' }
-                });
-                
-                item.createSpan({ 
-                    text: file.basename,
-                    attr: { style: 'font-weight: 500;' }
-                });
-                
-                const removeButton = item.createEl('button', {
-                    text: '제거',
-                    attr: { style: 'font-size: 0.8em; padding: 0.3rem 0.5rem; border-radius: 4px;' }
-                });
-                
-                removeButton.addEventListener('click', () => {
-                    this.props.selectedNotes = this.props.selectedNotes.filter(f => f.path !== file.path);
-                    this.updateSelectedNotes();
-                });
-            });
-            this.nextButton.disabled = false;
-        }
     }
     
     /**
@@ -172,10 +137,11 @@ export class NoteSearchComponent {
         this.searchResults.empty();
         
         // 검색 로직
-        const files = this.props.app.vault.getMarkdownFiles();
+        const { app, currentFile } = this.props;
+        const files = app.vault.getMarkdownFiles();
         const results = files.filter(file => {
             // 현재 노트 제외
-            if (file.path === this.props.options.file.path) return false;
+            if (file.path === currentFile.path) return false;
             
             // 제목 또는 경로에 검색어가 포함된 파일 필터링
             return file.basename.toLowerCase().includes(query.toLowerCase()) || 
@@ -221,7 +187,13 @@ export class NoteSearchComponent {
                 cls: 'mod-cta',
                 attr: { style: 'padding: 0.5rem 1rem; border-radius: 4px; margin-top: 0.5rem; width: 100%;' }
             });
-               
+            
+            // 파일 경로 표시
+            card.createEl('div', {
+                text: file.path,
+                attr: { style: 'font-size: 0.8em; color: var(--text-muted); word-break: break-all;' }
+            });
+            
             selectButton.addEventListener('click', () => {
                 this.handleSearchResult(file);
             });
@@ -236,25 +208,60 @@ export class NoteSearchComponent {
     }
     
     /**
-     * 검색 결과 처리
+     * 검색 결과에서 노트 선택 처리
      */
     private handleSearchResult(file: TFile): void {
+        const { currentFile } = this.props;
+        
         // 중복 체크
-        const isDuplicate = this.props.selectedNotes.some(f => f.path === file.path);
+        const isDuplicate = this.selectedNotes.some(f => f.path === file.path);
         // 현재 노트 체크
-        const isCurrentNote = file.path === this.props.options.file.path;
+        const isCurrentNote = file.path === currentFile.path;
         
         if (!isDuplicate && !isCurrentNote) {
-            if (this.allowMultiple) {
-                this.props.selectedNotes.push(file);
-            } else {
-                this.props.selectedNotes = [file];
-            }
+            this.selectedNotes.push(file);
             this.updateSelectedNotes();
         } else if (isDuplicate) {
             new Notice('이미 선택된 노트입니다.');
         } else if (isCurrentNote) {
             new Notice('현재 노트는 선택할 수 없습니다.');
+        }
+    }
+    
+    /**
+     * 선택된 노트 목록 업데이트
+     */
+    private updateSelectedNotes(): void {
+        this.selectedNotesList.empty();
+        
+        if (this.selectedNotes.length === 0) {
+            this.selectedNotesList.createEl('li', { 
+                text: '선택된 노트 없음',
+                attr: { style: 'color: var(--text-muted);' }
+            });
+            this.nextButton.disabled = true;
+        } else {
+            this.selectedNotes.forEach(file => {
+                const item = this.selectedNotesList.createEl('li', {
+                    attr: { style: 'margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;' }
+                });
+                
+                item.createSpan({ 
+                    text: file.basename,
+                    attr: { style: 'font-weight: 500;' }
+                });
+                
+                const removeButton = item.createEl('button', {
+                    text: '제거',
+                    attr: { style: 'font-size: 0.8em; padding: 0.3rem 0.5rem; border-radius: 4px;' }
+                });
+                
+                removeButton.addEventListener('click', () => {
+                    this.selectedNotes = this.selectedNotes.filter(f => f.path !== file.path);
+                    this.updateSelectedNotes();
+                });
+            });
+            this.nextButton.disabled = false;
         }
     }
 }

@@ -2,17 +2,20 @@ import { setIcon } from 'obsidian';
 import { RefactoringComponentProps, RefactoringOption } from './types';
 
 /**
- * 노트 리팩토링 옵션 선택 UI 컴포넌트
+ * 리팩토링 옵션(통합, 분할, 조정) 선택 컴포넌트
  */
 export class OptionSelectionComponent {
     private props: RefactoringComponentProps;
     private onOptionSelected: (option: RefactoringOption) => void;
-
-    constructor(props: RefactoringComponentProps, onOptionSelected: (option: RefactoringOption) => void) {
+    
+    constructor(
+        props: RefactoringComponentProps, 
+        onOptionSelected: (option: RefactoringOption) => void
+    ) {
         this.props = props;
         this.onOptionSelected = onOptionSelected;
     }
-
+    
     /**
      * 옵션 선택 UI 렌더링
      */
@@ -72,7 +75,7 @@ export class OptionSelectionComponent {
     }
     
     /**
-     * 옵션 설명 카드 생성
+     * 옵션 설명 UI 생성
      */
     private createOptionDescription(container: HTMLElement, title: string, description: string): void {
         const descItem = container.createDiv({
@@ -93,9 +96,14 @@ export class OptionSelectionComponent {
     }
     
     /**
-     * 옵션 버튼 생성
+     * 옵션 버튼 UI 생성
      */
-    private createOptionButton(container: HTMLElement, option: RefactoringOption, text: string, iconName: string): void {
+    private createOptionButton(
+        container: HTMLElement, 
+        option: RefactoringOption, 
+        text: string, 
+        iconName: string
+    ): void {
         const button = container.createEl('button', {
             cls: 'mod-cta',
             attr: {
@@ -124,6 +132,7 @@ export class OptionSelectionComponent {
             button.setAttribute('style', 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; flex: 1; height: 90px; transition: all 0.3s ease;');
         });
         
+        // 클릭 이벤트
         button.addEventListener('click', () => {
             this.onOptionSelected(option);
         });

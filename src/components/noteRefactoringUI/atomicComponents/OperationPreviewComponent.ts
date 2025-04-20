@@ -1,24 +1,32 @@
+import { TFile } from 'obsidian';
 import { RefactoringComponentProps, RefactoringOption } from './types';
 
 /**
- * 노트 작업 미리보기 컴포넌트
+ * 작업 미리보기 컴포넌트
  */
 export class OperationPreviewComponent {
     private props: RefactoringComponentProps;
     private onBack: () => void;
     private onExecute: () => void;
+    private selectedNotes: TFile[];
     
-    constructor(props: RefactoringComponentProps, onBack: () => void, onExecute: () => void) {
+    constructor(
+        props: RefactoringComponentProps, 
+        onBack: () => void,
+        onExecute: () => void,
+        selectedNotes: TFile[]
+    ) {
         this.props = props;
         this.onBack = onBack;
         this.onExecute = onExecute;
+        this.selectedNotes = selectedNotes;
     }
     
     /**
-     * 노트 작업 미리보기 UI 렌더링
+     * 작업 미리보기 UI 렌더링
      */
     render(): void {
-        const { stepContainer, selectedOption, selectedNotes, options } = this.props;
+        const { stepContainer, selectedOption, fileTitle } = this.props;
         stepContainer.empty();
         
         const previewContainer = stepContainer.createDiv({ cls: 'note-preview' });
@@ -48,7 +56,7 @@ export class OperationPreviewComponent {
         const currentNoteItem = notesList.createEl('li');
         
         currentNoteItem.createSpan({ 
-            text: options.title,
+            text: fileTitle,
             attr: { style: 'font-weight: 600;' } 
         });
         
@@ -58,15 +66,63 @@ export class OperationPreviewComponent {
         });
         
         // 선택된 다른 노트들
-        selectedNotes.forEach(file => {
+        this.selectedNotes.forEach(file => {
             notesList.createEl('li', { text: file.basename });
         });
         
         // 작업 설명
         if (selectedOption === 'merge') {
-            this.renderMergeDescription(operationInfoCard);
+            operationInfoCard.createEl('h4', { 
+                text: '통합 방식',
+                attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 500;' } 
+            });
+            
+            const mergeList = operationInfoCard.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
+            
+            mergeList.createEl('li', { 
+                text: '모든 노트의 내용이 현재 노트에 통합됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            mergeList.createEl('li', { 
+                text: '중복된 내용은 자동으로 정리됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            mergeList.createEl('li', { 
+                text: '주제별로 내용이 체계적으로 재구성됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            mergeList.createEl('li', { 
+                text: '원본 노트들은 변경되지 않고 그대로 유지됩니다',
+            });
         } else { // adjust
-            this.renderAdjustDescription(operationInfoCard);
+            operationInfoCard.createEl('h4', { 
+                text: '조정 방식',
+                attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 500;' } 
+            });
+            
+            const adjustList = operationInfoCard.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
+            
+            adjustList.createEl('li', { 
+                text: '각 노트의 제목과 관련된 내용만 해당 노트에 유지됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            adjustList.createEl('li', { 
+                text: '관련 없는 내용은 적절한 다른 노트로 이동됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            adjustList.createEl('li', { 
+                text: '모든 노트의 내용이 재분배되어 구조가 개선됩니다',
+                attr: { style: 'margin-bottom: 0.5rem;' } 
+            });
+            
+            adjustList.createEl('li', { 
+                text: '조정된 노트들은 서로 연결되어 관계가 유지됩니다',
+            });
         }
         
         // 주의사항
@@ -100,69 +156,8 @@ export class OperationPreviewComponent {
             attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
+        // 이벤트 리스너
         backButton.addEventListener('click', () => this.onBack());
         executeButton.addEventListener('click', () => this.onExecute());
-    }
-    
-    /**
-     * 통합 작업 설명 렌더링
-     */
-    private renderMergeDescription(container: HTMLElement): void {
-        container.createEl('h4', { 
-            text: '통합 방식',
-            attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 500;' } 
-        });
-        
-        const mergeList = container.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
-        
-        mergeList.createEl('li', { 
-            text: '모든 노트의 내용이 현재 노트에 통합됩니다',
-            attr: { style: 'margin-bottom: 0.5rem;' } 
-        });
-        
-        mergeList.createEl('li', { 
-            text: '중복된 내용은 자동으로 정리됩니다',
-            attr: { style: 'margin-bottom: 0.5rem;' } 
-        });
-        
-        mergeList.createEl('li', { 
-            text: '주제별로 내용이 체계적으로 재구성됩니다',
-            attr: { style: 'margin-bottom: 0.5rem;' } 
-        });
-        
-        mergeList.createEl('li', { 
-            text: '원본 노트들은 변경되지 않고 그대로 유지됩니다',
-        });
-    }
-    
-    /**
-     * 조정 작업 설명 렌더링
-     */
-    private renderAdjustDescription(container: HTMLElement): void {
-        container.createEl('h4', { 
-            text: '조정 방식',
-            attr: { style: 'margin: 0 0 0.8rem 0; font-weight: 500;' } 
-        });
-        
-        const adjustList = container.createEl('ul', { attr: { style: 'padding-left: 1.5rem; margin: 0;' } });
-        
-        adjustList.createEl('li', { 
-            text: '각 노트의 제목과 관련된 내용만 해당 노트에 유지됩니다',
-            attr: { style: 'margin-bottom: 0.5rem;' } 
-        });
-        
-        adjustList.createEl('li', { 
-            text: '관련 없는 내용은 적절한 다른 노트로 이동됩니다',
-            attr: { style: 'margin-bottom: 0.5rem;' } 
-        });
-        
-        adjustList.createEl('li', { 
-            text: '모든 노트의 내용이 재분배되어 구조가 개선됩니다',
-            attr: { style: 'margin-bottom: 0.5rem;' } 
-        });
-        
-        adjustList.createEl('li', { 
-            text: '조정된 노트들은 서로 연결되어 관계가 유지됩니다',
-        });
     }
 }

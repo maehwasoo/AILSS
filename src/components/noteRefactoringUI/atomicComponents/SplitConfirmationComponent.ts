@@ -8,17 +8,21 @@ export class SplitConfirmationComponent {
     private onBack: () => void;
     private onExecute: () => void;
     
-    constructor(props: RefactoringComponentProps, onBack: () => void, onExecute: () => void) {
+    constructor(
+        props: RefactoringComponentProps, 
+        onBack: () => void, 
+        onExecute: () => void
+    ) {
         this.props = props;
         this.onBack = onBack;
         this.onExecute = onExecute;
     }
     
     /**
-     * 노트 분할 확인 UI 렌더링
+     * 분할 확인 UI 렌더링
      */
     render(): void {
-        const { stepContainer, options } = this.props;
+        const { stepContainer, fileTitle } = this.props;
         stepContainer.empty();
         
         const confirmContainer = stepContainer.createDiv({ cls: 'split-confirmation' });
@@ -35,7 +39,7 @@ export class SplitConfirmationComponent {
         });
         
         splitInfoCard.createEl('p', { 
-            text: `"${options.title}" 노트의 내용을 분석하여 아래와 같이 처리합니다:`,
+            text: `"${fileTitle}" 노트의 내용을 분석하여 아래와 같이 처리합니다:`,
             attr: { style: 'margin-top: 0; margin-bottom: 1rem; font-weight: 500;' } 
         });
         
@@ -91,6 +95,7 @@ export class SplitConfirmationComponent {
             attr: { style: 'padding: 0.6rem 1.2rem; flex: 1; border-radius: 4px;' }
         });
         
+        // 이벤트 리스너
         backButton.addEventListener('click', () => this.onBack());
         executeButton.addEventListener('click', () => this.onExecute());
     }
