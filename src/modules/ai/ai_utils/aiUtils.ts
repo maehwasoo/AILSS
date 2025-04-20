@@ -87,92 +87,33 @@ export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promis
 async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
     new Notice('OpenAI API 요청 시작');
     
-    // o1-pro 모델은 다른 엔드포인트와 요청 형식을 사용
-    if (model === 'o1-pro') {
-        return requestToO1Pro(apiKey, prompt);
-    }
-    
-    const url = 'https://api.openai.com/v1/chat/completions';
-    const headers = {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-    };
-    
-    // 모든 모델에서 유저 프롬프트만 사용하도록 수정
-    const data: any = {
-        model: model,
-        messages: [
-            { role: 'user', content: prompt.userPrompt }
-        ]
-    };
-
-    // o4-mini 모델에 reasoning_effort 파라미터 추가
-    if (model === 'o4-mini') {
-        data.reasoning_effort = "high";
-        new Notice('o4-mini 모델\n최대 연산 능력(reasoning effort high) 적용됨', 3000);
-    }
-
-    const params: RequestUrlParam = {
-        url: url,
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(data)
-    };
-
-    try {
-        const response = await requestUrl(params);
-        if (response.status === 200) {
-            const aiResponse = response.json.choices[0].message.content.trim();
-            return logAPIResponse('OpenAI', aiResponse, response.json.usage);
-        } else {
-            //console.error('OpenAI API 오류 응답:', response);
-            new Notice('OpenAI API 오류 응답:', response.status);
-            const errorBody = JSON.parse(response.text);
-            throw new Error(`OpenAI API 요청 실패: 상태 코드 ${response.status}, 오류 타입: ${errorBody.error.type}, 메시지: ${errorBody.error.message}`);
-        }
-    } catch (error) {
-        //console.error('OpenAI API 요청 중 오류 발생:', error);
-        new Notice('OpenAI API 요청 중 오류 발생:', error);
-        if (error instanceof Error) {
-            if ('response' in error) {
-                const responseError = error as any;
-                const errorBody = JSON.parse(responseError.response.text);
-                throw new Error(`OpenAI API 오류: 상태 코드 ${responseError.response.status}, 오류 타입: ${errorBody.error.type}, 메시지: ${errorBody.error.message}`);
-            } else {
-                throw new Error(`OpenAI API 오류: ${error.message}`);
-            }
-        } else {
-            throw new Error('OpenAI API 요청 중 알 수 없는 오류 발생');
-        }
-    }
-}
-
-// o1-pro 모델을 위한 특별 요청 함수
-async function requestToO1Pro(apiKey: string, prompt: AIPrompt): Promise<string> {
-    new Notice('OpenAI o1-pro API 요청 시작');
-    
-    // o1-pro 모델은 /v1/responses 엔드포인트 사용
     const url = 'https://api.openai.com/v1/responses';
     const headers = {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
     };
     
-    // o1-pro는 input 필드 사용
+    // Responses API 형식에 맞게 요청 데이터 구성
     const data: any = {
-        model: 'o1-pro',
-        input: prompt.userPrompt,
-        reasoning: { effort: 'high' } // 최대 연산 능력 활용
+        model: model,
+        input: prompt.userPrompt
     };
-    
-    // 최대 연산 능력 적용 알림
-    new Notice('o1-pro 모델\n최대 연산 능력(reasoning effort high) 적용됨', 3000);
 
     // 추가 옵션 설정 (필요한 경우)
     if (prompt.temperature !== undefined) {
         data.temperature = prompt.temperature;
     }
+
+    if (prompt.max_tokens !== undefined) {
+        data.max_output_tokens = prompt.max_tokens;
+    }
     
+    // o4-mini, o3 등 reasoning 모델에 reasoning_effort 추가
+    if (model === 'o4-mini' || model === 'o3' || model === 'o1-pro') {
+        data.reasoning = { effort: 'high' };
+        new Notice(`${model} 모델\n최대 연산 능력(reasoning effort high) 적용됨`, 3000);
+    }
+
     const params: RequestUrlParam = {
         url: url,
         method: 'POST',
@@ -183,15 +124,14 @@ async function requestToO1Pro(apiKey: string, prompt: AIPrompt): Promise<string>
     try {
         const response = await requestUrl(params);
         if (response.status === 200) {
-            // o1-pro의 응답 형식 구조를 수정 (예: output[0].content[0].text)
-            // 응답 구조 확인
+            // Responses API 응답 구조 처리
             if (response.json.output && 
                 response.json.output.length > 0 && 
                 response.json.output[0].content && 
                 response.json.output[0].content.length > 0 && 
                 response.json.output[0].content[0].type === 'output_text') {
                 
-                // 올바른 응답 구조에서 텍스트 추출
+                // 텍스트 추출
                 const aiResponse = response.json.output[0].content[0].text.trim();
                 
                 // 토큰 사용량 형식 변환
@@ -201,29 +141,41 @@ async function requestToO1Pro(apiKey: string, prompt: AIPrompt): Promise<string>
                     total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
                 };
                 
-                return logAPIResponse('OpenAI o1-pro', aiResponse, usage);
+                return logAPIResponse('OpenAI', aiResponse, usage);
+            } else if (response.json.output_text) {
+                // 일부 모델은 output_text 형태로 직접 응답할 수 있음
+                const aiResponse = response.json.output_text.trim();
+                
+                // 토큰 사용량 형식 변환
+                const usage = {
+                    prompt_tokens: response.json.usage?.input_tokens || 0,
+                    completion_tokens: response.json.usage?.output_tokens || 0,
+                    total_tokens: (response.json.usage?.input_tokens || 0) + (response.json.usage?.output_tokens || 0)
+                };
+                
+                return logAPIResponse('OpenAI', aiResponse, usage);
             } else {
-                new Notice('OpenAI o1-pro API 응답 구조 오류');
-                console.error('o1-pro 응답 구조:', response.json);
-                throw new Error('OpenAI o1-pro API 응답 구조가 예상과 다릅니다.');
+                new Notice('OpenAI API 응답 구조 오류');
+                console.error('OpenAI 응답 구조:', response.json);
+                throw new Error('OpenAI API 응답 구조가 예상과 다릅니다.');
             }
         } else {
-            new Notice(`OpenAI o1-pro API 오류 응답: ${response.status}`);
+            new Notice(`OpenAI API 오류 응답: ${response.status}`);
             const errorBody = JSON.parse(response.text);
-            throw new Error(`OpenAI o1-pro API 요청 실패: 상태 코드 ${response.status}, 오류 타입: ${errorBody.error?.type || '알 수 없음'}, 메시지: ${errorBody.error?.message || '알 수 없음'}`);
+            throw new Error(`OpenAI API 요청 실패: 상태 코드 ${response.status}, 오류 타입: ${errorBody.error?.type || '알 수 없음'}, 메시지: ${errorBody.error?.message || '알 수 없음'}`);
         }
     } catch (error) {
-        new Notice('OpenAI o1-pro API 요청 중 오류 발생');
+        new Notice('OpenAI API 요청 중 오류 발생');
         if (error instanceof Error) {
             if ('response' in error) {
                 const responseError = error as any;
                 const errorBody = JSON.parse(responseError.response.text);
-                throw new Error(`OpenAI o1-pro API 오류: 상태 코드 ${responseError.response.status}, 오류 타입: ${errorBody.error?.type || '알 수 없음'}, 메시지: ${errorBody.error?.message || '알 수 없음'}`);
+                throw new Error(`OpenAI API 오류: 상태 코드 ${responseError.response.status}, 오류 타입: ${errorBody.error?.type || '알 수 없음'}, 메시지: ${errorBody.error?.message || '알 수 없음'}`);
             } else {
-                throw new Error(`OpenAI o1-pro API 오류: ${error.message}`);
+                throw new Error(`OpenAI API 오류: ${error.message}`);
             }
         } else {
-            throw new Error('OpenAI o1-pro API 요청 중 알 수 없는 오류 발생');
+            throw new Error('OpenAI API 요청 중 알 수 없는 오류 발생');
         }
     }
 }
