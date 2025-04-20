@@ -97,7 +97,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
     const data: any = {
         model: model,
         input: prompt.userPrompt,
-        stream: true // 응답 스트리밍 활성화
+        stream: false // 응답 스트리밍 활성화
     };
 
     // 추가 옵션 설정 (필요한 경우)
