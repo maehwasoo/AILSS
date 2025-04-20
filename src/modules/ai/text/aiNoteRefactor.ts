@@ -3,7 +3,11 @@ import AILSSPlugin from '../../../../main';
 import { requestToAI } from '../ai_utils/aiUtils';
 import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 import { PathSettings } from '../../../core/settings/pathSettings';
-import { getContentWithoutFrontmatter } from '../../../core/utils/contentUtils';
+import { 
+    getContentWithoutFrontmatter, 
+    replaceLinksWithPlaceholders, 
+    restoreLinksFromPlaceholders 
+} from '../../../core/utils/contentUtils';
 
 export class AINoteRefactor {
     private app: App;
@@ -400,6 +404,7 @@ export class AINoteRefactor {
 - 통합된 내용의 일관성과 응집성 유지
 - 각 섹션과 하위 섹션 간의 균형 유지
 - 모든 출처의 핵심 내용이 보존되었는지 확인
+- 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
 
 용어 분석 및 통합 원칙:
 - 각 문서에서 동일한 용어가 어떤 맥락과 관점에서 사용되었는지 분석
@@ -411,10 +416,20 @@ export class AINoteRefactor {
 - 학문 분야나 이론적 배경에 따른 용어 해석 차이를 명확히 구분
 ${AINoteRefactor.FORMATTING_RULES}`;
 
-        // 소스 내용 결합
+        // 링크를 플레이스홀더로 대체
+        const { modifiedContent: processedTargetContent, linkPlaceholders: targetLinkPlaceholders } = 
+            replaceLinksWithPlaceholders(targetContent);
+            
+        // 소스 내용 결합 및 링크 처리
         let sourcesDescription = '';
+        let allLinkPlaceholders = [...targetLinkPlaceholders];
+        
         for (let i = 0; i < sourceTitles.length; i++) {
-            sourcesDescription += `\n\n문서 ${i + 1} (${sourceTitles[i]}):\n${sourceContents[i]}`;
+            const { modifiedContent: processedSourceContent, linkPlaceholders: sourceLinkPlaceholders } = 
+                replaceLinksWithPlaceholders(sourceContents[i]);
+                
+            sourcesDescription += `\n\n문서 ${i + 1} (${sourceTitles[i]}):\n${processedSourceContent}`;
+            allLinkPlaceholders = [...allLinkPlaceholders, ...sourceLinkPlaceholders];
         }
 
         const userPrompt = `${systemPrompt}
@@ -422,7 +437,7 @@ ${AINoteRefactor.FORMATTING_RULES}`;
 다음은 통합의 기준이 되는 메인 문서입니다:
 제목: ${targetTitle}
 내용:
-${targetContent}
+${processedTargetContent}
 
 다음은 통합할 다른 문서들입니다:${sourcesDescription}
 
@@ -440,7 +455,10 @@ ${targetContent}
             userPrompt
         });
 
-        return response;
+        // AI 응답에서 플레이스홀더를 원래 링크로 복원
+        const restoredContent = restoreLinksFromPlaceholders(response, allLinkPlaceholders);
+
+        return restoredContent;
     }
 
     /**
@@ -468,14 +486,19 @@ ${targetContent}
 - 분할 과정에서 중요 정보 손실 방지
 - 원본 문서와 분할 문서 간의 논리적 연결성 유지
 - 각 문서의 독립성과 완결성 보장
+- 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
 ${AINoteRefactor.FORMATTING_RULES}`;
+
+        // 링크를 플레이스홀더로 대체
+        const { modifiedContent: processedContent, linkPlaceholders } = 
+            replaceLinksWithPlaceholders(sourceContent);
 
         const userPrompt = `${systemPrompt}
 
 다음은 분할할 문서입니다:
 제목: ${sourceTitle}
 내용:
-${sourceContent}
+${processedContent}
 
 다음 작업을 수행해주세요:
 1. 위 문서를 분석하여 주제별로 분할하세요.
@@ -514,9 +537,23 @@ ${sourceContent}
             const jsonContent = jsonMatch && jsonMatch[1] ? jsonMatch[1] : response;
             const parsedResult = JSON.parse(jsonContent);
             
+            // 플레이스홀더를 원래 링크로 복원
+            const restoredMainContent = restoreLinksFromPlaceholders(
+                parsedResult.mainContent || '', 
+                linkPlaceholders
+            );
+            
+            // 분할된 내용들의 링크도 복원
+            const restoredSplitContents = (parsedResult.splitContents || []).map(
+                (splitContent: {title: string; content: string}) => ({
+                    title: splitContent.title,
+                    content: restoreLinksFromPlaceholders(splitContent.content, linkPlaceholders)
+                })
+            );
+            
             return {
-                mainContent: parsedResult.mainContent || '',
-                splitContents: parsedResult.splitContents || []
+                mainContent: restoredMainContent,
+                splitContents: restoredSplitContents
             };
         } catch (error) {
             console.error('AI 응답 파싱 오류:', error);
@@ -549,15 +586,32 @@ ${sourceContent}
 - 각 문서 내용의 논리적 흐름과 일관성 유지
 - 문서 간 내용 이동 시 맥락 유지
 - 새로운 내용은 추가하지 않고 기존 내용만 재배치
+- 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
 ${AINoteRefactor.FORMATTING_RULES}`;
 
-        // 노트 내용 결합
+        // 각 노트의 내용을 처리하고 모든 링크 플레이스홀더 수집
         let notesDescription = '';
+        const allLinkPlaceholders = [];
+        const processedNotes = [];
+        
         for (let i = 0; i < notes.length; i++) {
+            // 링크를 플레이스홀더로 대체
+            const { modifiedContent, linkPlaceholders } = replaceLinksWithPlaceholders(notes[i].content);
+            
+            // 처리된 내용 저장
+            processedNotes.push({
+                ...notes[i],
+                processedContent: modifiedContent
+            });
+            
+            // 모든 링크 플레이스홀더 수집
+            allLinkPlaceholders.push(...linkPlaceholders);
+            
+            // 노트 설명 추가
             notesDescription += `\n\n문서 ${i + 1}:
 제목: ${notes[i].title}
 내용:
-${notes[i].content}`;
+${modifiedContent}`;
         }
 
         const userPrompt = `${systemPrompt}
@@ -595,8 +649,13 @@ ${notes[i].content}`;
             const jsonContent = jsonMatch && jsonMatch[1] ? jsonMatch[1] : response;
             const parsedResult = JSON.parse(jsonContent);
             
+            // 응답에서 플레이스홀더를 원래 링크로 복원
+            const restoredNoteContents = (parsedResult.noteContents || []).map(
+                (content: string) => restoreLinksFromPlaceholders(content, allLinkPlaceholders)
+            );
+            
             return {
-                noteContents: parsedResult.noteContents || []
+                noteContents: restoredNoteContents
             };
         } catch (error) {
             console.error('AI 응답 파싱 오류:', error);
