@@ -123,8 +123,16 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
 
     // enableWebSearch 옵션에 따라 웹 검색 도구 활성화
     if (enableWebSearch) {
-        data.tools = [{ type: 'web_search' }];
-        new Notice('웹 검색 도구 활성화됨', 7000);
+        data.tools = [{ 
+            type: 'web_search',
+            user_location: {
+                city: "Seoul",
+                region: "Seoul",
+                country: "KR",
+                timezone: "Asia/Seoul"
+            }
+        }];
+        new Notice('웹 검색 도구 활성화됨 (서울 위치 기준)', 5000);
     }
 
     const params: RequestUrlParam = {
