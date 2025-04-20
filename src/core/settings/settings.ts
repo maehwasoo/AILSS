@@ -12,7 +12,13 @@ export interface AIModelOption {
 export const OPENAI_MODELS: AIModelOption[] = [
     { id: 'gpt-4o', name: 'GPT-4o' },
     { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+    { id: 'o4-mini', name: 'o4 Mini' },
+    { id: 'gpt-4o-search', name: 'GPT-4o Search' },
+    { id: 'gpt-4o-mini-search', name: 'GPT-4o Mini Search' },
+    { id: 'gpt-4.5', name: 'GPT-4.5' },
+    { id: 'gpt-4.5-mini', name: 'GPT-4.5 Mini' },
+    { id: 'gpt-4.5-nano', name: 'GPT-4.5 Nano' },
     { id: 'o1', name: 'o1' },
     { id: 'o3', name: 'o3' },
     { id: 'o1-pro', name: 'o1-pro' },
@@ -20,8 +26,7 @@ export const OPENAI_MODELS: AIModelOption[] = [
     { id: 'gpt-4o-mini-search-preview', name: 'GPT-4o Mini Search Preview' },
     { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano' },
     { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
-    { id: 'gpt-4.1', name: 'GPT-4.1' },
-    { id: 'o4-mini', name: 'o4-mini' }
+    { id: 'gpt-4.1', name: 'GPT-4.1' }
 ];
 
 export const CLAUDE_MODELS: AIModelOption[] = [
@@ -44,14 +49,11 @@ export const GOOGLE_MODELS: AIModelOption[] = [
 
 export const VISION_MODELS: AIModelOption[] = [
     // OpenAI 비전 모델
-    { id: 'o4-mini', name: 'o4 Mini Vision' },
     { id: 'gpt-4.1', name: 'GPT-4.1 Vision' },
     { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini Vision' },
     { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano Vision' },
     { id: 'gpt-4o', name: 'GPT-4o Vision' },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini Vision' },
-    { id: 'o1-pro', name: 'o1 Pro Vision' },
-    { id: 'o1', name: 'o1 Vision' },
     { id: 'o3', name: 'o3 Vision' },
     
     // Claude 비전 모델

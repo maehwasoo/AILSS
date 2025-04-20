@@ -43,7 +43,7 @@ export class AIVisionAPI {
             // 제공자에 따라 다른 API 호출
             switch (provider) {
                 case 'openai':
-                    return await this.analyzeWithOpenAI(plugin, base64Image, instruction, ocr, visionModelId);
+                    return await this.analyzeWithOpenAI(plugin, base64Image, instruction, ocr, visionModelId, mediaType);
                 case 'claude':
                     return await this.analyzeWithClaude(plugin, base64Image, mediaType, instruction, ocr, visionModelId);
                 case 'google':
@@ -63,7 +63,8 @@ export class AIVisionAPI {
         base64Image: string, 
         instruction: string, 
         ocr: boolean = false,
-        modelId: string = 'gpt-4o'
+        modelId: string = 'gpt-4o',
+        mediaType: SupportedMediaType
     ): Promise<string> {
         // 모든 모델은 동일한 엔드포인트 사용
         let url = 'https://api.openai.com/v1/chat/completions';
@@ -103,7 +104,7 @@ export class AIVisionAPI {
                             {
                                 type: "image_url",
                                 image_url: {
-                                    url: `data:image/jpeg;base64,${base64Image}`,
+                                    url: `data:${mediaType};base64,${base64Image}`,
                                     detail: "high" // 이미지 detail 수준
                                 }
                             }
@@ -113,11 +114,6 @@ export class AIVisionAPI {
                 temperature: 0.3,
                 max_tokens: 4000
             };
-            
-            // o4-mini 모델에 reasoning_effort 파라미터 추가
-            if (modelId === 'o4-mini') {
-                data.reasoning_effort = "high";
-            }
                 
             console.log('O 시리즈 요청 형식:', JSON.stringify(data).substring(0, 200) + '...');
         } else {
@@ -136,7 +132,7 @@ export class AIVisionAPI {
                             {
                                 type: "image_url",
                                 image_url: {
-                                    url: `data:image/jpeg;base64,${base64Image}`,
+                                    url: `data:${mediaType};base64,${base64Image}`,
                                     detail: "high" // 이미지 detail 수준
                                 }
                             }
@@ -208,20 +204,22 @@ export class AIVisionAPI {
                 model: modelId,
                 max_tokens: 4000,
                 temperature: ocr ? 0.25 : 0.3,
-                messages: [{
-                    role: "user",
-                    content: [
-                        { type: "text", text: userPrompt },
-                        {
-                            type: "image",
-                            source: {
-                                type: "base64",
-                                media_type: mediaType,
-                                data: base64Image
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: userPrompt },
+                            {
+                                type: "image",
+                                source: {
+                                    type: "base64",
+                                    media_type: mediaType,
+                                    data: base64Image
+                                }
                             }
-                        }
-                    ]
-                }]
+                        ]
+                    }
+                ]
             });
 
             if (response.content && response.content[0] && 'text' in response.content[0]) {
