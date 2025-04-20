@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting } from 'obsidian';
 import AILSSPlugin from '../../../main';
 import { FileCountManager } from '../utils/fileCountManager';
 import { PathSettings } from './pathSettings';
@@ -16,6 +16,7 @@ export const OPENAI_MODELS: AIModelOption[] = [
     { id: 'o1-mini', name: 'o1-mini' },
     { id: 'o3-mini', name: 'o3-mini' },
     { id: 'o1', name: 'o1' },
+    { id: 'o3', name: 'o3' },
     { id: 'o1-pro', name: 'o1-pro' },
     { id: 'gpt-4o-search-preview', name: 'GPT-4o Search Preview' },
     { id: 'gpt-4o-mini-search-preview', name: 'GPT-4o Mini Search Preview' },
