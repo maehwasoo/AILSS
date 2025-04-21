@@ -10,6 +10,7 @@ export class NoteSearchComponent {
     private onNext: (selectedNotes: TFile[]) => void;
     
     private selectedNotes: TFile[] = [];
+    private debounceTimer: number | null = null;
     private searchInput: HTMLInputElement;
     private searchResults: HTMLElement;
     private selectedNotesList: HTMLElement;
@@ -109,6 +110,16 @@ export class NoteSearchComponent {
         this.searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.performSearch();
         });
+
+        // 실시간 검색 (디바운스 적용)
+        this.searchInput.addEventListener('input', () => {
+            if (this.debounceTimer !== null) {
+                clearTimeout(this.debounceTimer);
+            }
+            this.debounceTimer = window.setTimeout(() => {
+                this.performSearch();
+            }, 300);
+        });
         
         backButton.addEventListener('click', () => this.onBack());
         
@@ -129,8 +140,9 @@ export class NoteSearchComponent {
      */
     private performSearch(): void {
         const query = this.searchInput.value.trim();
+        // 빈 검색어이면 결과 초기화
         if (!query) {
-            new Notice('검색어를 입력해주세요.');
+            this.searchResults.empty();
             return;
         }
         
