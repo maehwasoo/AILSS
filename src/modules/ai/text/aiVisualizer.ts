@@ -140,13 +140,6 @@ ${selectedText}
 [다이어그램 코드]
 \`\`\`
 `;
-
-            //console.log('AI 요청 시작', {
-            //    model: this.plugin.settings.selectedAIModel,
-            //    maxTokens: 4500,
-            //    temperature: 0.15
-            //});
-
             new Notice('Mermaid 다이어그램 생성 중...');
             const response = await requestToAI(this.plugin, {
                 combinedPrompt
