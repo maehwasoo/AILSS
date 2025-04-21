@@ -118,7 +118,9 @@ export class Potentiate {
                 // 4. 결과 모달 표시
                 const resultModal = new AccuracyResultModal(
                     this.app,
-                    result
+                    result,
+                    currentPotentiation,
+                    threshold
                 );
                 resultModal.open();
             }

@@ -6,10 +6,14 @@ import { AccuracyResult } from '../../modules/ai/ai_utils/accuracyChecker';
  */
 export class AccuracyResultModal extends Modal {
     private result: AccuracyResult;
+    private potentiationIndex: number;
+    private threshold: number;
     
-    constructor(app: App, result: AccuracyResult) {
+    constructor(app: App, result: AccuracyResult, potentiationIndex: number, threshold: number) {
         super(app);
         this.result = result;
+        this.potentiationIndex = potentiationIndex;
+        this.threshold = threshold;
         
         // 모달 컨텐츠 중앙 정렬 및 패딩 설정
         this.contentEl.style.textAlign = 'center';
@@ -19,23 +23,9 @@ export class AccuracyResultModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         
-        // 아이콘과 색상 설정
-        let iconName: string;
-        let themeColor: string;
-        
-        if (this.result.score >= 90) {
-            iconName = 'check-circle';
-            themeColor = 'var(--color-green)';
-        } else if (this.result.score >= 75) {
-            iconName = 'check';
-            themeColor = 'var(--color-green)';
-        } else if (this.result.score >= 50) {
-            iconName = 'alert-triangle';
-            themeColor = 'var(--color-orange)';
-        } else {
-            iconName = 'alert-circle';
-            themeColor = 'var(--color-red)';
-        }
+        // 아이콘과 색상 설정 (강화 성공 여부에 따른 컬러)
+        const iconName = this.result.success ? 'check-circle' : 'alert-circle';
+        const themeColor = this.result.success ? 'var(--color-green)' : 'var(--color-red)';
         
         // 결과 제목 생성
         const titleEl = contentEl.createEl('h1', { 
@@ -61,20 +51,10 @@ export class AccuracyResultModal extends Modal {
         scoreCircle.style.fontSize = '1.8em';
         scoreCircle.style.fontWeight = 'bold';
         
-        // 결과에 따른 색상 변경
-        if (this.result.score >= 90) {
-            scoreCircle.style.backgroundColor = 'rgba(0, 180, 0, 0.15)';
-            scoreCircle.style.color = themeColor;
-        } else if (this.result.score >= 75) {
-            scoreCircle.style.backgroundColor = 'rgba(0, 150, 0, 0.15)';
-            scoreCircle.style.color = themeColor;
-        } else if (this.result.score >= 50) {
-            scoreCircle.style.backgroundColor = 'rgba(255, 165, 0, 0.15)';
-            scoreCircle.style.color = themeColor;
-        } else {
-            scoreCircle.style.backgroundColor = 'rgba(255, 0, 0, 0.15)';
-            scoreCircle.style.color = themeColor;
-        }
+        // 결과에 따른 색상 변경 (강화 성공 여부에 따른 컬러)
+        const bgColor = this.result.success ? 'rgba(0, 180, 0, 0.15)' : 'rgba(255, 0, 0, 0.15)';
+        scoreCircle.style.backgroundColor = bgColor;
+        scoreCircle.style.color = themeColor;
         
         // 점수 표시
         scoreCircle.setText(`${Math.round(this.result.score)}%`);
@@ -85,9 +65,9 @@ export class AccuracyResultModal extends Modal {
         });
 
         // HTML을 사용하여 줄바꿈 적용
-        messageEl.innerHTML = this.result.success ? 
-            '축하합니다! 노트 내용을 잘 기억하고 있습니다.<br>강화가 적용되었습니다.' : 
-            '노트 내용을 정확하게 복기하지 못했습니다.<br>강화가 적용되지 않았습니다.';
+        messageEl.innerHTML = this.result.success
+            ? `축하합니다! 강화가 성공했습니다.<br>현재 강화 지수: ${this.potentiationIndex} (임계값: ${this.threshold}%)`
+            : `아쉽습니다. 강화가 실패했습니다.<br>현재 강화 지수: ${this.potentiationIndex} (임계값: ${this.threshold}% 미달)<br>정확도: ${Math.round(this.result.score)}%`;
         messageEl.style.color = themeColor;
         messageEl.style.textAlign = 'center';
         
