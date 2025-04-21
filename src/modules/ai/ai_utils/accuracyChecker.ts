@@ -130,8 +130,7 @@ export async function checkAccuracy(
         // aiUtils의 requestToAI 함수 사용하여 API 호출
         const responseText = await requestToAI(plugin, {
             systemPrompt: '당신은 텍스트 정확도를 분석하는 AI 도우미입니다. 원본 텍스트와 사용자 입력의 내용적 유사성을 분석하여 정확도를 평가합니다.',
-            userPrompt: prompt,
-            temperature: 0.3
+            userPrompt: prompt
         });
         
         // JSON 파싱

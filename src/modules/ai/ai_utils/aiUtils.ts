@@ -5,17 +5,15 @@ import Anthropic from '@anthropic-ai/sdk';
 interface AIPrompt {
     systemPrompt?: string;  // 선택적 필드(각 모듈에서 userPrompt에 이미 포함됨)
     userPrompt: string;     // 실제로 사용되는 프롬프트
-    temperature?: number;   // 선택적 필드
     max_tokens?: number;    // 선택적 필드
 }
 
 function logAPIRequest(provider: string, prompt: AIPrompt) {
-    //console.log(`=== ${provider} 요청 정보 ===`);
-    //console.log('시스템 프롬프트:', prompt.systemPrompt);
-    //console.log('사용자 프롬프트:', prompt.userPrompt);
-    //console.log('온도:', prompt.temperature);
-    //console.log('최대 토큰:', prompt.max_tokens);
-    //console.log('=====================');
+    console.log(`=== ${provider} 요청 정보 ===`);
+    console.log('시스템 프롬프트:', prompt.systemPrompt);
+    console.log('사용자 프롬프트:', prompt.userPrompt);
+    console.log('최대 토큰:', prompt.max_tokens);
+    console.log('=====================');
 }
 
 function logAPIResponse(provider: string, response: string, usage: any): string {
@@ -29,11 +27,6 @@ function logAPIResponse(provider: string, response: string, usage: any): string 
                         `입력: ${usageInfo.입력_토큰}\n` +
                         `출력: ${usageInfo.출력_토큰}\n` +
                         `전체: ${usageInfo.전체_토큰}`;
-
-    //console.log(`=== ${provider} 응답 정보 ===`);
-    //console.log('응답:', response);
-    //console.log('토큰 사용량:', usageInfo);
-    //console.log('=====================');
 
     new Notice(usageMessage, 5000);
 
@@ -96,17 +89,8 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
     // Responses API 형식에 맞게 요청 데이터 구성
     const data: any = {
         model: model,
-        input: prompt.userPrompt,
-        stream: false // 응답 스트리밍 활성화
+        input: prompt.userPrompt
     };
-
-    // 추가 옵션 설정 (필요한 경우)
-    if (prompt.temperature !== undefined) {
-        data.temperature = prompt.temperature;
-    } else {
-        // 기본값 설정 (temperature는 기본값이 1)
-        data.temperature = 1;
-    }
 
     if (prompt.max_tokens !== undefined) {
         data.max_output_tokens = prompt.max_tokens;
@@ -234,12 +218,6 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
 
 async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
     //logAPIRequest('Claude', prompt);
-    //console.log('Claude 요청 정보:', {
-    //    systemPrompt: prompt.systemPrompt,
-    //    userPrompt: prompt.userPrompt,
-    //    temperature: prompt.temperature,
-    //    max_tokens: prompt.max_tokens
-    //});
     
     const anthropic = new Anthropic({
         apiKey: apiKey,
@@ -254,17 +232,12 @@ async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string):
         const requestOptions: any = {
             model: model,
             // 기본값 설정 (Claude API에서 max_tokens는 필수임)
-            max_tokens: prompt.max_tokens || 2000,
+            max_tokens: prompt.max_tokens || 4000,
             messages: [
                 // 참고: systemPrompt 필드는 무시하고 userPrompt만 사용 (이미 포함됨)
                 { role: "user", content: prompt.userPrompt }
-            ],
+            ]
         };
-        
-        // temperature 파라미터 추가 (선택적)
-        if (prompt.temperature !== undefined) {
-            requestOptions.temperature = prompt.temperature;
-        }
         
         const response = await anthropic.messages.create(requestOptions);
         
@@ -286,11 +259,6 @@ async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string):
         //console.error('Claude API 요청 중 예외 발생:', error);
         new Notice('Claude API 요청 중 예외 발생:', error);
         if (error instanceof Anthropic.APIError) {
-            //console.error('Claude API 오류 상세:', {
-            //    status: error.status,
-            //    message: error.message,
-            //    name: error.name
-            //});
             new Notice(`Claude API 오류: ${error.message}, 상태: ${error.status}, 유형: ${error.name}`);
             throw new Error(`Claude API 오류: ${error.message}, 상태: ${error.status}, 유형: ${error.name}`);
         } else if (error instanceof Error) {
@@ -317,13 +285,9 @@ async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string
             parts: [{
                 text: prompt.userPrompt // Gemini는 'text' 필드를 사용
             }]
-        }],
-        // generationConfig: { // 필요한 경우 온도 등 설정 추가
-        //     temperature: prompt.temperature,
-        //     maxOutputTokens: prompt.max_tokens
-        // }
+        }]
     };
-
+    
     const params: RequestUrlParam = {
         url: url,
         method: 'POST',
@@ -370,15 +334,8 @@ async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string
     }
 }
 
-
 async function requestToPerplexity(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
     //logAPIRequest('Perplexity', prompt);
-    //console.log('Perplexity 요청 정보:', {
-    //    systemPrompt: prompt.systemPrompt,
-    //    userPrompt: prompt.userPrompt,
-    //    temperature: prompt.temperature,
-    //    max_tokens: prompt.max_tokens
-    //});
 
     new Notice('Perplexity API 요청 시작');
     const url = 'https://api.perplexity.ai/chat/completions';
