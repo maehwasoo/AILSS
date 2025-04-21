@@ -200,10 +200,29 @@ export class OpenAITTS {
     private preprocessTextForTTS(text: string): string {
         // 특수문자 및 기호 처리를 위한 변환 패턴들
         const patterns = [
+            // 마크다운 링크 처리 (텍스트와 주소를 자연어로 읽기)
+            { 
+                regex: /\[([^\]]+)\]\((https?:\/\/[^\s]+)\)/g, 
+                replacement: (match: string, p1: string, p2: string) => {
+                    const spokenUrl = p2
+                        .replace(/^https?:\/\//, '')
+                        .replace(/\//g, ' 슬래시 ')
+                        .replace(/\./g, ' 점 ')
+                        .replace(/:/g, ' 콜론 ');
+                    return `다음은 링크입니다: 텍스트는 ${p1}, 주소는 ${spokenUrl}`;
+                }
+            },
+            
             // URL 패턴 인식 및 처리
             { 
                 regex: /(https?:\/\/[^\s]+)/g, 
-                replacement: (match: string) => `다음은 URL입니다: ${match.replace(/\//g, ' 슬래시 ').replace(/\./g, ' 점 ')}` 
+                replacement: (match: string) => {
+                    const url = match
+                        .replace(/^https?:\/\//, '')
+                        .replace(/\//g, ' 슬래시 ')
+                        .replace(/\./g, ' 점 ');
+                    return `다음은 URL입니다: ${url}`;
+                }
             },
             
             // 이메일 패턴 인식 및 처리
@@ -212,16 +231,29 @@ export class OpenAITTS {
                 replacement: (match: string) => match.replace('@', ' 골뱅이 ').replace(/\./g, ' 점 ') 
             },
             
-            // 마크다운 링크 처리
-            { 
-                regex: /\[([^\]]+)\]\(([^)]+)\)/g, 
-                replacement: (match: string, p1: string, p2: string) => `${p1}` 
-            },
-            
-            // 코드 블록 또는 인라인 코드 처리
+            // 코드 블록 또는 인라인 코드 처리 (기호를 한글로 읽기)
             {
                 regex: /`{1,3}([^`]+)`{1,3}/g,
-                replacement: (match: string, p1: string) => `다음은 코드입니다: ${p1.replace(/[{}[\]()<>]/g, ' ')}` 
+                replacement: (match: string, p1: string) => {
+                    const symbolMap: { [key: string]: string } = {
+                        '{': '중괄호 열림', '}': '중괄호 닫힘',
+                        '(': '소괄호 열림', ')': '소괄호 닫힘',
+                        '[': '대괄호 열림', ']': '대괄호 닫힘',
+                        '<': '부등호 열림', '>': '부등호 닫힘',
+                        '=': '등호', '>=': '크거나 같음', '<=': '작거나 같음',
+                        '=>': '화살표', ',': '콤마', '.': '점',
+                        ';': '세미콜론', ':': '콜론', '!': '느낌표',
+                        '?': '물음표', '+': '플러스', '-': '마이너스',
+                        '*': '별표', '/': '슬래시', '%': '퍼센트',
+                        '&': '앤드', '|': '버티컬 바', '$': '달러',
+                        '#': '샵'
+                    };
+                    let result = '';
+                    for (const char of p1) {
+                        result += (symbolMap[char] || char) + ' ';
+                    }
+                    return `다음은 코드입니다: ${result.trim()}`;
+                }
             },
             
             // 괄호 처리 (더 자연스럽게 발음되도록)
