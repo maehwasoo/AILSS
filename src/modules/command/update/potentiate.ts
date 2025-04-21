@@ -108,8 +108,10 @@ export class Potentiate {
             this.plugin,
             async (result: AccuracyResult) => {
                 // 정확도 결과에 따른 강화 적용
-                if (result.success) {
-                    // 75% 이상이면 강화 적용
+                const threshold = currentPotentiation * 10;
+                const success = result.score >= threshold;
+                result.success = success;
+                if (success) {
                     await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
                 }
                 

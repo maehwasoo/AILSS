@@ -123,7 +123,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
     try {
         const response = await requestUrl(params);
         if (response.status === 200) {
-            console.log('OpenAI 응답 구조:', response.json);
+            //console.log('OpenAI 응답 구조:', response.json);
             
             // 응답 구조 분석하여 텍스트 추출
             let aiResponse = '';
