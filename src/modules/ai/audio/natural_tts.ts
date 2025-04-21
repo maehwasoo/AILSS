@@ -34,13 +34,13 @@ export class NaturalTTS {
             new Notice('텍스트를 자연스러운 대화체로 변환 중...');
             
             // 텍스트를 자연스러운 대화체로 변환 (aiUtils.ts의 requestToAI 함수 활용)
-            const systemPrompt = "당신은 텍스트를 자연스러운 대화체로 변환하는 전문가입니다. 주어진 텍스트를 가능한 자연스러운 한국어 대화체 설명으로 변환하세요. 원본 의미를 유지하되, 딱딱하거나 복잡한 표현은 일상적인 대화처럼 바꿔주세요. 내용이 압축적이고 요약된 경우에는 적절히 풀어서 설명하세요. 단, 주제에서 벗어나지 않도록 하세요.";
             
-            const userPrompt = `${systemPrompt}\n\n다음 텍스트를 자연스러운 대화체로 변환해주세요:\n\n${selectedText}`;
+            const combinedPrompt = "당신은 텍스트를 자연스러운 대화체로 변환하는 전문가입니다. 주어진 텍스트를 가능한 자연스러운 한국어 대화체 설명으로 변환하세요. 원본 의미를 유지하되, 딱딱하거나 복잡한 표현은 일상적인 대화처럼 바꿔주세요. 내용이 압축적이고 요약된 경우에는 적절히 풀어서 설명하세요. 단, 주제에서 벗어나지 않도록 하세요." +
+                `\n\n다음 텍스트를 자연스러운 대화체로 변환해주세요:\n\n${selectedText}`;
             
             // aiUtils.ts의 requestToAI 함수로 대화체 변환
             const naturalText = await requestToAI(this.plugin, {
-                userPrompt: userPrompt
+                combinedPrompt: combinedPrompt
             });
             
             if (!naturalText) {

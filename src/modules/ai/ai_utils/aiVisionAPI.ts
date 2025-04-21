@@ -122,13 +122,9 @@ export class AIVisionAPI {
                 model: modelId,
                 messages: [
                     {
-                        role: "system",
-                        content: systemPrompt
-                    },
-                    {
                         role: "user",
                         content: [
-                            { type: "text", text: userPrompt },
+                            { type: "text", text: combinedPrompt },
                             {
                                 type: "image_url",
                                 image_url: {
@@ -190,8 +186,8 @@ export class AIVisionAPI {
             this.getClaudeVisionSystemPrompt();
 
         // 프롬프트 구성
-        const userPrompt = ocr ? 
-            `${systemPrompt}\n\n이미지에서 모든 텍스트를 추출해주세요.\n\n다음 요소들을 정확히 포함해주세요:\n- 모든 텍스트 (손글씨, 인쇄물)\n- 수학 수식은 반드시 $ 또는 $$ 기호로 감싸서 표현\n- 특수 기호 및 문자\n- 원본의 줄바꿈과 단락 구분\n\n원본 텍스트만 출력하고 다른 설명은 추가하지 마세요.` : 
+        const combinedPrompt = ocr ? 
+            `${systemPrompt}\n\n이미지에서 모든 텍스트를 추출해주세요. 수식은 LaTeX로 변환하고, 줄바꿈과 단락 구분을 유지해주세요. 원본 텍스트만 출력하고 다른 설명은 추가하지 마세요.` : 
             `${systemPrompt}\n\n다음 지시사항에 따라 이미지를 분석해주세요:\n${instruction}\n\n분석 결과만 출력하고 다른 설명은 추가하지 마세요.`;
 
         try {
@@ -208,7 +204,7 @@ export class AIVisionAPI {
                     {
                         role: "user",
                         content: [
-                            { type: "text", text: userPrompt },
+                            { type: "text", text: combinedPrompt },
                             {
                                 type: "image",
                                 source: {
