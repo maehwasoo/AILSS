@@ -105,7 +105,6 @@ export class OpenAITTS {
 모델: ${mergedOptions.model}
 음성: ${mergedOptions.voice} 
 파일: ${fileName}
-길이: ${Math.round(selectedText.length / 30)}초 (약)
 `;
             new Notice(ttsInfo, 5000);
         } catch (error) {
