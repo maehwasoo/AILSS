@@ -1,5 +1,6 @@
 import { TFile } from 'obsidian';
 import { RefactoringComponentProps, RefactoringOption } from './types';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 /**
  * 작업 미리보기 컴포넌트
@@ -25,7 +26,7 @@ export class OperationPreviewComponent {
     /**
      * 작업 미리보기 UI 렌더링
      */
-    render(): void {
+    async render(): Promise<void> {
         const { stepContainer, selectedOption, fileTitle } = this.props;
         stepContainer.empty();
         
@@ -65,10 +66,13 @@ export class OperationPreviewComponent {
             attr: { style: 'color: var(--text-muted);' } 
         });
         
-        // 선택된 다른 노트들
-        this.selectedNotes.forEach(file => {
-            notesList.createEl('li', { text: file.basename });
-        });
+        // 선택된 다른 노트들 (frontmatter title 표시)
+        for (const file of this.selectedNotes) {
+            const content = await this.props.app.vault.cachedRead(file);
+            const fm = new FrontmatterManager().parseFrontmatter(content);
+            const fmTitle = fm?.title || file.basename;
+            notesList.createEl('li', { text: fmTitle });
+        }
         
         // 작업 설명
         if (selectedOption === 'merge') {
