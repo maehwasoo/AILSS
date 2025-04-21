@@ -24,63 +24,6 @@ export class ContentDiffPreviewComponent {
             attr: { style: 'display: flex; flex-direction: column; gap: 1rem;' }
         });
         
-        // 변경 사항 요약 정보
-        const diffSummary = this.generateDiffSummary(originalContent, newContent);
-        const summaryEl = diffContainer.createDiv({
-            cls: 'diff-summary',
-            attr: { 
-                style: 'background-color: var(--background-secondary-alt); padding: 0.8rem; border-radius: 4px; margin-bottom: 0.5rem;'
-            }
-        });
-        
-        summaryEl.createEl('h5', {
-            text: '변경 사항 요약',
-            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
-        });
-        
-        const summaryContent = summaryEl.createDiv({
-            attr: { style: 'display: flex; gap: 1rem; font-size: 0.9em;' }
-        });
-        
-        // 추가된 줄 수 표시
-        const addedLines = summaryContent.createDiv({
-            attr: { style: 'display: flex; align-items: center; gap: 0.5rem;' }
-        });
-        
-        addedLines.createDiv({
-            attr: { 
-                style: 'width: 12px; height: 12px; border-radius: 50%; background-color: rgba(var(--background-modifier-success-rgb), 0.6);' 
-            }
-        });
-        
-        addedLines.createSpan({ text: `${diffSummary.addedLines}개 추가됨` });
-        
-        // 삭제된 줄 수 표시
-        const deletedLines = summaryContent.createDiv({
-            attr: { style: 'display: flex; align-items: center; gap: 0.5rem;' }
-        });
-        
-        deletedLines.createDiv({
-            attr: { 
-                style: 'width: 12px; height: 12px; border-radius: 50%; background-color: rgba(var(--background-modifier-error-rgb), 0.6);' 
-            }
-        });
-        
-        deletedLines.createSpan({ text: `${diffSummary.deletedLines}개 삭제됨` });
-        
-        // 변경된 줄 수 표시
-        const changedLines = summaryContent.createDiv({
-            attr: { style: 'display: flex; align-items: center; gap: 0.5rem;' }
-        });
-        
-        changedLines.createDiv({
-            attr: { 
-                style: 'width: 12px; height: 12px; border-radius: 50%; background-color: rgba(var(--background-modifier-accent-rgb), 0.6);' 
-            }
-        });
-        
-        changedLines.createSpan({ text: `${diffSummary.changedLines}개 변경됨` });
-        
         // 통합 뷰만 렌더링
         const cleanOriginalContent = originalContent.replace(/---\n[\s\S]*?\n---\n\n/, '');
         const cleanNewContent = newContent.replace(/---\n[\s\S]*?\n---\n\n/, '');
@@ -252,11 +195,7 @@ export class ContentDiffPreviewComponent {
         originalContent: string,
         newContent: string
     ): void {
-        container.createEl('h5', {
-            text: '통합 차이점 뷰',
-            attr: { style: 'margin: 0 0 0.5rem 0; font-weight: 600;' }
-        });
-        
+
         const unifiedBox = container.createDiv({
             attr: { 
                 style: 'background-color: var(--background-secondary); padding: 0.8rem; border-radius: 4px; max-height: 350px; overflow-y: auto;'
