@@ -129,6 +129,8 @@ export class NoteRefactoringModal extends Modal {
      */
     private showOptionSelection(): void {
         this.currentStep = 'selection';
+        // 이전 검색 결과 초기화
+        this.selectedNotes = [];
         
         // 원자적 컴포넌트 사용
         const optionComponent = new OptionSelectionComponent(
@@ -148,6 +150,8 @@ export class NoteRefactoringModal extends Modal {
     private handleOptionSelected(option: RefactoringOption): void {
         // 컴포넌트 props 업데이트
         this.componentProps.selectedOption = option;
+        // 이전에 선택된 노트 초기화
+        this.selectedNotes = [];
         
         switch (option) {
             case 'merge':
@@ -167,6 +171,8 @@ export class NoteRefactoringModal extends Modal {
      */
     private showNoteSearch(placeholder: string, allowMultiple: boolean = false): void {
         this.currentStep = 'search';
+        // 이전 선택 초기화
+        this.selectedNotes = [];
         
         // 원자적 컴포넌트 사용
         const searchComponent = new NoteSearchComponent(
