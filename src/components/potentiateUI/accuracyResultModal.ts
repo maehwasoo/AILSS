@@ -81,11 +81,13 @@ export class AccuracyResultModal extends Modal {
         
         // 결과 메시지
         const messageEl = contentEl.createEl('p', { 
-            text: this.result.success ? 
-                '축하합니다! 노트 내용을 잘 기억하고 있습니다. 강화가 적용되었습니다.' : 
-                '노트 내용을 정확하게 복기하지 못했습니다. 강화가 적용되지 않았습니다.',
             cls: 'accuracy-result-message'
         });
+
+        // HTML을 사용하여 줄바꿈 적용
+        messageEl.innerHTML = this.result.success ? 
+            '축하합니다! 노트 내용을 잘 기억하고 있습니다.<br>강화가 적용되었습니다.' : 
+            '노트 내용을 정확하게 복기하지 못했습니다.<br>강화가 적용되지 않았습니다.';
         messageEl.style.color = themeColor;
         messageEl.style.textAlign = 'center';
         
@@ -111,4 +113,4 @@ export class AccuracyResultModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
     }
-} 
+}
