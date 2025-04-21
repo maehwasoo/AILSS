@@ -107,15 +107,18 @@ export class Potentiate {
             this.plugin.settings,
             this.plugin,
             async (result: AccuracyResult) => {
-                // 정확도 결과에 따른 강화 적용
                 const threshold = currentPotentiation * 10;
                 const success = result.score >= threshold;
                 result.success = success;
                 if (success) {
                     await this.applyPotentiation(activeFile, fileContent, currentPotentiation);
+                } else {
+                    const now = moment().utcOffset('+09:00');
+                    const formattedDate = now.format('YYYY-MM-DDTHH:mm:ss');
+                    const updatedContent = this.frontmatterManager.updateFrontmatter(fileContent, { updated: formattedDate });
+                    await this.app.vault.modify(activeFile, updatedContent);
                 }
                 
-                // 4. 결과 모달 표시
                 const resultModal = new AccuracyResultModal(
                     this.app,
                     result,
