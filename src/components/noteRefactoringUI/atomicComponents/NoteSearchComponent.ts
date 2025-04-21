@@ -187,13 +187,7 @@ export class NoteSearchComponent {
                 cls: 'mod-cta',
                 attr: { style: 'padding: 0.5rem 1rem; border-radius: 4px; margin-top: 0.5rem; width: 100%;' }
             });
-            
-            // 파일 경로 표시
-            card.createEl('div', {
-                text: file.path,
-                attr: { style: 'font-size: 0.8em; color: var(--text-muted); word-break: break-all;' }
-            });
-            
+                   
             selectButton.addEventListener('click', () => {
                 this.handleSearchResult(file);
             });
