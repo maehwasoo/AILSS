@@ -69,7 +69,7 @@ export class NoteSearchComponent {
         // 검색 결과 컨테이너
         this.searchResults = searchContainer.createDiv({
             cls: 'search-results',
-            attr: { style: 'max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; border-radius: 4px;' }
+            attr: { style: 'max-height: 250px; overflow-y: auto; margin-bottom: 1.5rem; border-radius: 4px;' }
         });
         
         // 선택된 노트들 표시 컨테이너
@@ -248,7 +248,7 @@ export class NoteSearchComponent {
     /**
      * 선택된 노트 목록 업데이트
      */
-    private updateSelectedNotes(): void {
+    private async updateSelectedNotes(): Promise<void> {
         this.selectedNotesList.empty();
         
         if (this.selectedNotes.length === 0) {
@@ -257,28 +257,34 @@ export class NoteSearchComponent {
                 attr: { style: 'color: var(--text-muted);' }
             });
             this.nextButton.disabled = true;
-        } else {
-            this.selectedNotes.forEach(file => {
-                const item = this.selectedNotesList.createEl('li', {
-                    attr: { style: 'margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;' }
-                });
-                
-                item.createSpan({ 
-                    text: file.basename,
-                    attr: { style: 'font-weight: 500;' }
-                });
-                
-                const removeButton = item.createEl('button', {
-                    text: '제거',
-                    attr: { style: 'font-size: 0.8em; padding: 0.3rem 0.5rem; border-radius: 4px;' }
-                });
-                
-                removeButton.addEventListener('click', () => {
-                    this.selectedNotes = this.selectedNotes.filter(f => f.path !== file.path);
-                    this.updateSelectedNotes();
-                });
-            });
-            this.nextButton.disabled = false;
+            return;
         }
+        
+        for (const file of this.selectedNotes) {
+            const item = this.selectedNotesList.createEl('li', {
+                attr: { style: 'margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;' }
+            });
+            
+            // frontmatter title 가져오기
+            const content = await this.props.app.vault.cachedRead(file);
+            const fm = new FrontmatterManager().parseFrontmatter(content);
+            const fmTitle = fm?.title || file.basename;
+            
+            item.createSpan({ 
+                text: fmTitle,
+                attr: { style: 'font-weight: 500; flex: 1; text-align: left; word-break: break-all;' }
+            });
+            
+            const removeButton = item.createEl('button', {
+                text: '제거',
+                attr: { style: 'font-size: 0.8em; padding: 0.3rem 0.5rem; border-radius: 4px;' }
+            });
+            
+            removeButton.addEventListener('click', () => {
+                this.selectedNotes = this.selectedNotes.filter(f => f.path !== file.path);
+                this.updateSelectedNotes();
+            });
+        }
+        this.nextButton.disabled = false;
     }
 }
