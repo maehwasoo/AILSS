@@ -1,5 +1,6 @@
 import { Notice, TFile } from 'obsidian';
 import { RefactoringComponentProps } from './types';
+import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 /**
  * 노트 검색 및 선택 컴포넌트
@@ -138,7 +139,7 @@ export class NoteSearchComponent {
     /**
      * 검색 실행
      */
-    private performSearch(): void {
+    private async performSearch(): Promise<void> {
         const query = this.searchInput.value.trim();
         // 빈 검색어이면 결과 초기화
         if (!query) {
@@ -169,7 +170,7 @@ export class NoteSearchComponent {
         }
         
         // 검색 결과 표시 - 카드 형식
-        results.slice(0, 10).forEach(file => {
+        for (const file of results.slice(0, 10)) {
             const card = this.searchResults.createEl('div', { 
                 cls: 'search-result-card',
                 attr: { 
@@ -189,9 +190,19 @@ export class NoteSearchComponent {
                 attr: { style: 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;' }
             });
             
+            // frontmatter title 가져오기
+            const content = await this.props.app.vault.cachedRead(file);
+            const fm = new FrontmatterManager().parseFrontmatter(content);
+            const fmTitle = fm?.title || file.basename;
+            
+            titleContainer.createEl('div', {
+                text: fmTitle,
+                attr: { style: 'flex: 1; text-align: left; font-weight: 600; word-break: break-all;' }
+            });
+            
             titleContainer.createEl('div', {
                 text: file.basename,
-                attr: { style: 'font-weight: 600; word-break: break-all;' }
+                attr: { style: 'flex: 1; text-align: right; color: var(--text-muted);' }
             });
             
             const selectButton = card.createEl('button', {
@@ -203,7 +214,7 @@ export class NoteSearchComponent {
             selectButton.addEventListener('click', () => {
                 this.handleSearchResult(file);
             });
-        });
+        }
         
         if (results.length > 10) {
             this.searchResults.createEl('p', { 
