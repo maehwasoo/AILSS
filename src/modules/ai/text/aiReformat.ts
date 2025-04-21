@@ -67,7 +67,7 @@ export class AIReformat {
             // 링크를 마스킹한 텍스트 생성
             const maskedText = this.maskLinks(selectedText, links);
 
-            const systemPrompt = `당신은 텍스트 포맷팅과 정보 구조화의 최고 전문가입니다.
+            const combinedPrompt = `당신은 텍스트 포맷팅과 정보 구조화의 최고 전문가입니다.
             주어진 텍스트를 체계적이고 일관된 계층적 구조로 완벽하게 재구성합니다.
             
             구조화 원칙:
@@ -122,9 +122,7 @@ export class AIReformat {
             - 이 지시사항이나 메타 설명은 결과물에 절대 포함하지 마세요
             - 구조화 원칙과 포맷팅 규칙은 참고만 하고 실제 결과물에는 내용만 포함하세요
             - 변환 과정이나 접근 방식에 대한 설명 없이 결과만 출력하세요
-            - [LINK_숫자] 형식의 마커는 절대 변경하거나 제거하지 마세요`;
-
-            const userPrompt = `${systemPrompt}
+            - [LINK_숫자] 형식의 마커는 절대 변경하거나 제거하지 마세요
 
 다음 텍스트를 위 규칙에 따라 재구성해주세요:
 
@@ -147,7 +145,7 @@ export class AIReformat {
 
             new Notice('텍스트 재구성 중...');
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
             
             // AI 응답에서 링크 복원

@@ -22,7 +22,7 @@ export class AILatexMath {
                 return;
             }
 
-            const systemPrompt = `당신은 수학, 물리학, 컴퓨터 과학 분야의 LaTeX 전문가입니다. 
+            const combinedPrompt = `당신은 수학, 물리학, 컴퓨터 과학 분야의 LaTeX 전문가입니다. 
             자연어로 표현된 수식과 수학적 표현을 정확하고 효율적인 LaTeX 코드로 변환하는 능력이 탁월합니다.
             
             전문 분야:
@@ -51,9 +51,7 @@ export class AILatexMath {
             - 모든 일반 텍스트는 \\text{} 안에 배치
             - 한글 텍스트도 \\text{} 명령어로 처리
             - 영문 변수는 이탤릭체로 수식 모드에서 처리
-            - 수식 내 함수명(sin, log 등)은 \\operatorname 또는 내장 명령어 사용`;
-
-            const userPrompt = `${systemPrompt}
+            - 수식 내 함수명(sin, log 등)은 \\operatorname 또는 내장 명령어 사용
 
 다음 표현을 LaTeX 코드로 변환해주세요:
 
@@ -74,7 +72,7 @@ export class AILatexMath {
 
             new Notice('LaTeX 수학 코드 생성 중...');
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
             
             await AIEditorUtils.insertAfterSelection(editor, response);

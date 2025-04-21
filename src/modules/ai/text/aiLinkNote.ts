@@ -287,7 +287,7 @@ export class AILinkNote {
         const contentWithoutFrontmatter = getContentWithoutFrontmatter(currentContent);
         const processedContent = this.processNoteContent(contentWithoutFrontmatter);
         
-        const systemPrompt = `당신은 개념 분석과 지식 연결의 최고 전문가입니다.
+        const combinedPrompt = `당신은 개념 분석과 지식 연결의 최고 전문가입니다.
 선택된 텍스트를 중심으로 심층적인 분석을 제공하고, 전체 문맥에서의 의미와 연관성을 체계적으로 설명합니다.
 
 분석 역량:
@@ -348,23 +348,7 @@ export class AILinkNote {
 - 맥락적 의미: 전체 문서와의 관계 및 위치적 중요성 평가
 - 관련 개념: 연관된 이론, 개념, 아이디어와의 연결성 제시
 - 실용적 응용: 실제 적용 사례와 활용 방안
-- 참고 자료: 추가 학습을 위한 관련 리소스 제안`;
-
-        // 태그와 별칭 생성을 위한 프롬프트 추가
-        const tagsPrompt = `
-또한, 다음 요구사항에 따라 현재 노트의 키워드("${selectedText}")와 정확히 관련된 태그와 별칭(aliases)도 함께 생성해주세요:
-1. 태그: 현재 노트 주제와 직접 관련된 가장 핵심 3-5개의 태그 제안 (각 태그는 #없이 단일 단어로, 소문자 영어로 작성)
-2. 별칭: 현재 노트 제목의 다른 표현 또는 유사어 1-3개 (각 별칭은 작은따옴표 없이)
-
-태그와 별칭은 문서 마지막에 다음 JSON 형식으로 추가:
-\`\`\`json
-{
-  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
-  "aliases": ["별칭1", "별칭2", "별칭3"]
-}
-\`\`\``;
-
-        const userPrompt = `${systemPrompt}
+- 참고 자료: 추가 학습을 위한 관련 리소스 제안
 
 다음은 전체 문서 내용입니다:
 ${processedContent}
@@ -384,10 +368,20 @@ ${selectedText}
 - 내용의 논리적 구조 유지 및 강화
 - 변환 과정 설명 없이 결과만 출력
 
-${tagsPrompt}`;
+또한, 다음 요구사항에 따라 현재 노트의 키워드("${selectedText}")와 정확히 관련된 태그와 별칭(aliases)도 함께 생성해주세요:
+1. 태그: 현재 노트 주제와 직접 관련된 가장 핵심 3-5개의 태그 제안 (각 태그는 #없이 단일 단어로, 소문자 영어로 작성)
+2. 별칭: 현재 노트 제목의 다른 표현 또는 유사어 1-3개 (각 별칭은 작은따옴표 없이)
+
+태그와 별칭은 문서 마지막에 다음 JSON 형식으로 추가:
+\`\`\`json
+{
+  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
+  "aliases": ["별칭1", "별칭2", "별칭3"]
+}
+\`\`\``;
 
         const response = await requestToAI(this.plugin, {
-            userPrompt
+            combinedPrompt
         });
         
         // JSON 데이터 추출

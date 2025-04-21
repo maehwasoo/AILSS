@@ -38,7 +38,8 @@ export function estimateTokens(text: string): number {
  * 정확도 검증을 위한 프롬프트를 생성합니다
  */
 function createAccuracyPrompt(originalText: string, userInput: string): string {
-    return `
+    return `당신은 텍스트 정확도를 분석하는 AI 도우미입니다. 원본 텍스트와 사용자 입력의 내용적 유사성을 분석하여 정확도를 평가합니다.
+
 다음은 원본 텍스트와 사용자가 작성한 텍스트입니다. 원본 텍스트의 핵심 내용과 주요 키워드, 중요 포인트를 사용자가 얼마나 정확하게 기억하고 표현했는지 평가해주세요.
 
 원본 텍스트:
@@ -67,8 +68,7 @@ ${userInput}
 {
   "score": [0-100 사이의 정수],
   "feedback": "피드백 내용"
-}
-`;
+}`;
 }
 
 /**
@@ -124,13 +124,12 @@ export async function checkAccuracy(
             new Notice(`텍스트가 길어 정확도 평가가 부정확할 수 있습니다\n약 ${tokenCheck.estimatedTokens} 토큰 감지됨\n핵심 내용 위주로 평가합니다`, 50000);
         }
         
-        // 프롬프트 생성
-        const prompt = createAccuracyPrompt(originalText, userInput);
+        // 프롬프트 생성 - createAccuracyPrompt 함수 사용
+        const combinedPrompt = createAccuracyPrompt(originalText, userInput);
         
         // aiUtils의 requestToAI 함수 사용하여 API 호출
         const responseText = await requestToAI(plugin, {
-            systemPrompt: '당신은 텍스트 정확도를 분석하는 AI 도우미입니다. 원본 텍스트와 사용자 입력의 내용적 유사성을 분석하여 정확도를 평가합니다.',
-            userPrompt: prompt
+            combinedPrompt
         });
         
         // JSON 파싱
@@ -160,4 +159,4 @@ export async function checkAccuracy(
         new Notice('정확도 검증 중 오류가 발생했습니다.');
         throw error;
     }
-} 
+}

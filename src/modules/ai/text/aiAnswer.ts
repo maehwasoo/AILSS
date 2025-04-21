@@ -33,7 +33,7 @@ export class AIAnswer {
         const endPos = lastSelection.head.line > lastSelection.anchor.line ? 
             lastSelection.head : lastSelection.anchor;
 
-        const systemPrompt = `당신은 학습자 중심의 지식 전문가이며 교육자입니다.
+        const combinedPrompt = `당신은 학습자 중심의 지식 전문가이며 교육자입니다.
 사용자의 질문에 대해 정확하고 포괄적이며 단계적으로 상세한 답변을 제공합니다.
 
 답변 원칙:
@@ -59,9 +59,7 @@ export class AIAnswer {
 - 복잡한 정보는 표 형식으로 구조화
 - 인용이 필요한 경우 > 블록인용구 활용
 - 수식이나 코드는 \` 또는 \`\`\` 코드 블록으로 올바르게 포맷팅
-- 주제 간 논리적 흐름을 명확히 표현`;
-
-        const userPrompt = `${systemPrompt}
+- 주제 간 논리적 흐름을 명확히 표현
 
 다음은 전체 문서입니다:
 ${fullContent}
@@ -74,7 +72,7 @@ ${selectedText}`;
         try {
             new Notice('AI 답변 생성 중...');
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
 
             // 저장된 위치 정보를 사용하여 답변 삽입

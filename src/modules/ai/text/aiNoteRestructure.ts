@@ -45,7 +45,7 @@ export class AINoteRestructure {
             const contentWithoutFrontmatter = getContentWithoutFrontmatter(fullContent);
 
             // AI 요청 프롬프트 생성
-            const systemPrompt = `당신은 텍스트 구조화 및 최적화 전문가입니다.
+            const combinedPrompt = `당신은 텍스트 구조화 및 최적화 전문가입니다.
 주요 개념에 대한 충분한 설명과 관련 정보를 포함하여 지식을 효율적으로 재구성합니다.
 
 텍스트 재구조화 원칙:
@@ -96,10 +96,8 @@ export class AINoteRestructure {
 - 목록이 필요한 경우 불릿 포인트(-) 또는 번호 목록(1., 2.)을 적절히 활용
 - 복잡한 정보는 표 형식으로 구조화
 - 인용이 필요한 경우 > 블록인용구 활용
-- 최종 결과물은 논리적 흐름과 체계적인 구조를 갖춰야 함`;
+- 최종 결과물은 논리적 흐름과 체계적인 구조를 갖춰야 함
 
-            // title 기반으로 관련 tags 생성을 위한 프롬프트 추가
-            const tagsPrompt = `
 또한, 다음 요구사항에 따라 현재 노트의 title("${title}")과 정확히 관련된 태그와 별칭(aliases)도 함께 생성해주세요:
 1. 태그: 현재 노트 주제와 직접 관련된 가장 핵심 3-5개의 태그 제안 (각 태그는 #없이 단일 단어로, 소문자 영어로 작성)
 2. 별칭: 현재 노트 제목의 다른 표현 또는 유사어 1-3개 (각 별칭은 작은따옴표 없이)
@@ -110,22 +108,18 @@ export class AINoteRestructure {
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
   "aliases": ["별칭1", "별칭2", "별칭3"]
 }
-\`\`\``;
-
-            const userPrompt = `${systemPrompt}
+\`\`\`
 
 현재 노트 제목: "${title}"
 
 ${contentWithoutFrontmatter ? `현재 노트 내용:
 ${contentWithoutFrontmatter}` : '현재 노트에는 내용이 없습니다.'}
 
-${tagsPrompt}
-
 위 정보를 바탕으로, 주제("${title}")의 핵심 내용에 집중하여 다양한 마크다운 형식을 활용해 체계적이고 논리적인 구조로 내용을 생성해주세요.`;
 
             new Notice('노트 내용 재구조화 중...');
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
 
             // JSON 부분 추출

@@ -3,15 +3,13 @@ import AILSSPlugin from '../../../../main';
 import Anthropic from '@anthropic-ai/sdk';
 
 interface AIPrompt {
-    systemPrompt?: string;  // 선택적 필드(각 모듈에서 userPrompt에 이미 포함됨)
-    userPrompt: string;     // 실제로 사용되는 프롬프트
+    combinedPrompt: string;     // 통합된 프롬프트 (systemPrompt + userPrompt)
     max_tokens?: number;    // 선택적 필드
 }
 
 function logAPIRequest(provider: string, prompt: AIPrompt) {
     console.log(`=== ${provider} 요청 정보 ===`);
-    console.log('시스템 프롬프트:', prompt.systemPrompt);
-    console.log('사용자 프롬프트:', prompt.userPrompt);
+    console.log('프롬프트:', prompt.combinedPrompt);
     console.log('최대 토큰:', prompt.max_tokens);
     console.log('=====================');
 }
@@ -51,22 +49,16 @@ export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promis
     // Notice로 통일
     new Notice(userMessage, 5000);
 
-    // 시스템 프롬프트를 유저 프롬프트에 통합
-    const combinedPrompt = {
-        ...prompt,
-        userPrompt: prompt.systemPrompt ? `${prompt.systemPrompt}\n\n${prompt.userPrompt}` : prompt.userPrompt
-    };
-
     try {
         let response = '';
         if (selectedAIModel === 'openai') {
-            response = await requestToOpenAI(plugin.settings.openAIAPIKey, combinedPrompt, openAIModel, enableWebSearch); // enableWebSearch 파라미터 추가
+            response = await requestToOpenAI(plugin.settings.openAIAPIKey, prompt, openAIModel, enableWebSearch); // enableWebSearch 파라미터 추가
         } else if (selectedAIModel === 'claude') {
-            response = await requestToClaude(plugin.settings.claudeAPIKey, combinedPrompt, claudeModel);
+            response = await requestToClaude(plugin.settings.claudeAPIKey, prompt, claudeModel);
         } else if (selectedAIModel === 'perplexity') {
-            response = await requestToPerplexity(plugin.settings.perplexityAPIKey, combinedPrompt, perplexityModel);
+            response = await requestToPerplexity(plugin.settings.perplexityAPIKey, prompt, perplexityModel);
         } else if (selectedAIModel === 'google') {
-            response = await requestToGoogleAI(googleAIAPIKey, combinedPrompt, googleAIModel);
+            response = await requestToGoogleAI(googleAIAPIKey, prompt, googleAIModel);
         } else {
             throw new Error('유효하지 않은 AI 모델이 선택되었습니다.');
         }
@@ -89,7 +81,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
     // Responses API 형식에 맞게 요청 데이터 구성
     const data: any = {
         model: model,
-        input: prompt.userPrompt
+        input: prompt.combinedPrompt
     };
 
     if (prompt.max_tokens !== undefined) {
@@ -234,8 +226,7 @@ async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string):
             // 기본값 설정 (Claude API에서 max_tokens는 필수임)
             max_tokens: prompt.max_tokens || 4000,
             messages: [
-                // 참고: systemPrompt 필드는 무시하고 userPrompt만 사용 (이미 포함됨)
-                { role: "user", content: prompt.userPrompt }
+                { role: "user", content: prompt.combinedPrompt }
             ]
         };
         
@@ -283,7 +274,7 @@ async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string
     const data = {
         contents: [{
             parts: [{
-                text: prompt.userPrompt // Gemini는 'text' 필드를 사용
+                text: prompt.combinedPrompt // Gemini는 'text' 필드를 사용
             }]
         }]
     };
@@ -346,7 +337,7 @@ async function requestToPerplexity(apiKey: string, prompt: AIPrompt, model: stri
     const data = {
         model: model,
         messages: [
-            { role: 'user', content: prompt.userPrompt }
+            { role: 'user', content: prompt.combinedPrompt }
         ]
     };
 

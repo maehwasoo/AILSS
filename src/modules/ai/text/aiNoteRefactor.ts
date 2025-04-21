@@ -397,30 +397,6 @@ export class AINoteRefactor {
         sourceTitles: string[],
         sourceContents: string[]
     ): Promise<string> {
-        const systemPrompt = `당신은 문서 통합 및 재구성 전문가입니다.
-여러 문서의 내용을 분석하여 하나의 통합된, 체계적인 문서로 재구성합니다.
-
-통합 원칙:
-- 주제와 하위 주제를 명확히 구분하여 계층적으로 구조화
-- 중복 내용을 제거하고 유사한 정보는 통합
-- 모든 중요 정보가 포함되도록 철저히 검토
-- 내용 간의 논리적 흐름과 연결성 강화
-- 통합된 내용의 일관성과 응집성 유지
-- 각 섹션과 하위 섹션 간의 균형 유지
-- 모든 출처의 핵심 내용이 보존되었는지 확인
-- 노트 링크 내의 별칭은 일반 텍스트로 취급하고 관련 문맥에 맞게 배치
-- 첨부 파일 링크는 문맥상 관련 있는 위치에 배치하되, 위치가 애매하다면 문서 하단에 별도 섹션으로 배치
-
-용어 분석 및 통합 원칙:
-- 각 문서에서 동일한 용어가 어떤 맥락과 관점에서 사용되었는지 분석
-- 동일 용어의 각기 다른 정의나 설명을 비교하고 차이점을 명시
-- 용어의 공통적인 의미와 특수한 활용 패턴을 구분하여 정리
-- 상충되는 용어 정의가 있을 경우, 각 관점을 보존하면서 통합된 이해를 제공
-- 용어 사용의 일관성을 유지하되 다양한 해석 가능성을 문서화
-- 주요 용어에 대해서는 각 문서의 독특한 관점이나 접근 방식을 요약 제시
-- 학문 분야나 이론적 배경에 따른 용어 해석 차이를 명확히 구분
-${AINoteRefactor.FORMATTING_RULES}`;
-
         // 대상 노트와 소스 노트들의 모든 첨부 파일 링크 추출
         const targetAttachmentLinks = extractLinks(targetContent, LinkType.AttachmentLink);
         const allSourceAttachmentLinks: LinkInfo[] = [];
@@ -446,7 +422,29 @@ ${AINoteRefactor.FORMATTING_RULES}`;
             allLinkPlaceholders = [...allLinkPlaceholders, ...sourceLinkPlaceholders];
         }
 
-        const userPrompt = `${systemPrompt}
+        const combinedPrompt = `당신은 문서 통합 및 재구성 전문가입니다.
+여러 문서의 내용을 분석하여 하나의 통합된, 체계적인 문서로 재구성합니다.
+
+통합 원칙:
+- 주제와 하위 주제를 명확히 구분하여 계층적으로 구조화
+- 중복 내용을 제거하고 유사한 정보는 통합
+- 모든 중요 정보가 포함되도록 철저히 검토
+- 내용 간의 논리적 흐름과 연결성 강화
+- 통합된 내용의 일관성과 응집성 유지
+- 각 섹션과 하위 섹션 간의 균형 유지
+- 모든 출처의 핵심 내용이 보존되었는지 확인
+- 노트 링크 내의 별칭은 일반 텍스트로 취급하고 관련 문맥에 맞게 배치
+- 첨부 파일 링크는 문맥상 관련 있는 위치에 배치하되, 위치가 애매하다면 문서 하단에 별도 섹션으로 배치
+
+용어 분석 및 통합 원칙:
+- 각 문서에서 동일한 용어가 어떤 맥락과 관점에서 사용되었는지 분석
+- 동일 용어의 각기 다른 정의나 설명을 비교하고 차이점을 명시
+- 용어의 공통적인 의미와 특수한 활용 패턴을 구분하여 정리
+- 상충되는 용어 정의가 있을 경우, 각 관점을 보존하면서 통합된 이해를 제공
+- 용어 사용의 일관성을 유지하되 다양한 해석 가능성을 문서화
+- 주요 용어에 대해서는 각 문서의 독특한 관점이나 접근 방식을 요약 제시
+- 학문 분야나 이론적 배경에 따른 용어 해석 차이를 명확히 구분
+${AINoteRefactor.FORMATTING_RULES}
 
 다음은 통합의 기준이 되는 메인 문서입니다:
 제목: ${targetTitle}
@@ -468,7 +466,7 @@ ${processedTargetContent}
 통합된 문서는 모든 원본 문서의 중요 정보를 포함하되, 특히 동일 주제나 용어에 대한 다양한 관점과 해석을 명확히 드러내도록 해주세요.`;
 
         const response = await requestToAI(this.plugin, {
-            userPrompt
+            combinedPrompt
         });
 
         // AI 응답에서 링크 플레이스홀더를 원래 링크로 복원
@@ -496,7 +494,11 @@ ${processedTargetContent}
             content: string;
         }>;
     }> {
-        const systemPrompt = `당신은 문서 분석 및 분할 전문가입니다.
+        // 링크를 플레이스홀더로 대체
+        const { modifiedContent: processedContent, linkPlaceholders } = 
+            prepareLinksForAI(sourceContent);
+
+        const combinedPrompt = `당신은 문서 분석 및 분할 전문가입니다.
 문서의 내용을 분석하여 주제별로 분할하고, 원본 문서는 주제에 맞게 정리합니다.
 
 분할 원칙:
@@ -508,13 +510,7 @@ ${processedTargetContent}
 - 원본 문서와 분할 문서 간의 논리적 연결성 유지
 - 각 문서의 독립성과 완결성 보장
 - 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
-${AINoteRefactor.FORMATTING_RULES}`;
-
-        // 링크를 플레이스홀더로 대체
-        const { modifiedContent: processedContent, linkPlaceholders } = 
-            prepareLinksForAI(sourceContent);
-
-        const userPrompt = `${systemPrompt}
+${AINoteRefactor.FORMATTING_RULES}
 
 다음은 분할할 문서입니다:
 제목: ${sourceTitle}
@@ -546,7 +542,7 @@ ${processedContent}
 분할 결과를 위 JSON 형식으로만 반환하고, 추가 설명이나 다른 형식은 포함하지 마세요.`;
 
         const response = await requestToAI(this.plugin, {
-            userPrompt
+            combinedPrompt
         });
 
         try {
@@ -596,20 +592,6 @@ ${processedContent}
     ): Promise<{
         noteContents: string[];
     }> {
-        const systemPrompt = `당신은 문서 내용 최적화 및 재배치 전문가입니다.
-여러 문서의 내용을 분석하여 각 문서의 주제에 맞게 내용을 재배치합니다.
-
-조정 원칙:
-- 각 문서의 제목과 관련된 내용만 해당 문서에 유지
-- 다른 주제에 더 적합한 내용은 해당 주제의 문서로 이동
-- 정보의 손실 없이 모든 내용이 가장 적합한 문서에 배치
-- 중복 내용 제거 및 유사 내용 통합
-- 각 문서 내용의 논리적 흐름과 일관성 유지
-- 문서 간 내용 이동 시 맥락 유지
-- 새로운 내용은 추가하지 않고 기존 내용만 재배치
-- 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
-${AINoteRefactor.FORMATTING_RULES}`;
-
         // 각 노트의 내용을 처리하고 모든 링크 플레이스홀더 수집
         let notesDescription = '';
         // 명시적인 타입 선언 추가
@@ -640,7 +622,19 @@ ${AINoteRefactor.FORMATTING_RULES}`;
 ${modifiedContent}`;
         }
 
-        const userPrompt = `${systemPrompt}
+        const combinedPrompt = `당신은 문서 내용 최적화 및 재배치 전문가입니다.
+여러 문서의 내용을 분석하여 각 문서의 주제에 맞게 내용을 재배치합니다.
+
+조정 원칙:
+- 각 문서의 제목과 관련된 내용만 해당 문서에 유지
+- 다른 주제에 더 적합한 내용은 해당 주제의 문서로 이동
+- 정보의 손실 없이 모든 내용이 가장 적합한 문서에 배치
+- 중복 내용 제거 및 유사 내용 통합
+- 각 문서 내용의 논리적 흐름과 일관성 유지
+- 문서 간 내용 이동 시 맥락 유지
+- 새로운 내용은 추가하지 않고 기존 내용만 재배치
+- 모든 내부 링크(Obsidian 링크) 형식은 반드시 보존 (예: [[노트명|별칭]], ![[첨부파일|별칭]])
+${AINoteRefactor.FORMATTING_RULES}
 
 다음은 내용을 재배치할 문서들입니다:${notesDescription}
 
@@ -663,7 +657,7 @@ ${modifiedContent}`;
 분할 결과를 위 JSON 형식으로만 반환하고, 추가 설명이나 다른 형식은 포함하지 마세요.`;
 
         const response = await requestToAI(this.plugin, {
-            userPrompt
+            combinedPrompt
         });
 
         try {

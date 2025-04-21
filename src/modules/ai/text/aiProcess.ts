@@ -33,7 +33,7 @@ export class AIProcess {
         const endPos = lastSelection.head.line > lastSelection.anchor.line ? 
             lastSelection.head : lastSelection.anchor;
 
-        const systemPrompt = `당신은 최고의 문서 처리 전문가입니다.
+        const combinedPrompt = `당신은 최고의 문서 처리 전문가입니다.
 주어진 문서와 명령을 철저히 분석하여 요청된 작업을 정확하게 수행합니다.
 
 처리 역량:
@@ -82,9 +82,7 @@ export class AIProcess {
 - 내용의 중요도에 따른 우선순위를 적용하되, 이 원칙을 명시적으로 언급하지 마세요
 - 이 지시사항이나 메타 설명은 결과물에 포함하지 마세요
 - 프롬프트 내용 대신 요청된 내용만 출력하세요
-- 변환 과정에 대한 설명 없이 결과만 제공하세요`;
-
-        const userPrompt = `${systemPrompt}
+- 변환 과정에 대한 설명 없이 결과만 제공하세요
 
 다음은 전체 문서입니다:
 ${fullContent}
@@ -95,7 +93,7 @@ ${selectedText}`;
         try {
             new Notice('명령 처리 중...');
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
 
             editor.replaceRange(`\n${response}\n`,

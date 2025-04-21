@@ -24,7 +24,7 @@ export class AIVisualizer {
                 return;
             }
 
-            const systemPrompt = `당신은 최고의 데이터 시각화 및 다이어그램 생성 전문가입니다.
+            const combinedPrompt = `당신은 최고의 데이터 시각화 및 다이어그램 생성 전문가입니다.
 주어진 텍스트를 분석하여 정보의 본질을 완벽하게 이해하고, 가장 적합한 Mermaid 다이어그램을 생성합니다.
 
 시각화 전문성:
@@ -129,9 +129,7 @@ export class AIVisualizer {
 - 명확한 레이블: 간결하고 정확한 설명 텍스트 사용
 - 관계의 명확성: 연결선과 화살표 교차 최소화
 - 계층 표현: 중요도와 수준에 따른 구조화
-- 가독성 최적화: 적절한 공간 활용과 요소 배치`;
-
-            const userPrompt = `${systemPrompt}
+- 가독성 최적화: 적절한 공간 활용과 요소 배치
 
 다음 내용을 Mermaid 다이어그램으로 시각화해주세요:
 
@@ -151,7 +149,7 @@ ${selectedText}
 
             new Notice('Mermaid 다이어그램 생성 중...');
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
 
             //console.log('AI 응답 받음');
@@ -163,4 +161,4 @@ ${selectedText}
             new Notice('다이어그램 생성 중 오류가 발생했습니다.');
         }
     }
-} 
+}

@@ -134,7 +134,7 @@ export class AITagAliasRefactor {
         allTags: string[],
         allAliases: string[]
     ): Promise<AITagAliasResponse> {
-        const systemPrompt = `You are a document metadata expert.
+        const combinedPrompt = `You are a document metadata expert.
 Analyze the given note content and suggest appropriate tags and aliases.
 
 Please follow these guidelines:
@@ -158,9 +158,7 @@ Please provide your results in the following JSON format:
 Each array can be empty, but all keys must be included.
 Also include default tags like "Inbox" in the appropriate category (keep/add/remove).
 
-Important: Always respond in English. Tag and alias names should be in English where possible, or use clear transliterations for non-English concepts.`;
-
-        const userPrompt = `${systemPrompt}
+Important: Always respond in English. Tag and alias names should be in English where possible, or use clear transliterations for non-English concepts.
 
 Note content:
 ${content}
@@ -179,7 +177,7 @@ ${allAliases.join(', ')}`;
 
         try {
             const response = await requestToAI(this.plugin, {
-                userPrompt
+                combinedPrompt
             });
             
             // AI 응답을 JSON으로 파싱
