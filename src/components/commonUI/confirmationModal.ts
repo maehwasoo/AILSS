@@ -52,10 +52,11 @@ export class ConfirmationModal extends Modal {
             });
         }
 
+        const messageColor = this.options.type === 'danger' ? 'black' : 'white';
         const messageContainer = container.createDiv({
             cls: "modal-message-container",
             attr: { 
-                style: "white-space: pre-wrap; line-height: 1.6; margin-bottom: 2rem; color: black;" 
+                style: `white-space: pre-wrap; line-height: 1.6; margin-bottom: 2rem; color: ${messageColor};` 
             }
         });
 
