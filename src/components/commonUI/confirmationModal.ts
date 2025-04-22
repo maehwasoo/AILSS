@@ -55,7 +55,7 @@ export class ConfirmationModal extends Modal {
         const messageContainer = container.createDiv({
             cls: "modal-message-container",
             attr: { 
-                style: "white-space: pre-wrap; line-height: 1.6; margin-bottom: 2rem; color: var(--text-normal);" 
+                style: "white-space: pre-wrap; line-height: 1.6; margin-bottom: 2rem; color: black;" 
             }
         });
 
