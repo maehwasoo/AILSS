@@ -18,7 +18,7 @@ export const DEFAULT_GRAPH_CONFIG = {
     "linkDistance": 35,
     "scale": 1.25,
 
-    "localJumps": 2,
+    "localJumps": 1,
     "localBacklinks": true,
     "localForelinks": true,
     "localInterlinks": true,
