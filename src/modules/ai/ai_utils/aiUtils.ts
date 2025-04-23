@@ -32,45 +32,67 @@ function logAPIResponse(provider: string, response: string, usage: any): string 
 }
 
 export async function requestToAI(plugin: AILSSPlugin, prompt: AIPrompt): Promise<string> {
-    const { selectedAIModel, openAIModel, claudeModel, perplexityModel, googleAIModel, googleAIAPIKey, enableWebSearch } = plugin.settings; // enableWebSearch 추가
+    console.log('[requestToAI] 함수 시작', { prompt });
+    console.log('[requestToAI] 호출됨', { prompt });
+    const { selectedAIModel, openAIModel, claudeModel, perplexityModel, googleAIModel, googleAIAPIKey, enableWebSearch } = plugin.settings;
+    console.log('[requestToAI] 설정 값', { selectedAIModel, openAIModel, claudeModel, perplexityModel, googleAIModel, googleAIAPIKey, enableWebSearch });
     
     // 모델 이름 결정 로직 수정
+    console.log('[requestToAI] 모델 결정 전 selectedAIModel:', selectedAIModel);
     const modelName = selectedAIModel === 'openai' ? openAIModel :
                     selectedAIModel === 'claude' ? claudeModel :
                     selectedAIModel === 'perplexity' ? perplexityModel :
                     selectedAIModel === 'google' ? googleAIModel : 'Unknown Model';
+    console.log('[requestToAI] 결정된 모델 이름:', modelName);
     
     // 사용자에게 보여줄 초기 메시지
+    console.log('[requestToAI] 사용자 메시지 생성 전');
     const userMessage = `🤖 AI 요청 정보:\n` +
                        `서비스: ${selectedAIModel.toUpperCase()}\n` +
                        `모델: ${modelName}\n` +
                        `처리 중...`;
+    console.log('[requestToAI] 생성된 사용자 메시지:', userMessage);
     
     // Notice로 통일
     new Notice(userMessage, 5000);
+    console.log('[requestToAI] Notice 전송 완료');
 
     try {
+        console.log('[requestToAI] try 블록 진입, 모델:', selectedAIModel);
         let response = '';
         if (selectedAIModel === 'openai') {
-            response = await requestToOpenAI(plugin.settings.openAIAPIKey, prompt, openAIModel, enableWebSearch); // enableWebSearch 파라미터 추가
+            console.log('[requestToAI] OpenAI 브랜치 호출', { model: openAIModel, enableWebSearch });
+            response = await requestToOpenAI(plugin.settings.openAIAPIKey, prompt, openAIModel, enableWebSearch);
+            console.log('[requestToAI] OpenAI 응답 수신:', response);
         } else if (selectedAIModel === 'claude') {
+            console.log('[requestToAI] Claude 브랜치 호출', { model: claudeModel });
             response = await requestToClaude(plugin.settings.claudeAPIKey, prompt, claudeModel);
+            console.log('[requestToAI] Claude 응답 수신:', response);
         } else if (selectedAIModel === 'perplexity') {
+            console.log('[requestToAI] Perplexity 브랜치 호출', { model: perplexityModel });
             response = await requestToPerplexity(plugin.settings.perplexityAPIKey, prompt, perplexityModel);
+            console.log('[requestToAI] Perplexity 응답 수신:', response);
         } else if (selectedAIModel === 'google') {
+            console.log('[requestToAI] Google AI 브랜치 호출', { model: googleAIModel });
             response = await requestToGoogleAI(googleAIAPIKey, prompt, googleAIModel);
+            console.log('[requestToAI] Google AI 응답 수신:', response);
         } else {
+            console.error('[requestToAI] 유효하지 않은 AI 모델 선택:', selectedAIModel);
             throw new Error('유효하지 않은 AI 모델이 선택되었습니다.');
         }
+        console.log('[requestToAI] 최종 응답 반환:', response);
         return response;
     } catch (error) {
+        console.error('[requestToAI] catch 오류 발생:', error);
         console.error('AI 요청 중 오류 발생:', error);
         throw error;
     }
 }
 
-async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, enableWebSearch: boolean): Promise<string> { // enableWebSearch 파라미터 추가
+async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, enableWebSearch: boolean): Promise<string> {
+    console.log('[requestToOpenAI] 함수 시작', { model, enableWebSearch, prompt: prompt.combinedPrompt });
     new Notice('OpenAI API 요청 시작');
+    console.log('[requestToOpenAI] Notice 전송 완료');
     
     const url = 'https://api.openai.com/v1/responses';
     const headers = {
@@ -83,21 +105,22 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
         model: model,
         input: prompt.combinedPrompt
     };
+    console.log('[requestToOpenAI] 초기 payload:', data);
 
     if (prompt.max_tokens !== undefined) {
         data.max_output_tokens = prompt.max_tokens;
+        console.log('[requestToOpenAI] max_output_tokens 설정:', data.max_output_tokens);
     }
     
-    // o4-mini, o3 등 reasoning 모델에 reasoning_effort 추가
     if (model === 'o4-mini' || model === 'o3' || model === 'o1-pro') {
         data.reasoning = { effort: 'high' };
         new Notice(`${model} 모델\n최대 연산 능력(high) 적용됨`, 10000);
+        console.log('[requestToOpenAI] reasoning 옵션 적용됨:', data.reasoning);
     }
 
-    // 서비스 티어 설정 (기본값은 'auto')
     data.service_tier = 'auto';
+    console.log('[requestToOpenAI] service_tier 설정:', data.service_tier);
 
-    // enableWebSearch 옵션에 따라 웹 검색 도구 활성화
     if (enableWebSearch) {
         data.tools = [{ 
             type: 'web_search',
@@ -111,6 +134,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
             search_context_size: "high"
         }];
         new Notice('웹 검색 도구 활성화됨 (서울 위치 기준)', 5000);
+        console.log('[requestToOpenAI] tools 옵션 적용됨:', data.tools);
     }
 
     const params: RequestUrlParam = {
@@ -119,12 +143,13 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
         headers: headers,
         body: JSON.stringify(data)
     };
+    console.log('[requestToOpenAI] 최종 요청 파라미터:', params);
 
     try {
+        console.log('[requestToOpenAI] requestUrl 호출 시작');
         const response = await requestUrl(params);
+        console.log('[requestToOpenAI] 응답 수신, status:', response.status, 'body:', response.json);
         if (response.status === 200) {
-            //console.log('OpenAI 응답 구조:', response.json);
-            
             // 응답 구조 분석하여 텍스트 추출
             let aiResponse = '';
             let usage = {
@@ -186,6 +211,8 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
                 throw new Error('OpenAI API 응답 구조가 예상과 다릅니다.');
             }
             
+            console.log('[requestToOpenAI] 파싱된 aiResponse:', aiResponse);
+            
             return logAPIResponse('OpenAI', aiResponse, usage);
         } else {
             new Notice(`OpenAI API 오류 응답: ${response.status}`);
@@ -193,6 +220,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
             throw new Error(`OpenAI API 요청 실패: 상태 코드 ${response.status}, 오류 타입: ${errorBody.error?.type || '알 수 없음'}, 메시지: ${errorBody.error?.message || '알 수 없음'}`);
         }
     } catch (error) {
+        console.error('[requestToOpenAI] catch 오류 발생:', error);
         new Notice('OpenAI API 요청 중 오류 발생');
         if (error instanceof Error) {
             if ('response' in error) {
@@ -209,45 +237,38 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
 }
 
 async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
-    //logAPIRequest('Claude', prompt);
+    console.log('[requestToClaude] 함수 시작', { model, prompt: prompt.combinedPrompt });
+    new Notice('Claude API 요청 시작');
+    console.log('[requestToClaude] Notice 전송 완료');
     
-    const anthropic = new Anthropic({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true
-    });
-
+    const requestOptions: any = {
+        model: model,
+        max_tokens: prompt.max_tokens || 4000,
+        messages: [
+            { role: "user", content: prompt.combinedPrompt }
+        ]
+    };
+    console.log('[requestToClaude] requestOptions:', requestOptions);
+    const anthropic = new Anthropic({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+    console.log('[requestToClaude] Anthropic client 초기화 완료');
     try {
-        //console.log('Claude API 요청 시작');
-        new Notice('Claude API 요청 시작');
-        
-        // API 요청 객체 생성
-        const requestOptions: any = {
-            model: model,
-            // 기본값 설정 (Claude API에서 max_tokens는 필수임)
-            max_tokens: prompt.max_tokens || 4000,
-            messages: [
-                { role: "user", content: prompt.combinedPrompt }
-            ]
-        };
-        
         const response = await anthropic.messages.create(requestOptions);
-        
+        console.log('[requestToClaude] 응답 수신:', response);
         if (response.content && response.content.length > 0) {
             const content = response.content[0];
             if ('text' in content) {
+                console.log('[requestToClaude] 파싱된 텍스트:', content.text);
                 return logAPIResponse('Claude', content.text, response.usage);
             } else {
-                //console.error('Claude API 응답 형식 오류:', response);
                 new Notice('Claude API 응답 형식 오류');
                 throw new Error('Claude API 응답의 내용 형식이 예상과 다릅니다.');
             }
         } else {
-            //console.error('Claude API 빈 응답:', response);
             new Notice('Claude API 빈 응답');
             throw new Error('Claude API 응답에 내용이 없습니다.');
         }
     } catch (error) {
-        //console.error('Claude API 요청 중 예외 발생:', error);
+        console.error('[requestToClaude] catch 오류 발생:', error);
         new Notice('Claude API 요청 중 예외 발생:', error);
         if (error instanceof Anthropic.APIError) {
             new Notice(`Claude API 오류: ${error.message}, 상태: ${error.status}, 유형: ${error.name}`);
@@ -262,46 +283,39 @@ async function requestToClaude(apiKey: string, prompt: AIPrompt, model: string):
 
 // Google AI (Gemini) 요청 함수 추가
 async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
+    console.log('[requestToGoogleAI] 함수 시작', { model, prompt: prompt.combinedPrompt });
     new Notice('Google AI API 요청 시작');
-    // Gemini API 엔드포인트 (v1beta 사용 예시, 모델에 따라 다를 수 있음)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    console.log('[requestToGoogleAI] Notice 전송 완료');
     
-    const headers = {
-        'Content-Type': 'application/json'
-    };
-
-    // Google AI API 요청 형식에 맞게 데이터 구성
     const data = {
         contents: [{
-            parts: [{
-                text: prompt.combinedPrompt // Gemini는 'text' 필드를 사용
-            }]
+            parts: [{ text: prompt.combinedPrompt }]
         }]
     };
+    console.log('[requestToGoogleAI] 초기 data:', data);
     
     const params: RequestUrlParam = {
-        url: url,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         method: 'POST',
-        headers: headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     };
+    console.log('[requestToGoogleAI] 최종 params:', params);
 
     try {
         const response = await requestUrl(params);
+        console.log('[requestToGoogleAI] 응답 수신, status:', response.status, 'body:', response.json);
         if (response.status === 200) {
-            // 응답 구조 확인 및 텍스트 추출 (Gemini API 응답 구조에 따라 조정 필요)
             const candidates = response.json.candidates;
-            if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts && candidates[0].content.parts.length > 0) {
+            if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts) {
                 const aiResponse = candidates[0].content.parts[0].text.trim();
-                // Google AI API는 현재(2024년 기준) 응답에 토큰 사용량 정보를 포함하지 않을 수 있음.
-                // 포함될 경우 response.json.usageMetadata 등을 확인하여 파싱 필요.
                 const usage = response.json.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
-                // logAPIResponse 함수 형식에 맞게 변환
                 const formattedUsage = {
                     prompt_tokens: usage.promptTokenCount,
                     completion_tokens: usage.candidatesTokenCount,
                     total_tokens: usage.totalTokenCount
                 };
+                console.log('[requestToGoogleAI] 파싱된 aiResponse:', aiResponse, 'usage:', formattedUsage);
                 return logAPIResponse('Google AI', aiResponse, formattedUsage);
             } else {
                 console.error('Google AI API 응답 형식 오류:', response.json);
@@ -315,8 +329,8 @@ async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string
             throw new Error(`Google AI API 요청 실패: 상태 코드 ${response.status}, 메시지: ${errorBody.message}`);
         }
     } catch (error) {
+        console.error('[requestToGoogleAI] catch 오류 발생:', error);
         console.error('Google AI API 요청 중 오류 발생:', error);
-        new Notice('Google AI API 요청 중 오류 발생');
         if (error instanceof Error) {
             throw new Error(`Google AI API 오류: ${error.message}`);
         } else {
@@ -326,40 +340,30 @@ async function requestToGoogleAI(apiKey: string, prompt: AIPrompt, model: string
 }
 
 async function requestToPerplexity(apiKey: string, prompt: AIPrompt, model: string): Promise<string> {
-    //logAPIRequest('Perplexity', prompt);
-
+    console.log('[requestToPerplexity] 함수 시작', { model, prompt: prompt.combinedPrompt });
     new Notice('Perplexity API 요청 시작');
+    console.log('[requestToPerplexity] Notice 전송 완료');
     const url = 'https://api.perplexity.ai/chat/completions';
-    const headers = {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-    };
-    const data = {
-        model: model,
-        messages: [
-            { role: 'user', content: prompt.combinedPrompt }
-        ]
-    };
+    const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+    const data = { model: model, messages: [{ role: 'user', content: prompt.combinedPrompt }] };
+    console.log('[requestToPerplexity] request data:', data);
 
-    const params: RequestUrlParam = {
-        url: url,
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(data)
-    };
+    const params: RequestUrlParam = { url: url, method: 'POST', headers: headers, body: JSON.stringify(data) };
+    console.log('[requestToPerplexity] params:', params);
 
     try {
         const response = await requestUrl(params);
+        console.log('[requestToPerplexity] 응답 수신, status:', response.status, 'body:', response.json);
         if (response.status === 200) {
             const aiResponse = response.json.choices[0].message.content.trim();
+            console.log('[requestToPerplexity] 파싱된 aiResponse:', aiResponse);
             return logAPIResponse('Perplexity', aiResponse, response.json.usage);
         } else {
-            //console.error('Perplexity API 오류 응답:', response);
             new Notice('Perplexity API 오류 응답:', response.status);
             throw new Error(`Perplexity API 요청 실패: 상태 코드 ${response.status}`);
         }
     } catch (error) {
-        //console.error('Perplexity API 요청 중 오류 발생:', error);
+        console.error('[requestToPerplexity] catch 오류 발생:', error);
         new Notice('Perplexity API 요청 중 오류 발생:', error);
         if (error instanceof Error) {
             throw new Error(`Perplexity API 오류: ${error.message}`);
