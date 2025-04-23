@@ -38,6 +38,7 @@ export const PERPLEXITY_MODELS: AIModelOption[] = [
 
 export const GOOGLE_MODELS: AIModelOption[] = [
     { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview' },
+    { id: 'gemini-2.5-flash-preview-03-25', name: 'Gemini 2.5 Flash Preview' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
 ];
 
@@ -58,6 +59,7 @@ export const VISION_MODELS: AIModelOption[] = [
     
     // Google 비전 모델
     { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview Vision' },
+    { id: 'gemini-2.5-flash-preview-03-25', name: 'Gemini 2.5 Flash Preview Vision' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash Vision' },
     { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite Vision' }
 ];
