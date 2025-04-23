@@ -112,7 +112,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
         console.log('[requestToOpenAI] max_output_tokens 설정:', data.max_output_tokens);
     }
     
-    if (model === 'o4-mini' || model === 'o3' || model === 'o1-pro') {
+    if (model.startsWith('o')) {
         data.reasoning = { effort: 'high' };
         new Notice(`${model} 모델\n최대 연산 능력(high) 적용됨`, 10000);
         console.log('[requestToOpenAI] reasoning 옵션 적용됨:', data.reasoning);
@@ -121,7 +121,7 @@ async function requestToOpenAI(apiKey: string, prompt: AIPrompt, model: string, 
     data.service_tier = 'auto';
     console.log('[requestToOpenAI] service_tier 설정:', data.service_tier);
 
-    if (enableWebSearch) {
+    if (enableWebSearch && model === 'o4-mini') {
         data.tools = [{ 
             type: 'web_search',
             user_location: {
