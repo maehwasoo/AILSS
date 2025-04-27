@@ -1,5 +1,5 @@
 import { TFile } from 'obsidian';
-import { RefactoringComponentProps, RefactoringOption } from './types';
+import { RefactoringComponentProps } from './types';
 import { FrontmatterManager } from '../../../core/utils/frontmatterManager';
 
 /**
