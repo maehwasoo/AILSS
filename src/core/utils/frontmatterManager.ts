@@ -7,6 +7,7 @@ export interface DefaultFrontmatterConfig {
     date: string;
     aliases: string[];
     tags: string[];
+    depth: number;
     potentiation: number;
     updated: string;
 }
@@ -30,6 +31,7 @@ export class FrontmatterManager {
             title: defaultTitle,
             aliases: isLinkNote ? [] : [defaultTitle],
             tags: [...FrontmatterManager.DEFAULT_TAGS],
+            depth: 0,
             date: koreanTime.toISOString().split('.')[0],
             id: timestamp,
             potentiation: FrontmatterManager.INITIAL_POTENTIATION,
@@ -66,7 +68,7 @@ export class FrontmatterManager {
         const mergedFields = { ...defaultFields, ...additionalFields };
         
         // 프론트매터 순서 정의
-        const orderedKeys = ['title', 'aliases', 'tags', 'date', 'id', 'potentiation', 'updated'];
+        const orderedKeys = ['title', 'aliases', 'tags', 'depth', 'date', 'id', 'potentiation', 'updated'];
         
         let yaml = '---\n';
         // 정의된 순서대로 먼저 처리
