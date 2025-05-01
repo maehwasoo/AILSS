@@ -116,6 +116,13 @@ export class ExportNotes {
             const frontmatterTags = cache?.frontmatter?.tags;
             
             if (Array.isArray(frontmatterTags)) {
+                // 문자열이 아닌 태그 확인
+                for (const tag of frontmatterTags) {
+                    if (typeof tag !== 'string') {
+                        throw new Error(`노트 '${file.basename}'에 문자열이 아닌 태그가 있습니다: ${JSON.stringify(tag)}`);
+                    }
+                }
+                
                 // 각 노트의 태그가 입력된 태그와 정확히 일치하거나
                 // 입력된 태그 + '/'로 시작하는 경우를 포함하면 노트를 추가
                 if (
