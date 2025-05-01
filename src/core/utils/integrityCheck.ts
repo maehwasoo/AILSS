@@ -225,7 +225,7 @@ export class IntegrityCheck {
         }
 
         const requiredFields: (keyof DefaultFrontmatterConfig)[] = [
-            'title', 'id', 'date', 'aliases', 'tags', 'potentiation', 'updated'
+            'title', 'id', 'date', 'aliases', 'tags', 'depth', 'potentiation', 'updated'
         ];
         
         // 필수 필드 존재 여부 확인
@@ -273,6 +273,14 @@ export class IntegrityCheck {
             } else if (potentiation < FrontmatterManager.INITIAL_POTENTIATION || 
                        potentiation > FrontmatterManager.MAX_POTENTIATION) {
                 errors.push(`potentiation이 유효 범위를 벗어남 (${FrontmatterManager.INITIAL_POTENTIATION}~${FrontmatterManager.MAX_POTENTIATION})`);
+            }
+        }
+
+        // depth 검증
+        if (frontmatter.depth !== undefined) {
+            const depth = Number(frontmatter.depth);
+            if (isNaN(depth)) {
+                errors.push('depth가 숫자가 아님');
             }
         }
 

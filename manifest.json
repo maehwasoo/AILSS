@@ -1,7 +1,7 @@
 {
   "id": "AILSS-plugin",
   "name": "AILSS",
-  "version": "3.00.01",
+  "version": "3.00.02",
   "minAppVersion": "0.15.0",
   "description": "Adaptive Intelligent Learning System",
   "author": "Kyoungho Eom",
