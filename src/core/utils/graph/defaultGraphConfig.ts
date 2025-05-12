@@ -1,8 +1,8 @@
 export const DEFAULT_GRAPH_CONFIG = {
     "collapse-filter": false,
     "search": "",
-    "showTags": true,
-    "showAttachments": false,
+    "showTags": false,
+    "showAttachments": true,
     "hideUnresolved": false,
     "showOrphans": true,
     "collapse-color-groups": true,
@@ -25,49 +25,33 @@ export const DEFAULT_GRAPH_CONFIG = {
     
     "colorGroups": [
         {
-            "query": "[\"potentiation\":<1]",
-            "color": { "a": 1, "rgb": 10066329 }
-        },
-        {
-            "query": "[\"potentiation\":<2]",
-            "color": { "a": 1, "rgb": 13855081 }
-        },
-        {
-            "query": "[\"potentiation\":<3]",
-            "color": { "a": 1, "rgb": 14645827 }
-        },
-        {
-            "query": "[\"potentiation\":<4]",
-            "color": { "a": 1, "rgb": 14399575 }
-        },
-        {
-            "query": "[\"potentiation\":<5]",
-            "color": { "a": 1, "rgb": 9681227 }
-        },
-        {
-            "query": "[\"potentiation\":<6]",
-            "color": { "a": 1, "rgb": 5425023 }
-        },
-        {
-            "query": "[\"potentiation\":<7]",
-            "color": { "a": 1, "rgb": 4304797 }
-        },
-        {
-            "query": "[\"potentiation\":<8]",
-            "color": { "a": 1, "rgb": 6466512 }
-        },
-        {
-            "query": "[\"potentiation\":<9]",
-            "color": { "a": 1, "rgb": 7575246 }
-        },
-        {
-            "query": "[\"potentiation\":<10]",
-            "color": { "a": 1, "rgb": 6911965 }
-        },
-        {
-            "query": "[\"potentiation\":<11]",
-            "color": { "a": 1, "rgb": 8543941 }
-        }
+            "query": "[\"depth\":0]",
+            "color": {
+              "a": 1,
+              "rgb": 10403583
+            }
+          },
+          {
+            "query": "[\"depth\":1]",
+            "color": {
+              "a": 1,
+              "rgb": 6588919
+            }
+          },
+          {
+            "query": "[\"depth\":2]",
+            "color": {
+              "a": 1,
+              "rgb": 3500029
+            }
+          },
+          {
+            "query": "[\"depth\":3]",
+            "color": {
+              "a": 1,
+              "rgb": 1858802
+            }
+          }
     ],
     "close": true
 } as const; 
