@@ -1,6 +1,6 @@
 export const DEFAULT_GLOBAL_GRAPH = {
   "collapse-filter": false,
-  "search": "",
+  "search": "[\"depth\":0] OR [\"depth\":1]",
   "showTags": false,
   "showAttachments": false,
   "hideUnresolved": true,
