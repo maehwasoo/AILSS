@@ -37,8 +37,8 @@ export const PERPLEXITY_MODELS: AIModelOption[] = [
 ];
 
 export const GOOGLE_MODELS: AIModelOption[] = [
-    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview' },
-    { id: 'gemini-2.5-flash-preview-03-25', name: 'Gemini 2.5 Flash Preview' },
+    { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview' },
+    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
 ];
 
@@ -58,8 +58,8 @@ export const VISION_MODELS: AIModelOption[] = [
     { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet Vision' },
     
     // Google 비전 모델
-    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview Vision' },
-    { id: 'gemini-2.5-flash-preview-03-25', name: 'Gemini 2.5 Flash Preview Vision' },
+    { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview Vision' },
+    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview Vision' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash Vision' },
     { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite Vision' }
 ];
@@ -205,6 +205,7 @@ export class AILSSSettingTab extends PluginSettingTab {
                 .addOption('dall-e-2', 'DALL-E 2')
                 .addOption('dall-e-3', 'DALL-E 3')
                 .addOption('imagen-3.0-generate-002', 'Google Imagen 3.0 Generate')
+                .addOption('gemini-2.0-flash-preview-image-generation', 'Gemini 2.0 Flash Preview Image Generation')
                 .setValue(this.plugin.settings.imageGenerationModel)
                 .onChange(async (value: 'dall-e-2' | 'dall-e-3' | 'imagen-3.0-generate-002') => {
                     this.plugin.settings.imageGenerationModel = value;
