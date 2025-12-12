@@ -1,0 +1,22 @@
+# Node.js / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+*.log
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# AILSS runtime artifacts
+.ailss/
+*.sqlite
+*.sqlite3
+*.db
+
