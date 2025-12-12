@@ -8,3 +8,7 @@
 - [01. 시스템 개요(overview)](./01-overview.md)
 - [02. 의의/원칙(significance)](./02-significance.md)
 - [03. 구현 계획(plan)](./03-plan.md)
+
+## 참고(reference)
+
+- Vault 규칙 원문 스냅샷(snapshot): [docs/vault-ref/README.md](./vault-ref/README.md)
