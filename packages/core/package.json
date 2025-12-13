@@ -1,0 +1,19 @@
+{
+  "name": "@ailss/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^17.2.2",
+    "gray-matter": "^4.0.3",
+    "sqlite-vec": "0.1.7-alpha.2"
+  }
+}

@@ -26,3 +26,29 @@
 - `packages/indexer/`: 배치/증분 인덱싱 CLI
 - `packages/mcp/`: MCP 서버(검색/추천)
 - `packages/obsidian-plugin/`: Obsidian 플러그인(UI/적용)
+
+## 개발 시작(데스크톱 우선)
+
+1) 환경변수(environment variable) 준비
+
+- `.env.example`을 참고해 `.env`를 만들고 `OPENAI_API_KEY`, `AILSS_VAULT_PATH`를 채워요
+
+2) 설치/빌드
+
+```bash
+# 빌드 스크립트용 캐시 경로를 workspace로 고정(샌드박스/CI 환경 대응)
+CI=0 npm_config_cache="$PWD/.npm-cache" npm_config_devdir="$PWD/.node-gyp" pnpm install --no-frozen-lockfile
+pnpm build
+```
+
+3) 인덱싱(indexing)
+
+```bash
+pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
+```
+
+4) MCP 서버(server) 실행(STDIO)
+
+```bash
+pnpm -C packages/mcp start
+```

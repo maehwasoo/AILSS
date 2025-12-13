@@ -1,0 +1,21 @@
+{
+  "name": "@ailss/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ailss-mcp": "./dist/stdio.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist",
+    "start": "node dist/stdio.js"
+  },
+  "dependencies": {
+    "@ailss/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.18.1",
+    "openai": "^5.16.0",
+    "zod": "^3.25.76"
+  }
+}

@@ -10,6 +10,10 @@ coverage/
 # Env
 .env
 .env.*
+.pnpm-store/
+.npm-cache/
+.node-gyp/
+tmp/
 
 # OS
 .DS_Store
@@ -19,4 +23,3 @@ coverage/
 *.sqlite
 *.sqlite3
 *.db
-

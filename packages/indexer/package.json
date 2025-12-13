@@ -1,0 +1,21 @@
+{
+  "name": "@ailss/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ailss-indexer": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@ailss/core": "workspace:*",
+    "commander": "^14.0.1",
+    "openai": "^5.16.0"
+  }
+}
+
