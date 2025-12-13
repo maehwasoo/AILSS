@@ -4,3 +4,5 @@ packages:
 # pnpm v10 공급망 보안: 빌드 스크립트가 필요한 의존성만 허용
 onlyBuiltDependencies:
   - better-sqlite3
+  - esbuild
+  - lefthook

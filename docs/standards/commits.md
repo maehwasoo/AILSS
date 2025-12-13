@@ -76,3 +76,9 @@ Notes:
 - ...
 ```
 
+## 자동 검증(hook)
+
+이 레포는 commit-msg 훅(hook)에서 commitlint로 커밋 메시지를 검증해요.
+
+- 설정: `commitlint.config.cjs`
+- 훅: `lefthook.yml`

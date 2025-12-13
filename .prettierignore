@@ -1,0 +1,7 @@
+**/dist/**
+**/node_modules/**
+.pnpm-store/**
+.npm-cache/**
+.node-gyp/**
+.ailss/**
+pnpm-lock.yaml

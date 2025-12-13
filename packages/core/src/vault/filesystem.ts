@@ -71,4 +71,3 @@ export async function readUtf8File(absPath: string): Promise<string> {
 export async function ensureDir(dirPath: string): Promise<void> {
   await fs.mkdir(dirPath, { recursive: true });
 }
-

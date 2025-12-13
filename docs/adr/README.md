@@ -28,4 +28,3 @@ status: draft
 ## 대안(alternatives)
 - ...
 ```
-

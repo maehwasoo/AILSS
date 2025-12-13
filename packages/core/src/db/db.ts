@@ -127,16 +127,18 @@ export function upsertFile(db: AilssDb, input: UpsertFileInput): void {
 }
 
 export function getFileSha256(db: AilssDb, filePath: string): string | null {
-  const row = db
-    .prepare(`SELECT sha256 FROM files WHERE path = ?`)
-    .get(filePath) as { sha256?: string } | undefined;
+  const row = db.prepare(`SELECT sha256 FROM files WHERE path = ?`).get(filePath) as
+    | { sha256?: string }
+    | undefined;
   return row?.sha256 ?? null;
 }
 
 export function deleteChunksByPath(db: AilssDb, filePath: string): void {
   // ON DELETE CASCADE로 rowids 정리, vec0는 별도 삭제 필요
   const rowids = db
-    .prepare(`SELECT rowid FROM chunk_rowids WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE path = ?)`)
+    .prepare(
+      `SELECT rowid FROM chunk_rowids WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE path = ?)`,
+    )
     .all(filePath) as Array<{ rowid: number }>;
 
   const deleteRowidStmt = db.prepare(`DELETE FROM chunk_embeddings WHERE rowid = ?`);
@@ -159,10 +161,12 @@ export type InsertChunkInput = {
 
 export function insertChunkWithEmbedding(db: AilssDb, input: InsertChunkInput): void {
   const tx = db.transaction(() => {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO chunks(chunk_id, path, heading, heading_path_json, content, content_sha256, updated_at)
       VALUES (@chunk_id, @path, @heading, @heading_path_json, @content, @content_sha256, @updated_at)
-    `).run({
+    `,
+    ).run({
       chunk_id: input.chunkId,
       path: input.path,
       heading: input.heading,

@@ -17,4 +17,3 @@ export type IndexedChunkRow = {
   content_sha256: string;
   updated_at: string;
 };
-

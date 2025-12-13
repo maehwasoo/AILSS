@@ -29,4 +29,3 @@ status: accepted
 - 원격 벡터 DB(예: hosted vector DB)
   - 장점: 배포/공유 쉬움
   - 단점: 프라이버시/비용/운영 부담 증가
-

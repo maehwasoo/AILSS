@@ -5,12 +5,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-import {
-  loadEnv,
-  openAilssDb,
-  resolveDefaultDbPath,
-  semanticSearch,
-} from "@ailss/core";
+import { loadEnv, openAilssDb, resolveDefaultDbPath, semanticSearch } from "@ailss/core";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";

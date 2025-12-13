@@ -64,4 +64,3 @@ plugin (별도, 추후 연결)
 
 - vault 경로(vault path)는 외부 설정으로 받아요
 - 로컬 DB는 기본적으로 `<vault>/.ailss/index.sqlite`를 사용해요
-

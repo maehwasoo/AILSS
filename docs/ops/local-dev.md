@@ -42,3 +42,13 @@ pnpm -C packages/mcp start
 - `OPENAI_API_KEY`(질의 임베딩 생성)
 - `AILSS_VAULT_PATH`(기본 DB 경로 계산, get_note 파일 읽기)
 
+## 5) 품질 체크(quality gate)
+
+개발 중에는 아래 커맨드(command)를 자주 쓰는 것을 권장해요.
+
+- 전체 체크: `pnpm check`
+- 포맷: `pnpm format` / `pnpm format:check`
+- 린트: `pnpm lint` / `pnpm lint:fix`
+- 테스트: `pnpm test`
+
+Git 훅(hook)은 Lefthook으로 자동 설치돼요(`pnpm install` 시). 상세는 `docs/standards/quality-gates.md`를 참고해요.

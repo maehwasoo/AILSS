@@ -2,9 +2,9 @@
 
 이 저장소(repo)는 Obsidian 볼트(vault) **AILSS**를 대상으로 아래 3가지를 만드는 코드 워크스페이스(workspace)예요.
 
-1) 인덱서(indexer): 마크다운(markdown) → 청킹(chunking) → 임베딩(embedding) → 로컬 DB 저장  
-2) MCP 서버(server): 읽기 중심 검색/추천 도구(tool) 제공  
-3) Obsidian 플러그인(plugin): 추천 UI 표시 + 사용자의 명시적 액션으로 적용  
+1. 인덱서(indexer): 마크다운(markdown) → 청킹(chunking) → 임베딩(embedding) → 로컬 DB 저장
+2. MCP 서버(server): 읽기 중심 검색/추천 도구(tool) 제공
+3. Obsidian 플러그인(plugin): 추천 UI 표시 + 사용자의 명시적 액션으로 적용
 
 > 실제 Obsidian 볼트(vault) 데이터는 이 repo 밖에 있을 수 있어요. 이 repo는 “코드/설계 문서” 중심으로 관리해요.
 
@@ -29,11 +29,11 @@
 
 ## 개발 시작(데스크톱 우선)
 
-1) 환경변수(environment variable) 준비
+1. 환경변수(environment variable) 준비
 
 - `.env.example`을 참고해 `.env`를 만들고 `OPENAI_API_KEY`, `AILSS_VAULT_PATH`를 채워요
 
-2) 설치/빌드
+2. 설치/빌드
 
 ```bash
 # 빌드 스크립트용 캐시 경로를 workspace로 고정(샌드박스/CI 환경 대응)
@@ -41,13 +41,13 @@ CI=0 npm_config_cache="$PWD/.npm-cache" npm_config_devdir="$PWD/.node-gyp" pnpm 
 pnpm build
 ```
 
-3) 인덱싱(indexing)
+3. 인덱싱(indexing)
 
 ```bash
 pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
 ```
 
-4) MCP 서버(server) 실행(STDIO)
+4. MCP 서버(server) 실행(STDIO)
 
 ```bash
 pnpm -C packages/mcp start

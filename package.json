@@ -7,12 +7,33 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:repo && pnpm test",
+    "check:ci": "pnpm check && pnpm build",
+    "commitlint": "commitlint",
     "typecheck": "pnpm -r typecheck",
+    "typecheck:repo": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "node -e \"process.exit(process.env.LEFTHOOK === '0' ? 0 : 1)\" || lefthook install",
     "clean": "pnpm -r clean"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@eslint/js": "^9.39.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.3.0",
-    "typescript": "^5.9.2"
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0",
+    "lefthook": "^2.0.11",
+    "prettier": "^3.7.4",
+    "typescript-eslint": "^8.49.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.15"
   }
 }

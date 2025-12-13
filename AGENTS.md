@@ -16,11 +16,11 @@
 
 작업 시작 시(필요한 범위에서) 아래 문서를 우선 확인해요.
 
-1) 문서 인덱스(index): `docs/README.md`  
-2) 핵심 흐름(core flow): `docs/00-context.md` → `docs/01-overview.md` → `docs/02-significance.md` → `docs/03-plan.md`  
-3) 표준(standards): `docs/standards/coding.md`, `docs/standards/commits.md`  
-4) 설계/운영: `docs/architecture/*`, `docs/ops/*`, `docs/adr/*`  
-5) 볼트 규칙 스냅샷(snapshot): `docs/vault-ref/README.md` (볼트 자체에 적용할 규칙은 `docs/vault-ref/vault-root/AGENTS.md` 기준이에요)
+1. 문서 인덱스(index): `docs/README.md`
+2. 핵심 흐름(core flow): `docs/00-context.md` → `docs/01-overview.md` → `docs/02-significance.md` → `docs/03-plan.md`
+3. 표준(standards): `docs/standards/coding.md`, `docs/standards/commits.md`, `docs/standards/quality-gates.md`
+4. 설계/운영: `docs/architecture/*`, `docs/ops/*`, `docs/adr/*`
+5. 볼트 규칙 스냅샷(snapshot): `docs/vault-ref/README.md` (볼트 자체에 적용할 규칙은 `docs/vault-ref/vault-root/AGENTS.md` 기준이에요)
 
 ---
 

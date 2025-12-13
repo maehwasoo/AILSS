@@ -34,4 +34,3 @@
 
 - 로컬 설정(config) 정리(API 키, vault 경로)
 - 프라이버시(privacy) 문서화 및 옵트인(opt-in) 옵션
-

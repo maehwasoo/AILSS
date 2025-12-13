@@ -28,4 +28,3 @@ status: accepted
 - indexer/mcp/plugin을 각각 별도 repo로 분리
   - 장점: 배포 단위가 명확
   - 단점: 공용 스키마/로직 중복, 동기화 비용 증가
-

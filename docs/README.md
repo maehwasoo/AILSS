@@ -17,6 +17,7 @@
 
 - 커밋 컨벤션(commit convention): [docs/standards/commits.md](./standards/commits.md)
 - 코딩 컨벤션(coding convention): [docs/standards/coding.md](./standards/coding.md)
+- 품질 게이트(quality gate): [docs/standards/quality-gates.md](./standards/quality-gates.md)
 
 ## 아키텍처(architecture)
 

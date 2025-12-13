@@ -37,9 +37,15 @@
 - 서버(mcp)는 입력 검증에 실패하면 명확한 에러를 반환해요
 - 에러 메시지는 “원인 + 해결 방법” 순서로 작성해요
 
+## 포맷/린트/테스트
+
+- 포맷(format)은 Prettier를 기준으로 하고, lint는 ESLint로 처리해요
+- 빠른 통합 체크는 `pnpm check`를 기본으로 해요
+- 네트워크 의존(예: OpenAI 호출)은 테스트에서 직접 실행하지 말고, 인터페이스 주입(injection) 또는 목(mock)으로 분리해요
+  - 상세 운영: `docs/standards/quality-gates.md`
+
 ## 보안/프라이버시 기본값
 
 - vault 경로(path)는 외부 설정으로 받고, 경로 탈출(path traversal)을 방지해요
 - MCP 서버는 기본적으로 파일 쓰기(write)를 하지 않아요
 - API 키(key)는 코드/레포에 커밋하지 않아요(`.env`는 `.gitignore`)
-

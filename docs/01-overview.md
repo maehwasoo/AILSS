@@ -41,4 +41,3 @@
 - 인덱싱(indexing) = 파일 읽기(read) + DB 쓰기(write)
 - 추천(recommendation) = DB 읽기(read)
 - 적용(apply) = 파일 쓰기(write), 사용자 명시적 액션 필수
-

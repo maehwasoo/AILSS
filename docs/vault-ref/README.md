@@ -21,4 +21,3 @@
 - 원본은 항상 vault 쪽이에요: `~/Obsidian/AILSS/README.md`, `~/Obsidian/AILSS/AGENTS.md`
 - 이 폴더의 파일은 “참고용 스냅샷”이에요.
 - 업데이트할 때는 “원문 그대로 복사 → git diff로 변경점 확인 → 필요한 구현 스펙(spec) 반영” 순서로 진행해요.
-

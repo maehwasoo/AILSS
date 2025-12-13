@@ -21,7 +21,6 @@ import {
 } from "@ailss/core";
 
 import { createHash } from "node:crypto";
-import path from "node:path";
 
 type IndexCommandOptions = {
   vault?: string;
@@ -46,11 +45,7 @@ async function createOpenAiClient(apiKey: string): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-async function embedTexts(
-  client: OpenAI,
-  model: string,
-  inputs: string[],
-): Promise<number[][]> {
+async function embedTexts(client: OpenAI, model: string, inputs: string[]): Promise<number[][]> {
   const resp = await client.embeddings.create({
     model,
     input: inputs,
@@ -126,7 +121,9 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
       for (const [j, chunk] of batch.entries()) {
         const embedding = embeddings[j];
         if (!embedding) {
-          throw new Error(`임베딩 결과 수가 부족해요. batchSize=${batch.length}, got=${embeddings.length}`);
+          throw new Error(
+            `임베딩 결과 수가 부족해요. batchSize=${batch.length}, got=${embeddings.length}`,
+          );
         }
 
         // 전역 chunk_id는 파일 경로를 포함해 충돌 방지

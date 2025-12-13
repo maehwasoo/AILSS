@@ -19,4 +19,3 @@ export function loadEnv(): AilssEnv {
     vaultPath: process.env.AILSS_VAULT_PATH,
   };
 }
-
