@@ -1,5 +1,5 @@
-// 커밋 메시지(commit message) 규칙
-// - docs/standards/commits.md 기준으로 최소한만 강제
+// Commit message rules
+// - minimal enforcement based on docs/standards/commits.md
 
 module.exports = {
   extends: ["@commitlint/config-conventional"],

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// AILSS MCP 서버(server) - STDIO transport
-// - semantic_search, get_note 등 읽기 중심 도구(tool) 제공
+// AILSS MCP server - STDIO transport
+// - provides read-only tools like semantic_search and get_note
 
 import OpenAI from "openai";
 import { z } from "zod";
@@ -36,12 +36,12 @@ async function main(): Promise<void> {
   const vaultPath = env.vaultPath;
   const dbPath = vaultPath ? await resolveDefaultDbPath(vaultPath) : process.env.AILSS_DB_PATH;
   if (!dbPath) {
-    throw new Error("DB 경로가 없어요. AILSS_VAULT_PATH 또는 AILSS_DB_PATH를 설정해요.");
+    throw new Error("DB path is missing. Set AILSS_VAULT_PATH or AILSS_DB_PATH.");
   }
 
   const openaiApiKey = env.openaiApiKey;
   if (!openaiApiKey) {
-    throw new Error("OPENAI_API_KEY가 없어요. .env 또는 환경변수로 설정해요.");
+    throw new Error("OPENAI_API_KEY is missing. Set it via .env or environment variables.");
   }
 
   const db = openAilssDb({ dbPath, embeddingDim });
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
       const queryEmbedding = await embedQuery(client, embeddingModel, query);
       const results = semanticSearch(db, queryEmbedding, top_k);
 
-      // 결과 포맷: 경로(path), 헤딩(heading), 거리(distance), 스니펫(snippet)
+      // Result shape: path, heading, distance, snippet
       const formatted = results.map((r) => ({
         path: r.path,
         heading: r.heading,
@@ -102,13 +102,13 @@ async function main(): Promise<void> {
       const notePath = args.path;
       const max_chars = args.max_chars;
       if (!vaultPath) {
-        throw new Error("AILSS_VAULT_PATH가 없어서 파일을 읽을 수 없어요.");
+        throw new Error("Cannot read files because AILSS_VAULT_PATH is not set.");
       }
 
-      // 보안: vault 밖 경로 접근 방지
+      // Security: prevent path traversal outside the vault
       const abs = path.resolve(vaultPath, notePath);
       if (!abs.startsWith(path.resolve(vaultPath) + path.sep)) {
-        throw new Error("vault 밖 경로는 읽을 수 없어요.");
+        throw new Error("Refusing to read a path outside the vault.");
       }
 
       const content = await fs.readFile(abs, "utf8");

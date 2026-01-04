@@ -1,6 +1,6 @@
-// ESLint 설정(flat config)
-// - TypeScript + Node.js(ESM) 기준
-// - 포맷 규칙은 Prettier로 위임
+// ESLint configuration (flat config)
+// - TypeScript + Node.js (ESM)
+// - Formatting rules delegated to Prettier
 
 import js from "@eslint/js";
 import globals from "globals";
@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
 export default [
-  // 빌드 산출물/캐시/외부 의존성 제외
+  // Exclude build outputs/caches/external dependencies
   {
     ignores: [
       "**/dist/**",
@@ -23,13 +23,13 @@ export default [
     ],
   },
 
-  // 기본 추천 규칙
+  // Base recommended rules
   js.configs.recommended,
 
-  // TypeScript 추천 규칙
+  // TypeScript recommended rules
   ...tseslint.configs.recommended,
 
-  // 런타임 전역(global) 정의
+  // Runtime globals
   {
     languageOptions: {
       globals: {
@@ -38,7 +38,7 @@ export default [
       },
     },
     rules: {
-      // TS 프로젝트에서는 TS 버전 규칙만 사용
+      // Prefer TS-aware unused-vars checks in TS projects
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
@@ -51,6 +51,6 @@ export default [
     },
   },
 
-  // Prettier와 충돌하는 lint 규칙 비활성화
+  // Disable lint rules that conflict with Prettier
   prettier,
 ];

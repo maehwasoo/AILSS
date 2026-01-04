@@ -1,4 +1,4 @@
-// SQLite DB + sqlite-vec 검색 테스트
+// SQLite DB + sqlite-vec search tests
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 
 describe("openAilssDb() + semanticSearch()", () => {
-  it("청크 삽입 후 벡터 검색 결과를 반환해요", async () => {
+  it("returns vector search results after inserting a chunk", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
     const db = openAilssDb({ dbPath, embeddingDim: 3 });
@@ -62,7 +62,7 @@ describe("openAilssDb() + semanticSearch()", () => {
     }
   });
 
-  it("deleteChunksByPath()는 vec0 row도 같이 정리해요", async () => {
+  it("deleteChunksByPath() also removes vec0 rows", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
     const db = openAilssDb({ dbPath, embeddingDim: 3 });

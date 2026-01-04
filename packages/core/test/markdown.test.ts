@@ -1,11 +1,11 @@
-// 마크다운 파싱/청킹 테스트
+// Markdown parsing/chunking tests
 
 import { describe, expect, it } from "vitest";
 
 import { chunkMarkdownByHeadings, parseMarkdownNote } from "../src/vault/markdown.js";
 
 describe("parseMarkdownNote()", () => {
-  it("프론트매터(front matter)와 본문(body)을 분리해요", () => {
+  it("splits frontmatter and body", () => {
     const input = `---
 title: Hello
 tags:
@@ -14,19 +14,19 @@ tags:
 
 # H1
 
-본문이에요.
+This is the body.
 `;
 
     const parsed = parseMarkdownNote(input);
 
     expect(parsed.frontmatter).toMatchObject({ title: "Hello" });
     expect(parsed.body).toContain("# H1");
-    expect(parsed.body).toContain("본문이에요.");
+    expect(parsed.body).toContain("This is the body.");
   });
 });
 
 describe("chunkMarkdownByHeadings()", () => {
-  it("code fence 내부의 헤딩(#)은 섹션 분할로 취급하지 않아요", () => {
+  it("does not treat headings inside code fences as section boundaries", () => {
     const body = `
 # A
 alpha
@@ -47,7 +47,7 @@ bravo
     expect(chunks[1]?.headingPath).toEqual(["A", "B"]);
   });
 
-  it("maxChars를 넘으면 문단 단위로 추가 분할해요", () => {
+  it("splits further by paragraphs when exceeding maxChars", () => {
     const body = `
 # A
 paragraph-1-12345

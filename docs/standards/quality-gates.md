@@ -1,120 +1,120 @@
-# 품질 게이트(quality gate)
+# Quality gates
 
-이 문서는 AILSS에서 “탄탄하고 안전한” 개발을 위해 품질 게이트(quality gate)를 **로컬(local) → 훅(hook) → CI(지속적 통합, continuous integration)** 3계층으로 운영하는 규칙을 정의해요.
+This document defines quality gates for building “solid and safe” changes in AILSS across three layers: **local → hooks → CI**.
 
-핵심 원칙은 아래 2가지예요.
+The two core principles are:
 
-1. **훅(hook)은 빠르게**: 개발 흐름(flow)을 방해하지 않게 “변경된 것 중심”으로 최소 비용으로 돌려요.
-2. **CI는 엄격하게**: 전체(release candidate) 기준으로 동일한 검증을 반복 가능(reproducible)하게 돌려요.
-
----
-
-## 1) 로컬(local): 개발자가 직접 실행하는 커맨드
-
-> “내 코드가 괜찮은지”를 빠르게 확인하는 기본 도구 세트예요.
-
-### 포맷(format) — Prettier
-
-- 전체 포맷 적용: `pnpm format`
-- 포맷 체크만: `pnpm format:check`
-
-### 린트(lint) — ESLint
-
-- 린트 체크: `pnpm lint`
-- 자동 수정 포함: `pnpm lint:fix`
-
-### 타입 검사(typecheck) — TypeScript
-
-- 패키지 단위 타입 검사: `pnpm typecheck` (`pnpm -r typecheck`)
-- 레포 전체 타입 검사(테스트 포함): `pnpm typecheck:repo`
-
-### 테스트(test) — Vitest
-
-- 테스트 실행: `pnpm test`
-- 감시 모드(watch mode): `pnpm test:watch`
-
-### 통합 체크(check)
-
-- 로컬 품질 게이트: `pnpm check`
-- CI 품질 게이트: `pnpm check:ci` (로컬 체크 + 빌드(build)까지)
+1. **Hooks are fast**: run minimal checks focused on changed/staged files so they don’t block the dev flow.
+2. **CI is strict**: run the full suite (release-candidate standard) in a reproducible way.
 
 ---
 
-## 2) 훅(hook): git 단계별 자동 게이트
+## 1) Local: developer-run commands
 
-이 레포는 Lefthook을 사용해요.
+These are the default tools to quickly validate your changes.
 
-- 설정 파일: `lefthook.yml`
-- 설치(install): `pnpm install` 시 `prepare` 스크립트로 자동 설치돼요
+### Format — Prettier
 
-### pre-commit (빠르게)
+- Apply formatting: `pnpm format`
+- Check formatting only: `pnpm format:check`
 
-목표:
+### Lint — ESLint
 
-- 커밋 직전에 “형식/실수”를 빠르게 제거해요
-- **staged 파일만** 대상으로 실행해요
+- Lint check: `pnpm lint`
+- Lint with auto-fix: `pnpm lint:fix`
 
-동작:
+### Typecheck — TypeScript
 
-- Prettier: staged 파일에 `--write` 적용 + 재스테이징(stage_fixed)
-- ESLint: staged TS 파일에 `--fix` 적용 + 재스테이징(stage_fixed)
+- Package-level typecheck: `pnpm typecheck` (`pnpm -r typecheck`)
+- Repo-wide typecheck (including tests): `pnpm typecheck:repo`
 
-### commit-msg (정확하게)
+### Test — Vitest
 
-목표:
+- Run tests: `pnpm test`
+- Watch mode: `pnpm test:watch`
 
-- 커밋 메시지가 `docs/standards/commits.md`를 따르도록 강제해요
+### Integrated check
 
-동작:
-
-- commitlint로 `<type>(<scope>): <subject>` 형식을 검증해요
-- scope/type은 레포에서 허용한 목록으로 제한해요
-
-### pre-push (상대적으로 무겁게)
-
-목표:
-
-- 원격(remote)으로 보내기 전에, 최소한의 안전망을 한 번 더 통과해요
-
-동작:
-
-- `pnpm check` 실행(포맷 체크 + 린트 + 타입 검사 + 테스트)
+- Local quality gate: `pnpm check`
+- CI quality gate: `pnpm check:ci` (local checks + build)
 
 ---
 
-## 3) CI(지속적 통합): 항상 전체 기준으로 엄격하게
+## 2) Hooks: automatic git-stage gates
 
-CI는 “내 컴퓨터에서만 되는” 상황을 줄이기 위해 아래를 고정해요.
+This repo uses Lefthook.
 
-- Node.js 버전: `>=20` (CI에서는 20 사용)
-- 패키지 매니저: pnpm `10.20.0`
-- 훅 설치 비활성화: CI에서는 `LEFTHOOK=0`로 `.git/hooks` 변경을 하지 않아요
+- Config: `lefthook.yml`
+- Install: automatically installed by the `prepare` script during `pnpm install`
 
-워크플로우(workflow):
+### pre-commit (fast)
+
+Goals:
+
+- Remove formatting/lint mistakes before commit
+- Run only on **staged** files
+
+Actions:
+
+- Prettier: run `--write` on staged files + re-stage (`stage_fixed`)
+- ESLint: run `--fix` on staged TS files + re-stage (`stage_fixed`)
+
+### commit-msg (strict)
+
+Goal:
+
+- Enforce commit message format defined in `docs/standards/commits.md`
+
+Actions:
+
+- Validate `<type>(<scope>): <subject>` via commitlint
+- Restrict type/scope to the allowed list
+
+### pre-push (heavier)
+
+Goal:
+
+- Add a final safety net before pushing to remote
+
+Action:
+
+- Run `pnpm check` (format check + lint + typecheck + tests)
+
+---
+
+## 3) CI: always strict and repo-wide
+
+To reduce “works only on my machine” situations, CI pins:
+
+- Node.js: `>=20` (CI uses Node 20)
+- Package manager: pnpm `10.20.0`
+- Hook installation disabled: CI uses `LEFTHOOK=0` to avoid modifying `.git/hooks`
+
+Workflow:
 
 - GitHub Actions: `.github/workflows/ci.yml`
-- 실행 커맨드(command): `pnpm check:ci`
+- Command: `pnpm check:ci`
 
 ---
 
-## 4) 네트워크 의존 테스트 격리(중요)
+## 4) Isolating network-dependent tests (important)
 
-이 프로젝트는 OpenAI API 호출처럼 네트워크(network) + 비용(cost) + 비결정성(nondeterminism)이 섞인 작업이 있어요.
-그래서 테스트는 아래 원칙을 지켜야 안전해요.
+This project includes operations that are networked + paid + non-deterministic (e.g., OpenAI API calls).
+To keep testing safe:
 
-### 기본 원칙
+### Core rules
 
-- 기본 테스트는 **네트워크 없이** 통과해야 해요(로컬/CI 공통)
-- OpenAI 호출은 테스트에서 직접 실행하지 말고, 인터페이스(interface) 주입(injection) 또는 목(mock)으로 분리해요
+- Default tests must pass **without network** (both local and CI)
+- Do not call OpenAI directly in tests; isolate via interface injection or mocks
 
-### 파일/스위트 분리(권장)
+### Suggested test suite split
 
-- 오프라인 단위 테스트(unit test): 기본 `pnpm test` 대상
-- 온라인 통합 테스트(integration test): 별도 파일 패턴으로 분리하고, env가 없으면 스킵(skip)해요
+- Offline unit tests: default `pnpm test`
+- Online integration tests: separate file pattern, and skip if env is missing
 
-예시 패턴:
+Example patterns:
 
-- `*.test.ts`: 기본 오프라인 테스트
-- `*.openai.test.ts`: `OPENAI_API_KEY`가 있을 때만 동작하는 테스트(기본 CI에서는 제외)
+- `*.test.ts`: offline tests
+- `*.openai.test.ts`: only runs when `OPENAI_API_KEY` is set (excluded from default CI)
 
-> 이 분리는 “훅은 빠르게, CI는 엄격하게”를 지키면서도, 필요할 때만 온라인 검증을 켤 수 있게 해줘요.
+> This split keeps hooks fast and CI strict, while still allowing opt-in online validation when needed.

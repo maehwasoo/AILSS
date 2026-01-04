@@ -1,6 +1,6 @@
-// Vitest 설정
-// - Node.js 환경에서 실행
-// - TS(NodeNext) 패턴의 `.js` import를 테스트에서 `.ts` 소스로 매핑
+// Vitest config
+// - run in a Node.js environment
+// - map `.js` imports (TS NodeNext pattern) to `.ts` sources in tests
 
 import fs from "node:fs";
 import path from "node:path";

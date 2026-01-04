@@ -1,30 +1,30 @@
 # ADR (Architecture Decision Record)
 
-이 폴더는 “왜 이 구조를 선택했는지”를 기록하는 ADR(Architecture Decision Record) 문서들을 보관해요.
+This folder stores ADRs that capture **why** we made specific architecture decisions.
 
-## 규칙
+## Rules
 
-- 파일명: `NNNN-짧은-제목.md`
-- 한 ADR에는 “결정 1개”만 담아요
-- 상태(status): `draft` → `accepted` → (필요 시) `superseded`
+- Filename: `NNNN-short-title.md`
+- One ADR = one decision
+- Status: `draft` → `accepted` → (optional) `superseded`
 
-## 템플릿(template)
+## Template
 
 ```
-# NNNN. 제목
+# NNNN. Title
 
 status: draft
 
-## 맥락(context)
+## Context
 - ...
 
-## 결정(decision)
+## Decision
 - ...
 
-## 결과(consequences)
-- 장점
-- 단점/리스크
+## Consequences
+- Pros
+- Cons / risks
 
-## 대안(alternatives)
+## Alternatives
 - ...
 ```

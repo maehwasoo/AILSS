@@ -1,5 +1,5 @@
-// 마크다운(markdown) 파싱/청킹(chunking) 유틸
-// - 고수준 구현을 위해 heading 기반 섹션 단위로 나눠요
+// Markdown parsing/chunking utilities
+// - chunk by heading-based sections for predictable behavior
 
 import { createHash } from "node:crypto";
 import matter from "gray-matter";
@@ -46,8 +46,8 @@ export function chunkMarkdownByHeadings(
   const body = normalizeNewlines(bodyMarkdown).trim();
   if (!body) return [];
 
-  // 단순하면서도 예측 가능한 heading 기반 파서
-  // - code fence 내부의 # 헤딩 오탐을 최소화하려고 fence 토글을 적용
+  // Simple, predictable heading-based parser
+  // - toggle when inside code fences to avoid treating '#' as headings
   const lines = body.split("\n");
 
   type Section = {
@@ -82,23 +82,23 @@ export function chunkMarkdownByHeadings(
     if (!inFence) {
       const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
       if (headingMatch) {
-        // 섹션 종료
+        // End current section
         pushCurrent();
 
         const hashes = headingMatch[1] ?? "";
         const headingText = (headingMatch[2] ?? "").trim();
         if (!hashes || !headingText) {
-          // 예외 케이스: 정규식 매칭은 되었지만 캡처가 비어있을 때
+          // Edge case: regex matched, but captures are empty
           current.buffer.push(line);
           continue;
         }
 
         const depth = hashes.length;
 
-        // heading path 갱신
+        // Update heading path
         const nextPath = [...current.headingPath];
-        // depth 기반으로 상위 경로 잘라내기
-        // - depth=2면 1단계(##)에 해당하므로 길이를 1로 맞춤
+        // Trim parent path based on depth
+        // - depth=2 (##) corresponds to a path length of 1
         const keepLen = Math.max(0, depth - 1);
         nextPath.splice(keepLen);
         nextPath.push(headingText);
@@ -118,7 +118,7 @@ export function chunkMarkdownByHeadings(
 
   pushCurrent();
 
-  // 섹션을 maxChars 기준으로 추가 분할
+  // Further split sections by maxChars
   const chunks: MarkdownChunk[] = [];
   for (const section of sections) {
     const fullText = section.buffer.join("\n").trim();
@@ -136,7 +136,7 @@ export function chunkMarkdownByHeadings(
       continue;
     }
 
-    // 간단 분할: 빈 줄 단위(문단)로 누적
+    // Simple split: accumulate by blank-line paragraphs
     const paragraphs = fullText.split(/\n{2,}/g);
     let buffer = "";
     for (const paragraph of paragraphs) {

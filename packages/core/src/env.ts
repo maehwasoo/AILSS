@@ -1,5 +1,5 @@
-// 환경변수(environment variable) 로딩 유틸
-// - indexer, mcp 양쪽에서 공통으로 사용
+// Environment variable loading utilities
+// - shared by indexer and mcp
 
 import { config as loadDotenv } from "dotenv";
 
@@ -10,7 +10,7 @@ export type AilssEnv = {
 };
 
 export function loadEnv(): AilssEnv {
-  // .env는 개발 편의용, 운영에서는 환경변수만으로도 동작
+  // .env is for local convenience; production can run with env vars only
   loadDotenv();
 
   return {

@@ -1,4 +1,4 @@
-// DB 타입(types)
+// DB types
 
 export type IndexedFileRow = {
   path: string;

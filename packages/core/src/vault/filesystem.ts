@@ -1,5 +1,5 @@
-// Vault 파일 시스템(file system) 접근 유틸
-// - indexer에서 마크다운 목록 스캔, 파일 읽기에 사용
+// Vault file system access utilities
+// - used by the indexer for scanning markdown files and reading file contents
 
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";

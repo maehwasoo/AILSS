@@ -1,5 +1,5 @@
 // AILSS SQLite DB
-// - 파일(file), 청크(chunk), 벡터(embedding) 인덱스를 한 곳에 저장
+// - store file, chunk, and embedding indices in one place
 
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -27,11 +27,11 @@ export async function resolveDefaultDbPath(vaultPath: string): Promise<string> {
 export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
   const db = new Database(options.dbPath);
 
-  // sqlite-vec extension 로드
-  // - 고수준 벡터 검색을 위해 vec0 가상 테이블 사용
+  // Load sqlite-vec extension
+  // - use vec0 virtual table for vector search
   loadSqliteVec(db);
 
-  // 안정성 옵션
+  // Stability pragmas
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
@@ -40,8 +40,8 @@ export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
 }
 
 function migrate(db: AilssDb, embeddingDim: number): void {
-  // 스키마: files, chunks, chunk_embeddings(vec0)
-  // - vec0는 rowid 기반이 자연스럽지만, 우리는 chunk_id를 rowid로 매핑해요
+  // Schema: files, chunks, chunk_embeddings(vec0)
+  // - vec0 is rowid-based, so we map chunk_id to rowid
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS files (
@@ -66,8 +66,8 @@ function migrate(db: AilssDb, embeddingDim: number): void {
     );
   `);
 
-  // sqlite-vec vec0 테이블
-  // - rowid를 chunks.chunk_id와 1:1로 맞추기 위해 별도 mapping 테이블을 둬요
+  // sqlite-vec vec0 table
+  // - keep a separate mapping table to align rowid 1:1 with chunks.chunk_id
   db.exec(`
     CREATE TABLE IF NOT EXISTS chunk_rowids (
       chunk_id TEXT PRIMARY KEY,
@@ -82,7 +82,7 @@ function migrate(db: AilssDb, embeddingDim: number): void {
     );
   `);
 
-  // 인덱싱 편의 뷰(view)
+  // Indexing convenience view
   db.exec(`
     CREATE VIEW IF NOT EXISTS chunks_with_rowid AS
     SELECT
@@ -134,7 +134,7 @@ export function getFileSha256(db: AilssDb, filePath: string): string | null {
 }
 
 export function deleteChunksByPath(db: AilssDb, filePath: string): void {
-  // ON DELETE CASCADE로 rowids 정리, vec0는 별도 삭제 필요
+  // ON DELETE CASCADE cleans chunk_rowids; vec0 requires manual deletion
   const rowids = db
     .prepare(
       `SELECT rowid FROM chunk_rowids WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE path = ?)`,
@@ -176,7 +176,7 @@ export function insertChunkWithEmbedding(db: AilssDb, input: InsertChunkInput): 
       updated_at: nowIso(),
     });
 
-    // vec0 insert → rowid 확보
+    // Insert into vec0 → capture rowid
     const vecInsert = db.prepare(`INSERT INTO chunk_embeddings(embedding) VALUES (?)`);
     const info = vecInsert.run(JSON.stringify(input.embedding));
     const rowid = Number(info.lastInsertRowid);
@@ -201,9 +201,9 @@ export function semanticSearch(
   queryEmbedding: number[],
   topK: number,
 ): SemanticSearchResult[] {
-  // vec0 검색 쿼리
-  // - sqlite-vec는 KNN 쿼리에서 LIMIT 또는 `k = ?` 제약이 필요해요
-  // - JOIN이 섞이면 LIMIT 감지가 깨질 수 있어 CTE로 분리해요
+  // vec0 search query
+  // - sqlite-vec requires LIMIT or `k = ?` for KNN queries
+  // - When JOINs are involved, LIMIT detection can break, so split via a CTE
   const stmt = db.prepare(`
     WITH matches AS (
       SELECT rowid, distance

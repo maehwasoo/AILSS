@@ -1,69 +1,69 @@
-# 커밋 컨벤션(commit convention)
+# Commit conventions
 
-이 문서는 이 repo의 커밋 메시지(commit message) 규칙을 정의해요.
+This document defines commit message rules for this repo.
 
-## 목표
+## Goals
 
-- 변경 이력을 빠르게 이해할 수 있게 해요
-- 패키지(package) 단위 변경 범위를 명확히 해요
-- 나중에 릴리스 노트(release note) 자동화 가능성을 열어둬요
+- Make change history easy to understand
+- Make package-level scope clear
+- Keep the door open for automated release notes
 
-## 형식(format)
+## Format
 
-기본 형식은 Conventional Commits를 따르고, 아래를 고정해요.
+We follow Conventional Commits and standardize on:
 
 ```
 <type>(<scope>): <subject>
 ```
 
-예:
+Examples:
 
-- `feat(monorepo): core/db + indexer + mcp stdio 스캐폴딩`
-- `feat(docs): vault 규칙 원문(vault-ref) 스냅샷 구조 추가`
+- `feat(monorepo): scaffold core/db + indexer + mcp stdio`
+- `feat(docs): add vault-ref snapshot layout`
 
-## type 규칙
+## `type` rules
 
-- `feat`: 사용자 가치가 있는 기능 추가
-- `fix`: 버그 수정
-- `docs`: 문서만 변경
-- `refactor`: 기능 변경 없는 리팩터링(refactor)
-- `test`: 테스트 추가/수정
-- `chore`: 잡무(빌드/정리/스크립트 등), 기능/버그와 무관한 변경
-- `build`: 빌드 시스템/의존성(dependencies) 변경
-- `ci`: CI 설정 변경
-- `perf`: 성능(performance) 개선
-- `revert`: 리버트(revert)
+- `feat`: user-facing feature
+- `fix`: bug fix
+- `docs`: documentation-only change
+- `refactor`: refactor with no behavior change
+- `test`: add/update tests
+- `chore`: non-feature work (build/cleanup/scripts, etc.)
+- `build`: build system/dependency changes
+- `ci`: CI config changes
+- `perf`: performance improvement
+- `revert`: revert
 
-## scope 규칙
+## `scope` rules
 
-scope는 “어디가 바뀌었는지”를 표현해요. 아래 목록에서 고르는 것을 기본으로 해요.
+Scope expresses where the change happened. Prefer one of:
 
-- `monorepo`: 루트 워크스페이스(workspace) 설정, 공용 tsconfig, 락파일(lockfile) 등
+- `monorepo`: workspace-level config (root tsconfig, lockfile, etc.)
 - `core`: `packages/core`
 - `indexer`: `packages/indexer`
 - `mcp`: `packages/mcp`
 - `plugin`: `packages/obsidian-plugin`
 - `docs`: `docs/*`
-- `ops`: 로컬 실행/운영(runbook) 문서 또는 운영 스크립트
+- `ops`: local runbook docs or ops scripts
 
-scope를 고르기 애매하면 `monorepo` 또는 `docs`를 우선 사용해요.
+If scope is unclear, default to `monorepo` or `docs`.
 
-## subject 규칙
+## `subject` rules
 
-- 한 줄로 요약하고, 마침표는 생략해요
-- 한국어/영어 모두 가능하지만, 용어는 가능한 한 한영 병기해요
-- “무엇을 바꿨는지”가 드러나게 써요(why는 body로)
-- 파일 경로(path)나 구체 명칭은 필요할 때만 포함해요
+- Summarize in one line and omit the trailing period
+- English is preferred (Korean is acceptable when needed), but keep terminology consistent
+- Make it obvious what changed (the “why” can go in the body)
+- Include file paths or specific names only when helpful
 
-## body(본문) 작성 기준
+## Body guidelines
 
-기본은 subject 한 줄로 충분해요. 아래에 해당하면 body를 추가해요.
+A one-line subject is usually enough. Add a body when:
 
-- 설계/행동 변화가 있는 경우(예: DB 스키마 변경)
-- 사용자에게 마이그레이션(migration)이 필요한 경우
-- 보안/프라이버시(privacy) 관련 변경
+- There is a design/behavior change (e.g., a DB schema change)
+- Users need migration steps
+- There are security/privacy implications
 
-Body 예시 템플릿:
+Body template example:
 
 ```
 Context:
@@ -76,9 +76,9 @@ Notes:
 - ...
 ```
 
-## 자동 검증(hook)
+## Automated validation (hook)
 
-이 레포는 commit-msg 훅(hook)에서 commitlint로 커밋 메시지를 검증해요.
+This repo validates commit messages via commitlint in the `commit-msg` hook.
 
-- 설정: `commitlint.config.cjs`
-- 훅: `lefthook.yml`
+- Config: `commitlint.config.cjs`
+- Hook: `lefthook.yml`

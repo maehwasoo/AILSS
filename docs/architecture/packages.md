@@ -1,66 +1,66 @@
-# 아키텍처(architecture): 패키지 구조(packages)
+# Architecture: package structure
 
-이 문서는 현재 repo의 패키지(package) 구조와 경계(boundary)를 고정해요.
+This document defines the package structure and boundaries in this repo.
 
-## 모노레포(monorepo) 개요
+## Monorepo overview
 
-- 패키지 매니저(package manager): pnpm workspace
-- 상위 디렉터리: `packages/*`
+- Package manager: pnpm workspace
+- Package root: `packages/*`
 
-## 패키지 구성
+## Packages
 
 ### `packages/core` (`@ailss/core`)
 
-역할:
+Responsibilities:
 
-- vault 파일 시스템(file system) 접근 유틸
-- 마크다운(markdown) 파싱/청킹(chunking)
-- SQLite DB 스키마/쿼리(벡터 검색 포함)
-- 환경변수(environment variable) 로딩
+- Vault file system access utilities
+- Markdown parsing/chunking
+- SQLite DB schema/queries (including vector search)
+- Environment variable loading
 
-주의:
+Constraints:
 
-- 다른 패키지에 의존하지 않아요(최하위 레이어)
+- Must not depend on other packages (lowest layer)
 
 ### `packages/indexer` (`@ailss/indexer`)
 
-역할:
+Responsibilities:
 
-- vault를 스캔(scan)해서 변경된 파일만 증분 인덱싱(incremental indexing)
-- OpenAI embeddings API로 임베딩(embedding) 생성
-- DB에 파일/청크/임베딩 저장
+- Scan the vault and incrementally index only changed files
+- Generate embeddings via the OpenAI embeddings API
+- Store files/chunks/embeddings into the DB
 
-엔트리(entry):
+Entry point:
 
 - `packages/indexer/src/cli.ts` (`ailss-indexer`)
 
 ### `packages/mcp` (`@ailss/mcp`)
 
-역할:
+Responsibilities:
 
-- 로컬 DB를 기반으로 검색/조회 도구(tool) 제공
-- 기본 transport는 STDIO로 시작해요(Codex CLI 연동 목적)
+- Provide search/query tools backed by the local DB
+- Default transport starts with STDIO (for Codex CLI integration)
 
-엔트리(entry):
+Entry point:
 
 - `packages/mcp/src/stdio.ts` (`ailss-mcp`)
 
 ### `packages/obsidian-plugin`
 
-역할(예정):
+Planned responsibilities:
 
-- 추천 결과 UI 표시
-- 사용자의 명시적 액션(action)으로 적용(apply) 수행
+- Show recommendations in the UI
+- Apply changes only via explicit user actions
 
-## 의존 방향(dependency direction)
+## Dependency direction
 
 ```
 core  <-  indexer
 core  <-  mcp
-plugin (별도, 추후 연결)
+plugin (separate; wired later)
 ```
 
-## 설정(config) 원칙
+## Configuration principles
 
-- vault 경로(vault path)는 외부 설정으로 받아요
-- 로컬 DB는 기본적으로 `<vault>/.ailss/index.sqlite`를 사용해요
+- Vault path is provided via external configuration
+- The local DB default is `<vault>/.ailss/index.sqlite`

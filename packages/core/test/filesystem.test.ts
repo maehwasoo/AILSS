@@ -1,4 +1,4 @@
-// Vault 파일 시스템 유틸 테스트
+// Vault file system utility tests
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -29,15 +29,15 @@ afterEach(async () => {
 });
 
 describe("listMarkdownFiles()", () => {
-  it("기본 ignore 디렉터리는 스캔에서 제외해요", async () => {
+  it("excludes default ignored directories from scanning", async () => {
     const vaultPath = await mkTempDir();
 
-    // 정상 폴더(notes)
+    // Normal folder (notes)
     await writeFile(path.join(vaultPath, "notes/a.md"), "# A");
     await writeFile(path.join(vaultPath, "notes/b.txt"), "not markdown");
     await writeFile(path.join(vaultPath, "notes/nested/c.md"), "# C");
 
-    // ignore 폴더들
+    // Ignored folders
     await writeFile(path.join(vaultPath, ".git/ignored.md"), "# ignored");
     await writeFile(path.join(vaultPath, ".obsidian/ignored.md"), "# ignored");
     await writeFile(path.join(vaultPath, ".trash/ignored.md"), "# ignored");
@@ -52,7 +52,7 @@ describe("listMarkdownFiles()", () => {
 });
 
 describe("statMarkdownFile()", () => {
-  it("sha256를 계산하고 vault 기준 상대 경로를 반환해요", async () => {
+  it("computes sha256 and returns a vault-relative path", async () => {
     const vaultPath = await mkTempDir();
     const absPath = path.join(vaultPath, "notes/a.md");
     const content = "hello";
