@@ -582,6 +582,113 @@ export function findNotesByTypedLink(db: AilssDb, query: TypedLinkQuery): TypedL
   return db.prepare(sql).all(...params, limit) as TypedLinkBackref[];
 }
 
+export type ResolvedNoteTarget = {
+  path: string;
+  title: string | null;
+  matchedBy: "path" | "title";
+};
+
+export function resolveNotePathsByWikilinkTarget(
+  db: AilssDb,
+  target: string,
+  limit = 20,
+): ResolvedNoteTarget[] {
+  const trimmed = target.trim();
+  if (!trimmed) return [];
+
+  const effectiveLimit = Math.min(Math.max(1, limit), 200);
+
+  // Wikilink target normalization
+  // - support users who include `.md` in wikilinks
+  const targetNoExt = trimmed.toLowerCase().endsWith(".md") ? trimmed.slice(0, -3) : trimmed;
+  const targetWithExt = trimmed.toLowerCase().endsWith(".md") ? trimmed : `${trimmed}.md`;
+
+  // Path-based match (vault-relative paths)
+  const pathMatches = db
+    .prepare(
+      `
+        SELECT path, title
+        FROM notes
+        WHERE path = ? OR path LIKE ?
+        ORDER BY path
+        LIMIT ?
+      `,
+    )
+    .all(targetWithExt, `%/${targetWithExt}`, effectiveLimit) as Array<{
+    path: string;
+    title: string | null;
+  }>;
+
+  // Title-based match (frontmatter-derived, if present)
+  const titleMatches = db
+    .prepare(
+      `
+        SELECT path, title
+        FROM notes
+        WHERE title = ?
+        ORDER BY path
+        LIMIT ?
+      `,
+    )
+    .all(targetNoExt, effectiveLimit) as Array<{ path: string; title: string | null }>;
+
+  // Stable dedupe
+  const out: ResolvedNoteTarget[] = [];
+  const seen = new Set<string>();
+
+  for (const row of pathMatches) {
+    if (seen.has(row.path)) continue;
+    seen.add(row.path);
+    out.push({ path: row.path, title: row.title, matchedBy: "path" });
+    if (out.length >= effectiveLimit) return out;
+  }
+
+  for (const row of titleMatches) {
+    if (seen.has(row.path)) continue;
+    seen.add(row.path);
+    out.push({ path: row.path, title: row.title, matchedBy: "title" });
+    if (out.length >= effectiveLimit) return out;
+  }
+
+  return out;
+}
+
+export function guessWikilinkTargetsForNote(
+  meta: Pick<NoteMeta, "path" | "title" | "noteId" | "frontmatter">,
+): string[] {
+  const targets: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (value: string | null | undefined): void => {
+    const trimmed = value?.trim() ?? "";
+    if (!trimmed) return;
+    if (seen.has(trimmed)) return;
+    seen.add(trimmed);
+    targets.push(trimmed);
+  };
+
+  // Filename stem (default wikilink target in Obsidian)
+  const base = path.basename(meta.path);
+  const stem = base.toLowerCase().endsWith(".md") ? base.slice(0, -3) : base;
+  add(stem);
+
+  // Structured fields
+  add(meta.title);
+  add(meta.noteId);
+
+  // Aliases (if present)
+  const aliasesRaw = meta.frontmatter.aliases;
+  if (typeof aliasesRaw === "string") {
+    add(aliasesRaw);
+  } else if (Array.isArray(aliasesRaw)) {
+    for (const v of aliasesRaw) {
+      if (typeof v === "string") add(v);
+    }
+  }
+
+  return targets;
+}
+
 export type InsertChunkInput = {
   chunkId: string;
   path: string;

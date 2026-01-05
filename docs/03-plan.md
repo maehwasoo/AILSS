@@ -17,7 +17,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Supports full-vault indexing and path-scoped updates (`--paths`)
   - Full-vault runs prune DB entries for deleted files
 - MCP server MVP exists (`packages/mcp`)
-  - Read tools: `semantic_search`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
+  - Read tools: `semantic_search`, `activate_context`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: semantic search modal that opens a selected note
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)

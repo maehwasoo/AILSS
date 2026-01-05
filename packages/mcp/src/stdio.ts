@@ -8,9 +8,11 @@ import { z } from "zod";
 import {
   findNotesByTypedLink,
   getNoteMeta,
+  guessWikilinkTargetsForNote,
   loadEnv,
   normalizeTypedLinkTargetInput,
   openAilssDb,
+  resolveNotePathsByWikilinkTarget,
   resolveDefaultDbPath,
   searchNotes,
   semanticSearch,
@@ -21,6 +23,19 @@ import path from "node:path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const PROMETHEUS_AGENT_INSTRUCTIONS = [
+  "Prometheus Agent (AILSS).",
+  "",
+  "Goal: retrieve vault context like 'neurons activating': seed with semantic similarity, then expand via typed links.",
+  "",
+  "Read-first workflow:",
+  "1) For any vault question, call `activate_context` with the user's query.",
+  "2) Use the returned seed + 2-hop typed-link neighborhood as your context.",
+  "3) If you need more detail, call `get_note` (content) and/or `get_note_meta` (frontmatter + typed links) for specific paths.",
+  "",
+  "Safety: do not write to the vault unless the user explicitly asks and confirms a write tool (not provided by default).",
+].join("\n");
 
 function embeddingDimForModel(model: string): number {
   if (model === "text-embedding-3-large") return 3072;
@@ -56,7 +71,36 @@ async function main(): Promise<void> {
   const db = openAilssDb({ dbPath, embeddingDim });
   const client = new OpenAI({ apiKey: openaiApiKey });
 
-  const server = new McpServer({ name: "ailss-mcp", version: "0.1.0" });
+  const server = new McpServer(
+    { name: "ailss-mcp", version: "0.1.0" },
+    { instructions: PROMETHEUS_AGENT_INSTRUCTIONS },
+  );
+
+  server.prompt(
+    "prometheus-agent",
+    "Prometheus Agent: seed semantic search + expand typed links (2 hops).",
+    {
+      query: z.string().min(1).describe("User query"),
+    },
+    async ({ query }) => {
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: [
+                "You are Prometheus Agent for the AILSS vault.",
+                "Before answering, call `activate_context` with this query to gather context (seed semantic + 2-hop typed links).",
+                "",
+                query,
+              ].join("\n"),
+            },
+          },
+        ],
+      };
+    },
+  );
 
   // semantic_search tool
   server.tool(
@@ -90,6 +134,205 @@ async function main(): Promise<void> {
                 top_k,
                 db: dbPath,
                 results: formatted,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  // activate_context tool
+  // - seed: semantic_search top1
+  // - expand: typed links up to 2 hops (incoming + outgoing)
+  server.tool(
+    "activate_context",
+    {
+      query: z.string().min(1),
+      max_hops: z.number().int().min(0).max(2).default(2),
+      max_notes: z.number().int().min(1).max(50).default(25),
+      max_chars_per_note: z.number().int().min(200).max(50_000).default(2000),
+      max_links_per_note: z.number().int().min(1).max(200).default(40),
+      max_resolutions_per_target: z.number().int().min(1).max(20).default(5),
+      max_incoming_per_target: z.number().int().min(1).max(500).default(50),
+    },
+    async (args) => {
+      const query = args.query;
+      const maxHops = args.max_hops;
+      const maxNotes = args.max_notes;
+      const maxCharsPerNote = args.max_chars_per_note;
+
+      const queryEmbedding = await embedQuery(client, embeddingModel, query);
+      const seedHits = semanticSearch(db, queryEmbedding, 1);
+      const seed = seedHits[0];
+      if (!seed) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  query,
+                  seed: null,
+                  activated: [],
+                  note: "No indexed chunks found. Run the indexer first.",
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+
+      type Via = {
+        direction: "outgoing" | "incoming";
+        rel: string;
+        target: string;
+        from_path: string;
+        to_path: string;
+      };
+
+      type Node = {
+        path: string;
+        hop: number;
+        via: Via | null;
+      };
+
+      const visited = new Set<string>([seed.path]);
+      const queue: Node[] = [{ path: seed.path, hop: 0, via: null }];
+      const metaCache = new Map<string, ReturnType<typeof getNoteMeta> | null>();
+
+      const getMetaCached = (notePath: string): ReturnType<typeof getNoteMeta> | null => {
+        if (metaCache.has(notePath)) return metaCache.get(notePath) ?? null;
+        const meta = getNoteMeta(db, notePath);
+        metaCache.set(notePath, meta);
+        return meta;
+      };
+
+      const readNotePreview = async (notePath: string): Promise<string | null> => {
+        if (!vaultPath) return null;
+
+        // Security: prevent path traversal outside the vault
+        const abs = path.resolve(vaultPath, notePath);
+        if (!abs.startsWith(path.resolve(vaultPath) + path.sep)) {
+          throw new Error("Refusing to read a path outside the vault.");
+        }
+
+        const content = await fs.readFile(abs, "utf8");
+        return content.length > maxCharsPerNote ? content.slice(0, maxCharsPerNote) : content;
+      };
+
+      const activated: Array<{
+        path: string;
+        hop: number;
+        title: string | null;
+        entity: string | null;
+        layer: string | null;
+        status: string | null;
+        via: Via | null;
+        preview: string | null;
+      }> = [];
+
+      while (queue.length > 0 && activated.length < maxNotes) {
+        const node = queue.shift();
+        if (!node) break;
+
+        const meta = getMetaCached(node.path);
+        const preview = await readNotePreview(node.path);
+        activated.push({
+          path: node.path,
+          hop: node.hop,
+          title: meta?.title ?? null,
+          entity: meta?.entity ?? null,
+          layer: meta?.layer ?? null,
+          status: meta?.status ?? null,
+          via: node.via,
+          preview,
+        });
+
+        if (node.hop >= maxHops) continue;
+        if (!meta) continue;
+
+        // Outgoing typed links
+        for (const link of meta.typedLinks.slice(0, args.max_links_per_note)) {
+          const resolved = resolveNotePathsByWikilinkTarget(
+            db,
+            link.toTarget,
+            args.max_resolutions_per_target,
+          );
+
+          for (const match of resolved) {
+            const nextPath = match.path;
+            if (visited.has(nextPath)) continue;
+            visited.add(nextPath);
+            queue.push({
+              path: nextPath,
+              hop: node.hop + 1,
+              via: {
+                direction: "outgoing",
+                rel: link.rel,
+                target: link.toTarget,
+                from_path: node.path,
+                to_path: nextPath,
+              },
+            });
+            if (activated.length + queue.length >= maxNotes) break;
+          }
+          if (activated.length + queue.length >= maxNotes) break;
+        }
+
+        // Incoming typed links (backrefs)
+        const targets = guessWikilinkTargetsForNote(meta);
+        for (const target of targets) {
+          const backrefs = findNotesByTypedLink(db, {
+            toTarget: target,
+            limit: args.max_incoming_per_target,
+          });
+
+          for (const backref of backrefs) {
+            const nextPath = backref.fromPath;
+            if (visited.has(nextPath)) continue;
+            visited.add(nextPath);
+            queue.push({
+              path: nextPath,
+              hop: node.hop + 1,
+              via: {
+                direction: "incoming",
+                rel: backref.rel,
+                target,
+                from_path: nextPath,
+                to_path: node.path,
+              },
+            });
+            if (activated.length + queue.length >= maxNotes) break;
+          }
+          if (activated.length + queue.length >= maxNotes) break;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                query,
+                seed: {
+                  path: seed.path,
+                  heading: seed.heading,
+                  heading_path: seed.headingPath,
+                  distance: seed.distance,
+                  snippet: seed.content.slice(0, 300),
+                },
+                params: {
+                  max_hops: maxHops,
+                  max_notes: maxNotes,
+                  max_chars_per_note: maxCharsPerNote,
+                },
+                activated,
               },
               null,
               2,

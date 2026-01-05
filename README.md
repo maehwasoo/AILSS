@@ -67,6 +67,7 @@ pnpm -C packages/mcp start
 Implemented MCP tools include:
 
 - `semantic_search`
+- `activate_context`
 - `get_note`
 - `get_note_meta`
 - `search_notes` (filter by frontmatter-derived fields/tags/keywords)

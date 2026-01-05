@@ -26,10 +26,16 @@ Example tools:
 Read-first tools (implemented in this repo):
 
 - `semantic_search`: query → return related notes/chunks
+- `activate_context`: query → seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns note previews + evidence)
 - `get_note`: by path → return note content/metadata
 - `get_note_meta`: return normalized frontmatter + typed links from the index DB
 - `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
 - `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`)
+
+Server guidance:
+
+- The MCP server exposes initialize-time instructions branded as **Prometheus Agent** (clients may use this to steer tool usage).
+- The server also provides a prompt template `prometheus-agent` that instructs: “call `activate_context` first, then answer.”
 
 Frontmatter query support (current):
 

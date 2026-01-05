@@ -56,7 +56,7 @@ Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be us
 
 Notes:
 
-- The inspector will launch the STDIO server command you provide and let you call tools like `semantic_search`.
+- The inspector will launch the STDIO server command you provide and let you call tools like `activate_context` and `semantic_search`.
 - For write tools (e.g. `capture_note`), prefer `dry_run` first and only confirm/apply when you are sure the output path is correct.
 
 Example:
