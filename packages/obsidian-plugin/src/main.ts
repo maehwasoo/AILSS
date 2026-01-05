@@ -1,99 +1,111 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { FileSystemAdapter, Plugin } from "obsidian";
+import fs from "node:fs";
+import path from "node:path";
 
-// Remember to rename these classes and interfaces!
+import { registerCommands } from "./commands/registerCommands.js";
+import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
+import { AilssMcpClient } from "./mcp/ailssMcpClient.js";
+import {
+	AilssObsidianSettingTab,
+	DEFAULT_SETTINGS,
+	type AilssObsidianSettings,
+} from "./settings.js";
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class AilssObsidianPlugin extends Plugin {
+	settings!: AilssObsidianSettings;
 
-	async onload() {
+	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
+		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
+		registerCommands(this);
 	}
 
-	onunload() {
+	async loadSettings(): Promise<void> {
+		const raw = (await this.loadData()) as Partial<AilssObsidianSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw ?? {});
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
-	}
-
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+	}
+
+	async semanticSearch(query: string): Promise<AilssSemanticSearchHit[]> {
+		const vaultPath = this.getVaultPath();
+		const openaiApiKey = this.settings.openaiApiKey.trim();
+		if (!openaiApiKey) {
+			throw new Error(
+				"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
+			);
+		}
+
+		const mcpCommand = this.settings.mcpCommand.trim();
+		const mcpArgs = this.resolveMcpArgs();
+		if (!mcpCommand || mcpArgs.length === 0) {
+			throw new Error(
+				"Missing MCP server command/args. Set it in settings (e.g. command=node, args=/abs/path/to/packages/mcp/dist/stdio.js).",
+			);
+		}
+
+		// Env overrides for the spawned MCP server process
+		const env: Record<string, string> = {
+			OPENAI_API_KEY: openaiApiKey,
+			OPENAI_EMBEDDING_MODEL:
+				this.settings.openaiEmbeddingModel.trim() || DEFAULT_SETTINGS.openaiEmbeddingModel,
+			AILSS_VAULT_PATH: vaultPath,
+		};
+
+		const cwd = this.getPluginDirRealpathOrNull();
+		const client = new AilssMcpClient({
+			command: mcpCommand,
+			args: mcpArgs,
+			env,
+			...(cwd ? { cwd } : {}),
+		});
+
+		try {
+			return await client.semanticSearch(query, clampTopK(this.settings.topK));
+		} finally {
+			await client.close();
+		}
+	}
+
+	private resolveMcpArgs(): string[] {
+		if (this.settings.mcpArgs.length > 0) return this.settings.mcpArgs;
+
+		const pluginDir = this.getPluginDirRealpathOrNull();
+		if (!pluginDir) return [];
+
+		const candidate = path.resolve(pluginDir, "../mcp/dist/stdio.js");
+		if (!fs.existsSync(candidate)) return [];
+
+		return [candidate];
+	}
+
+	private getVaultPath(): string {
+		const adapter = this.app.vault.adapter;
+		if (!(adapter instanceof FileSystemAdapter)) {
+			throw new Error("Vault adapter is not FileSystemAdapter. This plugin is desktop-only.");
+		}
+
+		return adapter.getBasePath();
+	}
+
+	private getPluginDirRealpathOrNull(): string | null {
+		try {
+			const vaultPath = this.getVaultPath();
+			const configDir = this.app.vault.configDir;
+			const pluginDir = path.join(vaultPath, configDir, "plugins", this.manifest.id);
+			return fs.realpathSync(pluginDir);
+		} catch {
+			return null;
+		}
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
+function clampTopK(input: number): number {
+	const n = Math.floor(Number.isFinite(input) ? input : DEFAULT_SETTINGS.topK);
+	if (n < 1) return 1;
+	if (n > 50) return 50;
+	return n;
 }

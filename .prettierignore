@@ -5,3 +5,4 @@
 .node-gyp/**
 .ailss/**
 pnpm-lock.yaml
+packages/obsidian-plugin/main.js

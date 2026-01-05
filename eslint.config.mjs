@@ -20,6 +20,7 @@ export default [
       "**/*.d.ts",
       "**/*.d.ts.map",
       "**/*.js.map",
+      "packages/obsidian-plugin/main.js",
     ],
   },
 

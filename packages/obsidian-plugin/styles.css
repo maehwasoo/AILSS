@@ -6,3 +6,36 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.ailss-obsidian .ailss-status {
+	margin: 8px 0 12px;
+	color: var(--text-muted);
+}
+
+.ailss-obsidian .ailss-results {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.ailss-obsidian .ailss-result {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 10px 12px;
+	cursor: pointer;
+}
+
+.ailss-obsidian .ailss-result:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ailss-obsidian .ailss-result-title {
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.ailss-obsidian .ailss-result-snippet {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	white-space: pre-wrap;
+}

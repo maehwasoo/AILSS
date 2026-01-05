@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "ailss-obsidian",
+	"version": "0.1.0",
+	"description": "AILSS semantic search + recommendations for Obsidian",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
@@ -24,6 +24,7 @@
 		"jiti": "2.6.1"
 	},
 	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.24.3",
 		"obsidian": "latest"
 	}
 }
