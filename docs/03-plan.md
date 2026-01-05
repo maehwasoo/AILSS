@@ -47,6 +47,16 @@ Goal:
 
 - When Obsidian is running and the plugin is enabled, keep the local index DB reasonably up to date without requiring a separate manual “run indexer” step.
 
+UX target (Smart Connections-style):
+
+- Install + enable → indexing starts automatically in the background (after OpenAI API key is configured).
+- No separate CLI step for day-to-day usage (manual “Reindex now” remains as a fallback).
+- A visible status surface (status bar / modal) replaces spammy notifications:
+  - “initial indexing complete”
+  - “indexing in progress”
+  - “exclusions blocked indexing for some paths”
+- Pause/resume: allow freezing UI updates while keeping results visible (separate from indexing).
+
 Recommended approach (desktop-first):
 
 - The plugin spawns and manages local Node processes:
@@ -63,6 +73,11 @@ Recommended approach (desktop-first):
 Notes:
 
 - Avoid bundling native SQLite modules into the Obsidian plugin bundle; keep them in the spawned processes.
+- Watcher/index triggers must ignore vault-internal technical folders (e.g. `.obsidian`, `.trash`, `.ailss`) to avoid index loops and noisy reindexing.
+- Persist generated artifacts under a dedicated vault folder (e.g. `<vault>/.ailss/`) and document recommended sync-ignore patterns (similar to how other plugins ignore their generated index folders).
+- Exclusions must be user-configurable (folders/files/keywords), and blocked paths should surface as an “event” instead of silently failing.
+- Embeddings are **OpenAI API-based only** for now (requires `OPENAI_API_KEY` and has usage costs).
+  - Add throttling + batching to prevent runaway indexing bills on large vaults.
 
 ## 6) Next: vault-rule tools (frontmatter + typed links)
 
@@ -82,6 +97,15 @@ Planned MCP tools (explicit write):
 
 - `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
   - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
+
+Safety contract (for all MCP tools that touch the vault):
+
+- Always treat `AILSS_VAULT_PATH` as the root; deny absolute paths and prevent path traversal.
+- Restrict reads/writes to markdown notes (`.md`) and ignore vault-internal/system folders (e.g. `.obsidian`, `.git`, `.trash`, `.backups`, `.ailss`, `node_modules`).
+- For any write tool:
+  - Require an explicit confirmation signal (e.g. `confirm_paths` that must match the final resolved paths).
+  - Support `dry_run` to preview the exact path + content without writing.
+  - Default: create-only (no overwrite); destructive actions require separate explicit flags.
 
 ## 7) Integration / operations
 

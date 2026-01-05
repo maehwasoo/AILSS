@@ -42,6 +42,22 @@ Required:
 - `OPENAI_API_KEY` (for query embeddings)
 - `AILSS_VAULT_PATH` (to resolve the default DB path, and to read files for `get_note`)
 
+### Test tools with MCP Inspector (optional)
+
+Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be useful to call tools directly via the MCP Inspector UI.
+
+Notes:
+
+- The inspector will launch the STDIO server command you provide and let you call tools like `semantic_search`.
+- For write tools (e.g. `capture_note`), prefer `dry_run` first and only confirm/apply when you are sure the output path is correct.
+
+Example:
+
+```bash
+# From the repo root (reads .env if present)
+npx @modelcontextprotocol/inspector node packages/mcp/dist/stdio.js
+```
+
 ## 5) Obsidian plugin (ailss-obsidian)
 
 The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only.
