@@ -23,11 +23,16 @@ Responsibilities:
 
 Example tools:
 
-Read-first tools:
+Read-first tools (implemented in this repo):
 
 - `semantic_search`: query → return related notes/chunks
 - `get_note`: by path → return note content/metadata
-- `get_note_meta`: parse frontmatter and return derived metadata
+- `get_note_meta`: return normalized frontmatter + typed links from the index DB
+- `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
+- `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`)
+
+Read-first tools (planned):
+
 - `validate_frontmatter`: check frontmatter against the vault schema/rules
 - `search_vault`: keyword/regex search over vault files
 - `suggest_typed_links`: suggest typed-link candidates

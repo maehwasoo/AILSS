@@ -15,6 +15,7 @@ Responsibilities:
 
 - Vault file system access utilities
 - Markdown parsing/chunking
+- Frontmatter normalization + typed-link extraction
 - SQLite DB schema/queries (including vector search)
 - Environment variable loading
 
@@ -29,6 +30,7 @@ Responsibilities:
 - Scan the vault and incrementally index only changed files
 - Generate embeddings via the OpenAI embeddings API
 - Store files/chunks/embeddings into the DB
+- Store normalized frontmatter + typed links for structured querying
 
 Entry point:
 
@@ -39,6 +41,7 @@ Entry point:
 Responsibilities:
 
 - Provide search/query tools backed by the local DB
+- Provide frontmatter-derived metadata filters and typed-link graph queries
 - Default transport starts with STDIO (for Codex CLI integration)
 
 Entry point:

@@ -15,7 +15,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 - Indexer MVP exists (`packages/indexer`)
 - MCP server MVP exists (`packages/mcp`)
-  - Read tools: `semantic_search`, `get_note`
+  - Read tools: `semantic_search`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: semantic search modal that opens a selected note
 
@@ -29,11 +29,13 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 - Markdown parsing + heading-based chunking
 - Incremental updates based on file hash
-- SQLite storage (vector index to be added later)
+- SQLite storage (including vector index via `sqlite-vec`)
+- Store normalized frontmatter + typed links for structured queries
 
 ## 3) MCP server MVP
 
 - Provide `semantic_search` (topK) + `get_note`
+- Provide metadata + relation queries over indexed frontmatter (`get_note_meta`, `search_notes`, `find_notes_by_typed_link`)
 - Include explanations in results (chunk path/heading/snippet)
 
 ## 4) Obsidian plugin MVP (UI)
@@ -86,11 +88,18 @@ Reference docs (source of truth):
 - Vault rules snapshot: `docs/vault-ref/vault-root/README.md`
 - Vault working rules: `docs/vault-ref/vault-root/AGENTS.md`
 
-Planned MCP tools (read-only):
+MCP tools (read-only):
 
-- `get_note_meta`: parse frontmatter and return derived metadata (title, tags, typed links, etc.)
+Implemented:
+
+- `get_note_meta`: return normalized frontmatter + typed links from the index DB
+- `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
+- `find_notes_by_typed_link`: find notes that point to a typed-link target (typed-link “backrefs”)
+
+Planned:
+
 - `validate_frontmatter`: validate frontmatter against the vault schema/rules
-- `search_vault`: keyword/regex search (useful when embeddings are not enough)
+- `search_vault`: keyword/regex search over vault files (useful when embeddings are not enough)
 - `suggest_typed_links`: suggest typed-link candidates with evidence
 
 Planned MCP tools (explicit write):

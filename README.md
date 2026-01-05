@@ -3,7 +3,7 @@
 This repository is a code workspace for building three components for the Obsidian vault **AILSS**:
 
 1. Indexer: Markdown → chunking → embeddings → local DB storage
-2. MCP server: read-first search/recommendation tools
+2. MCP server: read-first search/recommendation + metadata/typed-link query tools
 3. Obsidian plugin: show recommendations in UI + apply via explicit user action
 
 > The actual Obsidian vault data may live outside this repo. This repo is primarily for code and design/ops documentation.
@@ -47,11 +47,24 @@ pnpm build
 pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
 ```
 
+This populates the local DB with:
+
+- chunk embeddings (semantic search)
+- normalized frontmatter fields + typed links (frontmatter relations like `part_of`, `depends_on`, etc.)
+
 4. Run MCP server (STDIO)
 
 ```bash
 pnpm -C packages/mcp start
 ```
+
+Implemented MCP tools include:
+
+- `semantic_search`
+- `get_note`
+- `get_note_meta`
+- `search_notes` (filter by frontmatter-derived fields/tags/keywords)
+- `find_notes_by_typed_link` (typed-link “backrefs” by relation + target)
 
 ## Obsidian plugin (ailss-obsidian)
 
