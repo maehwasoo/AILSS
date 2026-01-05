@@ -70,6 +70,10 @@ This repo recommends Conventional Commits.
 
 - Format: `<type>(<scope>): <subject>`
 - Details: `docs/standards/commits.md`
+- **Agent rule (must follow)**: before drafting a commit message, check `commitlint.config.cjs` (source of truth) and use only allowed scopes.
+  - Allowed scopes: `monorepo`, `core`, `indexer`, `mcp`, `plugin`, `docs`, `ops`
+  - Example mapping: changes under `packages/obsidian-plugin/*` → scope `plugin` (not `obsidian-plugin`)
+  - If a change spans multiple areas and you’re making a single commit, default scope to `monorepo` unless the user asks to split commits
 
 ---
 
