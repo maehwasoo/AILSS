@@ -62,6 +62,15 @@ Stores frontmatter “typed links” as graph edges.
 - `to_wikilink`: canonical wikilink string like `[[WorldAce]]`
 - `position`: ordering within the relation list
 
+## Query support (current)
+
+- `search_notes` supports only a fixed set of filters backed by indexed columns/tables:
+  - `notes.entity`, `notes.layer`, `notes.status`
+  - `note_tags.tag`, `note_keywords.keyword`
+  - basic path/title filters
+- `find_notes_by_typed_link` supports typed-link “backrefs” by `rel` + `to_target`.
+- `get_note_meta` returns the full normalized frontmatter JSON, but arbitrary filtering over `frontmatter_json` is not implemented yet.
+
 ## Indexing flow
 
 1. Scan for `.md` files in the vault (default ignores: `.obsidian`, `.git`, `.trash`, `.ailss`, etc.)

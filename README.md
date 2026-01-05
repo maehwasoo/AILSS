@@ -66,6 +66,12 @@ Implemented MCP tools include:
 - `search_notes` (filter by frontmatter-derived fields/tags/keywords)
 - `find_notes_by_typed_link` (typed-link “backrefs” by relation + target)
 
+Frontmatter query support (current):
+
+- Queryable via `search_notes`: `entity`, `layer`, `status`, `tags`, `keywords`, `path_prefix`, `title_query`
+- Queryable via `find_notes_by_typed_link`: typed-link keys (e.g. `part_of`, `depends_on`, `instance_of`, etc.)
+- Stored/returned via `get_note_meta` but not directly filterable yet: other frontmatter fields (e.g. `id`, `created`, `updated`, `aliases`, `source`)
+
 ## Obsidian plugin (ailss-obsidian)
 
 The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only (it spawns a local MCP stdio server).

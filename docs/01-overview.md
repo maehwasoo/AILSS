@@ -31,6 +31,12 @@ Read-first tools (implemented in this repo):
 - `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
 - `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`)
 
+Frontmatter query support (current):
+
+- Queryable via `search_notes`: `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters
+- Queryable via `find_notes_by_typed_link`: typed-link backrefs by `rel` + `target` (targets are normalized from `[[wikilinks]]`)
+- Not yet queryable (stored and returned via `get_note_meta` only): arbitrary frontmatter keys like `id`, `created`, `updated`, `aliases`, `source`
+
 Read-first tools (planned):
 
 - `validate_frontmatter`: check frontmatter against the vault schema/rules

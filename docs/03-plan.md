@@ -96,11 +96,22 @@ Implemented:
 - `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
 - `find_notes_by_typed_link`: find notes that point to a typed-link target (typed-link “backrefs”)
 
+Notes on queryability (current):
+
+- `search_notes` supports only a fixed set of frontmatter-derived filters: `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters.
+- Typed links are queryable via `find_notes_by_typed_link` by `rel` + `target` (target normalized from `[[wikilinks]]`).
+- Other frontmatter keys are stored (normalized JSON) and visible via `get_note_meta`, but are not directly filterable yet.
+
 Planned:
 
 - `validate_frontmatter`: validate frontmatter against the vault schema/rules
 - `search_vault`: keyword/regex search over vault files (useful when embeddings are not enough)
 - `suggest_typed_links`: suggest typed-link candidates with evidence
+
+TODO (to expand structured queries):
+
+- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`, `source`).
+- Add date/range filters for `created` / `updated` (requires consistent formatting across the vault).
 
 Planned MCP tools (explicit write):
 
