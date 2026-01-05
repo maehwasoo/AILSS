@@ -30,4 +30,5 @@ This folder (`…/AILSS`) is **not** the Obsidian vault itself. It is a workspac
 ## Scope principles
 
 - Default: separate “recommendation” (read-focused) from “apply” (explicit write).
+- Default capture destination: write new “job done / capture” notes into `<vault>/100. Inbox/` (triage later per vault rules).
 - Safety: outbound data scope (privacy) and API key handling are treated explicitly in the design.

@@ -1,12 +1,23 @@
 # Implementation plan
 
 This document lists an implementation sequence that starts small and then expands.
+It also records a few **hard decisions** so code and docs stay consistent.
 
 ## 0) Confirm assumptions / decisions
 
-- Support scope: decide whether this is desktop-first only, or includes mobile.
-- Write scope: decide whether this is “recommendation only” or includes “file edits” (default recommendation-only is preferred).
-- Vault path: decide whether the vault lives inside the repo or is configured as an external path.
+- Support scope: **desktop-first** (Codex CLI + Obsidian desktop). Mobile support is out of scope for now.
+- Write scope: **recommendation-first**, with **explicit write tools** only when the user triggers an apply action.
+  - Default write destination for “job done / capture” notes: `<vault>/100. Inbox/`
+  - No auto-classification into other folders yet (triage later per vault rules).
+- Vault path: the vault is **external** and provided via configuration (e.g., `AILSS_VAULT_PATH`).
+
+## Current status
+
+- Indexer MVP exists (`packages/indexer`)
+- MCP server MVP exists (`packages/mcp`)
+  - Read tools: `semantic_search`, `get_note`
+- Obsidian plugin MVP exists (`packages/obsidian-plugin`)
+  - UI: semantic search modal that opens a selected note
 
 ## 1) Design the index schema
 
@@ -25,12 +36,31 @@ This document lists an implementation sequence that starts small and then expand
 - Provide `semantic_search` (topK) + `get_note`
 - Include explanations in results (chunk path/heading/snippet)
 
-## 4) Obsidian plugin MVP
+## 4) Obsidian plugin MVP (UI)
 
 - Recommendation list UI
 - Keep “Apply” disabled at first, or limit it to calling existing scripts
 
-## 5) Integration / operations
+## 5) Next: vault-rule tools (frontmatter + typed links)
+
+Reference docs (source of truth):
+
+- Vault rules snapshot: `docs/vault-ref/vault-root/README.md`
+- Vault working rules: `docs/vault-ref/vault-root/AGENTS.md`
+
+Planned MCP tools (read-only):
+
+- `get_note_meta`: parse frontmatter and return derived metadata (title, tags, typed links, etc.)
+- `validate_frontmatter`: validate frontmatter against the vault schema/rules
+- `search_vault`: keyword/regex search (useful when embeddings are not enough)
+- `suggest_typed_links`: suggest typed-link candidates with evidence
+
+Planned MCP tools (explicit write):
+
+- `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
+  - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
+
+## 6) Integration / operations
 
 - Local config (API key, vault path)
 - Privacy documentation + opt-in options

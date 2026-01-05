@@ -23,10 +23,19 @@ Responsibilities:
 
 Example tools:
 
+Read-first tools:
+
 - `semantic_search`: query → return related notes/chunks
 - `get_note`: by path → return note content/metadata
+- `get_note_meta`: parse frontmatter and return derived metadata
+- `validate_frontmatter`: check frontmatter against the vault schema/rules
+- `search_vault`: keyword/regex search over vault files
 - `suggest_typed_links`: suggest typed-link candidates
 - `find_broken_links`: detect broken links
+
+Explicit write tools (apply):
+
+- `capture_note`: write a new note (default: `<vault>/100. Inbox/`) with correct frontmatter
 
 ## 3) Obsidian plugin
 
@@ -40,4 +49,4 @@ Responsibilities:
 
 - Indexing = file read + DB write
 - Recommendation = DB read
-- Apply = file write; requires explicit user action
+- Apply = file write; requires explicit user action (including `capture_note`)
