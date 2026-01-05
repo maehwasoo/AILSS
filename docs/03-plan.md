@@ -134,3 +134,27 @@ Safety contract (for all MCP tools that touch the vault):
 
 - Local config (API key, vault path)
 - Privacy documentation + opt-in options
+
+## 8) Production readiness (personal daily use)
+
+Goal:
+
+- Make the system reliable for daily use on a single machine (Obsidian desktop + Codex CLI).
+
+Plan:
+
+- Plugin-managed **long-lived MCP process** (avoid spawn-per-search latency; restart on crash; stop on unload)
+- Indexer **single-writer lock** (prevent concurrent indexing from plugin/CLI)
+- DB **identity + validation** (schema version + embedding model/dimension; clear “reindex required” errors)
+
+## 9) Production readiness (public distribution)
+
+Goal:
+
+- Make installation and upgrades predictable for other users.
+
+Plan:
+
+- Packaging: publish release artifacts for the Obsidian plugin (and document supported Obsidian versions)
+- DX: make the MCP server runnable like `npx … --vault <path>` (CLI args + published package/wrapper)
+- Upgrades: document schema/model change behavior (when a full reindex is required)
