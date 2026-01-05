@@ -24,8 +24,11 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: detect --redact --verbose
+          # Optional knobs
+          # - docs: https://github.com/gitleaks/gitleaks-action#environment-variables
+          # - config: create `gitleaks.toml` at repo root or set `GITLEAKS_CONFIG` to a config path
+          GITLEAKS_ENABLE_SUMMARY: "true"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   check:
     runs-on: ubuntu-latest

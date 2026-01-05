@@ -8,7 +8,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:repo && pnpm test",
-    "check:ci": "pnpm check && pnpm build",
+    "check:ci": "pnpm build && pnpm check",
     "commitlint": "commitlint",
     "typecheck": "pnpm -r typecheck",
     "typecheck:repo": "tsc -p tsconfig.json --noEmit",
