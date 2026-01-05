@@ -93,7 +93,8 @@ To reduce “works only on my machine” situations, CI pins:
 Workflow:
 
 - GitHub Actions: `.github/workflows/ci.yml`
-- Command: `pnpm check:ci`
+- Commit message lint: `commitlint` (PR commit range / push commit range)
+- Quality gate: `pnpm check:ci`
 
 ---
 
