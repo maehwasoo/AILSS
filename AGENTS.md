@@ -93,6 +93,7 @@ This repo recommends Conventional Commits.
   - Dev/ops changes (install/build/env/runtime) and operational runbooks/logs: `docs/ops/local-dev.md` (or add a new file under `docs/ops/` and link it from `docs/README.md`)
   - New architectural decision or tradeoff: add/update an ADR in `docs/adr/` (use the template in `docs/adr/README.md`)
   - Vault rule changes: refresh `docs/vault-ref/vault-root/{README.md,AGENTS.md}` snapshots (keep them as close to verbatim as possible)
+- Commit message drafting (required): after completing a job, draft a Conventional Commit message that matches `commitlint.config.cjs` (type + allowed scope), and include it in the final response
 - Destructive actions (delete/reset/rollback) require prior notice
 
 ---
