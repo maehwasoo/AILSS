@@ -83,7 +83,16 @@ This repo recommends Conventional Commits.
 - No guessing: if uncertain, verify via files/tools; resolve impactful ambiguity with 1–3 clarifying questions
 - Scope discipline: do exactly what the user asked (no extra features/styling changes)
 - Root-cause fixes: prefer fixing the root cause over workarounds
-- Documentation alignment: after completing a job, update any relevant docs (plans, TODOs, ADRs, context, logs) so they match the current implementation and avoid drift
+- Documentation alignment (required): after completing a job, update the minimal set of docs needed to match the current implementation and avoid drift.
+  - If you add a new doc under `docs/`, link it from `docs/README.md` so it stays discoverable
+  - CLI/MCP surface changes (new/removed tools, tool args, result shapes): `docs/01-overview.md`, and `README.md` if user-facing
+  - DB/indexing/schema changes: `docs/architecture/data-db.md`
+  - Package boundaries/entrypoints/dependency direction: `docs/architecture/packages.md`
+  - Plan/status/TODO changes: `docs/03-plan.md` (use this as the repo “TODO” tracker unless a dedicated TODO doc is introduced)
+  - Scope/principles/context changes: `docs/00-context.md` and/or `docs/02-significance.md`
+  - Dev/ops changes (install/build/env/runtime) and operational runbooks/logs: `docs/ops/local-dev.md` (or add a new file under `docs/ops/` and link it from `docs/README.md`)
+  - New architectural decision or tradeoff: add/update an ADR in `docs/adr/` (use the template in `docs/adr/README.md`)
+  - Vault rule changes: refresh `docs/vault-ref/vault-root/{README.md,AGENTS.md}` snapshots (keep them as close to verbatim as possible)
 - Destructive actions (delete/reset/rollback) require prior notice
 
 ---
