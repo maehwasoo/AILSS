@@ -47,6 +47,12 @@ pnpm build
 pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
 ```
 
+To index only specific vault-relative paths:
+
+```bash
+pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH" --paths "notes/a.md" "notes/b.md"
+```
+
 This populates the local DB with:
 
 - chunk embeddings (semantic search)
@@ -96,3 +102,5 @@ Copy (or symlink during development) these files into:
 - **OpenAI API key** (required)
 - **MCP command/args** (required): how to run the AILSS MCP server (stdio)
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
+- **Indexer command/args** (optional): enables `AILSS: Reindex vault` and auto indexing
+  - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`

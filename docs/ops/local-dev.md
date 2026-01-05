@@ -30,6 +30,7 @@ Options:
 
 - `--max-chars 4000`: max chunk size (characters)
 - `--batch-size 32`: embedding request batch size
+- `--paths notes/a.md notes/b.md`: only index these vault-relative markdown paths
 
 ## 4) Run MCP server (STDIO)
 
@@ -91,6 +92,10 @@ pnpm -C packages/obsidian-plugin dev
 - **OpenAI API key**
 - **MCP command/args** (stdio)
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
+- **Indexer command/args** (optional; enables reindex + auto-index)
+  - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
+- Command palette: `AILSS: Reindex vault`
+- Optional: enable auto indexing (debounced; costs money)
 
 ## 5) Quality checks
 

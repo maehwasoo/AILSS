@@ -53,6 +53,7 @@ Explicit write tools (apply):
 Responsibilities:
 
 - Display recommendations in a UI.
+- Keep the local index DB up to date (manual reindex and optional debounced auto-index).
 - Only perform actual changes when the user clicks an explicit “Apply” action.
 - Applying changes can be implemented either by (A) calling existing scripts or (B) editing via an Obsidian Vault API.
 

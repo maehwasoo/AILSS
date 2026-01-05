@@ -8,7 +8,9 @@ import path from "node:path";
 
 import {
   deleteChunksByPath,
+  deleteFileByPath,
   insertChunkWithEmbedding,
+  listFilePaths,
   openAilssDb,
   semanticSearch,
   upsertFile,
@@ -89,6 +91,40 @@ describe("openAilssDb() + semanticSearch()", () => {
 
       const results = semanticSearch(db, [0.1, 0.2, 0.3], 10);
       expect(results).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("deleteFileByPath() removes file rows and cascades", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "notes/a.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-sha",
+      });
+
+      insertChunkWithEmbedding(db, {
+        chunkId: "chunk-1",
+        path: "notes/a.md",
+        heading: "A",
+        headingPathJson: JSON.stringify(["A"]),
+        content: "hello world",
+        contentSha256: "content-sha",
+        embedding: [0.1, 0.2, 0.3],
+      });
+
+      expect(listFilePaths(db)).toEqual(["notes/a.md"]);
+
+      deleteFileByPath(db, "notes/a.md");
+
+      expect(listFilePaths(db)).toEqual([]);
+      expect(semanticSearch(db, [0.1, 0.2, 0.3], 10)).toEqual([]);
     } finally {
       db.close();
     }

@@ -11,6 +11,10 @@ import { listMarkdownFiles, statMarkdownFile } from "../src/vault/filesystem.js"
 
 let tempDir: string | null = null;
 
+function toPosixPath(input: string): string {
+  return input.split(path.sep).join(path.posix.sep);
+}
+
 async function mkTempDir(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ailss-"));
   tempDir = dir;
@@ -45,7 +49,7 @@ describe("listMarkdownFiles()", () => {
     await writeFile(path.join(vaultPath, "node_modules/ignored.md"), "# ignored");
 
     const absPaths = await listMarkdownFiles(vaultPath);
-    const relPaths = absPaths.map((p) => path.relative(vaultPath, p));
+    const relPaths = absPaths.map((p) => toPosixPath(path.relative(vaultPath, p)));
 
     expect(relPaths).toEqual(["notes/a.md", "notes/nested/c.md"]);
   });

@@ -7,6 +7,7 @@ Current MVP:
 - Command + ribbon icon to open **AILSS semantic search**
 - Modal UI to query the AILSS index
 - Results list that opens the selected note
+- Command to reindex the vault (writes `<Vault>/.ailss/index.sqlite`)
 
 The plugin is **desktop-only** right now because it spawns a local MCP server process (stdio).
 
@@ -36,3 +37,12 @@ pnpm -C packages/obsidian-plugin build
     - Example for monorepo dev:
         - command: `node`
         - args: `/absolute/path/to/Ailss-project/packages/mcp/dist/stdio.js`
+- **Indexer command/args**: enables `AILSS: Reindex vault` and auto indexing
+    - Example for monorepo dev:
+        - command: `node`
+        - args: `/absolute/path/to/Ailss-project/packages/indexer/dist/cli.js`
+
+## Commands
+
+- `AILSS: Semantic search`: opens the search modal
+- `AILSS: Reindex vault`: runs the indexer to update `<Vault>/.ailss/index.sqlite`

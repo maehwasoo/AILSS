@@ -10,6 +10,12 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 		},
 	});
 
+	plugin.addCommand({
+		id: "reindex-vault",
+		name: "AILSS: Reindex vault",
+		callback: () => void plugin.reindexVault(),
+	});
+
 	plugin.addRibbonIcon("search", "AILSS semantic search", () => {
 		new AilssSemanticSearchModal(plugin.app, plugin).open();
 	});

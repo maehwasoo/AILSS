@@ -8,6 +8,10 @@ export interface AilssObsidianSettings {
 	topK: number;
 	mcpCommand: string;
 	mcpArgs: string[];
+	indexerCommand: string;
+	indexerArgs: string[];
+	autoIndexEnabled: boolean;
+	autoIndexDebounceMs: number;
 }
 
 export const DEFAULT_SETTINGS: AilssObsidianSettings = {
@@ -16,6 +20,10 @@ export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	topK: 10,
 	mcpCommand: "node",
 	mcpArgs: [],
+	indexerCommand: "node",
+	indexerArgs: [],
+	autoIndexEnabled: false,
+	autoIndexDebounceMs: 5000,
 };
 
 export class AilssObsidianSettingTab extends PluginSettingTab {
@@ -99,6 +107,65 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 						.split("\n")
 						.map((line) => line.trim())
 						.filter(Boolean);
+					await this.plugin.saveSettings();
+				});
+			});
+
+		containerEl.createEl("h3", { text: "Indexer (local)" });
+
+		new Setting(containerEl)
+			.setName("Command")
+			.setDesc("How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite).")
+			.addText((text) => {
+				text.setPlaceholder("node");
+				text.setValue(this.plugin.settings.indexerCommand);
+				text.onChange(async (value) => {
+					this.plugin.settings.indexerCommand =
+						value.trim() || DEFAULT_SETTINGS.indexerCommand;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Arguments (one per line)")
+			.setDesc(
+				'Example: "/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js" (for command "node").',
+			)
+			.addTextArea((text) => {
+				text.setValue(this.plugin.settings.indexerArgs.join("\n"));
+				text.onChange(async (value) => {
+					this.plugin.settings.indexerArgs = value
+						.split("\n")
+						.map((line) => line.trim())
+						.filter(Boolean);
+					await this.plugin.saveSettings();
+				});
+			});
+
+		containerEl.createEl("h3", { text: "Auto indexing (optional)" });
+
+		new Setting(containerEl)
+			.setName("Enable auto indexing")
+			.setDesc("Runs the indexer in the background when markdown notes change (costs money).")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.autoIndexEnabled);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.autoIndexEnabled = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Debounce (ms)")
+			.setDesc("Wait time before indexing after changes (recommended: 2000–10000).")
+			.addText((text) => {
+				text.setPlaceholder("5000");
+				text.setValue(String(this.plugin.settings.autoIndexDebounceMs));
+				text.onChange(async (value) => {
+					const parsed = Number(value);
+					this.plugin.settings.autoIndexDebounceMs = Number.isFinite(parsed)
+						? parsed
+						: DEFAULT_SETTINGS.autoIndexDebounceMs;
 					await this.plugin.saveSettings();
 				});
 			});

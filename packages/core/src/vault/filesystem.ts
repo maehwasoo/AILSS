@@ -51,7 +51,9 @@ export async function statMarkdownFile(
   absPath: string,
 ): Promise<VaultMarkdownFile> {
   const stat = await fs.stat(absPath);
-  const relPath = path.relative(vaultPath, absPath);
+  // Path separator normalization (Obsidian-style)
+  // - always use "/" even on Windows
+  const relPath = path.relative(vaultPath, absPath).split(path.sep).join(path.posix.sep);
   const contents = await fs.readFile(absPath);
   const sha256 = createHash("sha256").update(contents).digest("hex");
 

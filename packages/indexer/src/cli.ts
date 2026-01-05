@@ -7,9 +7,11 @@ import OpenAI from "openai";
 
 import {
   chunkMarkdownByHeadings,
+  deleteFileByPath,
   getFileSha256,
   normalizeAilssNoteMeta,
   insertChunkWithEmbedding,
+  listFilePaths,
   listMarkdownFiles,
   loadEnv,
   openAilssDb,
@@ -26,17 +28,24 @@ import {
 } from "@ailss/core";
 
 import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 type IndexCommandOptions = {
   vault?: string;
   db?: string;
   model?: string;
+  paths?: string[];
   maxChars: number;
   batchSize: number;
 };
 
 function sha256Text(input: string): string {
   return createHash("sha256").update(input).digest("hex");
+}
+
+function relPathFromAbs(vaultPath: string, absPath: string): string {
+  return path.relative(vaultPath, absPath).split(path.sep).join(path.posix.sep);
 }
 
 function embeddingDimForModel(model: string): number {
@@ -60,6 +69,23 @@ async function embedTexts(client: OpenAI, model: string, inputs: string[]): Prom
   return resp.data.map((d) => d.embedding as number[]);
 }
 
+const DEFAULT_IGNORE_DIRS = new Set([
+  ".git",
+  ".obsidian",
+  ".trash",
+  ".backups",
+  ".ailss",
+  "node_modules",
+]);
+
+function isDefaultIgnoredRelPath(relPath: string): boolean {
+  const segments = relPath.split(path.posix.sep);
+  for (const dir of segments.slice(0, -1)) {
+    if (DEFAULT_IGNORE_DIRS.has(dir)) return true;
+  }
+  return false;
+}
+
 async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
   const env = loadEnv();
 
@@ -79,7 +105,51 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
   const db = openAilssDb({ dbPath, embeddingDim });
   const client = await createOpenAiClient(openaiApiKey);
 
-  const absPaths = await listMarkdownFiles(vaultPath);
+  const requestedPaths = (options.paths ?? []).map((p) => p.trim()).filter(Boolean);
+  const absPaths: string[] = [];
+  let deletedFiles = 0;
+
+  if (requestedPaths.length > 0) {
+    const vaultRoot = path.resolve(vaultPath);
+    const seenAbsPaths = new Set<string>();
+
+    for (const inputPath of requestedPaths) {
+      const candidateAbs = path.isAbsolute(inputPath)
+        ? path.resolve(inputPath)
+        : path.resolve(vaultPath, inputPath);
+
+      if (!candidateAbs.startsWith(vaultRoot + path.sep)) {
+        throw new Error(`Refusing to index a path outside the vault: ${inputPath}`);
+      }
+
+      if (!candidateAbs.toLowerCase().endsWith(".md")) {
+        continue;
+      }
+
+      const relPath = relPathFromAbs(vaultPath, candidateAbs);
+      if (isDefaultIgnoredRelPath(relPath)) {
+        continue;
+      }
+
+      try {
+        await fs.stat(candidateAbs);
+        if (seenAbsPaths.has(candidateAbs)) continue;
+        seenAbsPaths.add(candidateAbs);
+        absPaths.push(candidateAbs);
+      } catch {
+        deleteFileByPath(db, relPath);
+        deletedFiles += 1;
+      }
+    }
+  } else {
+    absPaths.push(...(await listMarkdownFiles(vaultPath)));
+  }
+
+  const existingRelPaths =
+    requestedPaths.length > 0
+      ? null
+      : new Set(absPaths.map((absPath) => relPathFromAbs(vaultPath, absPath)));
+
   console.log(`[ailss-indexer] vault=${vaultPath}`);
   console.log(`[ailss-indexer] db=${dbPath}`);
   console.log(`[ailss-indexer] files=${absPaths.length}`);
@@ -176,7 +246,17 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
     console.log(`[done] chunks=${chunks.length}`);
   }
 
-  console.log(`\n[summary] changedFiles=${changedFiles}, indexedChunks=${indexedChunks}`);
+  if (existingRelPaths) {
+    for (const indexedPath of listFilePaths(db)) {
+      if (existingRelPaths.has(indexedPath)) continue;
+      deleteFileByPath(db, indexedPath);
+      deletedFiles += 1;
+    }
+  }
+
+  console.log(
+    `\n[summary] changedFiles=${changedFiles}, indexedChunks=${indexedChunks}, deletedFiles=${deletedFiles}`,
+  );
 }
 
 const program = new Command();
@@ -187,6 +267,7 @@ program
   .option("--vault <path>", "Absolute path to the Obsidian vault")
   .option("--db <path>", "DB file path (default: <vault>/.ailss/index.sqlite)")
   .option("--model <name>", "OpenAI embeddings model")
+  .option("--paths <paths...>", "Only index these vault-relative markdown paths")
   .option("--max-chars <n>", "Max chunk size (characters)", (v) => Number(v), 4000)
   .option("--batch-size <n>", "Embedding request batch size", (v) => Number(v), 32);
 
@@ -195,6 +276,7 @@ program.action(async (opts) => {
     vault: opts.vault,
     db: opts.db,
     model: opts.model,
+    paths: opts.paths,
     maxChars: opts.maxChars,
     batchSize: opts.batchSize,
   };

@@ -196,6 +196,13 @@ export function getFileSha256(db: AilssDb, filePath: string): string | null {
   return row?.sha256 ?? null;
 }
 
+export function listFilePaths(db: AilssDb): string[] {
+  const rows = db.prepare(`SELECT path FROM files ORDER BY path ASC`).all() as Array<{
+    path: string;
+  }>;
+  return rows.map((r) => r.path);
+}
+
 export function deleteChunksByPath(db: AilssDb, filePath: string): void {
   // ON DELETE CASCADE cleans chunk_rowids; vec0 requires manual deletion
   const rowids = db
@@ -210,6 +217,12 @@ export function deleteChunksByPath(db: AilssDb, filePath: string): void {
   }
 
   db.prepare(`DELETE FROM chunks WHERE path = ?`).run(filePath);
+}
+
+export function deleteFileByPath(db: AilssDb, filePath: string): void {
+  // Vec0 manual cleanup before foreign-key cascades
+  deleteChunksByPath(db, filePath);
+  db.prepare(`DELETE FROM files WHERE path = ?`).run(filePath);
 }
 
 export type UpsertNoteInput = {
