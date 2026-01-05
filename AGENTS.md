@@ -83,6 +83,7 @@ This repo recommends Conventional Commits.
 - No guessing: if uncertain, verify via files/tools; resolve impactful ambiguity with 1–3 clarifying questions
 - Scope discipline: do exactly what the user asked (no extra features/styling changes)
 - Root-cause fixes: prefer fixing the root cause over workarounds
+- Documentation alignment: after completing a job, update any relevant docs (plans, TODOs, ADRs, context, logs) so they match the current implementation and avoid drift
 - Destructive actions (delete/reset/rollback) require prior notice
 
 ---
