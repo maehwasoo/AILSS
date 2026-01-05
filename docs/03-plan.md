@@ -41,7 +41,30 @@ It also records a few **hard decisions** so code and docs stay consistent.
 - Recommendation list UI
 - Keep “Apply” disabled at first, or limit it to calling existing scripts
 
-## 5) Next: vault-rule tools (frontmatter + typed links)
+## 5) Obsidian-managed indexing (background)
+
+Goal:
+
+- When Obsidian is running and the plugin is enabled, keep the local index DB reasonably up to date without requiring a separate manual “run indexer” step.
+
+Recommended approach (desktop-first):
+
+- The plugin spawns and manages local Node processes:
+  - Indexer process (updates the local DB incrementally)
+  - MCP server process (serves queries over stdio)
+- Trigger indexing on:
+  - Obsidian startup (optional)
+  - Vault file changes (debounced/batched)
+- Provide basic UX:
+  - Toggle: auto-index on/off
+  - Status: “indexing / last indexed / error”
+  - Manual command: “Reindex now”
+
+Notes:
+
+- Avoid bundling native SQLite modules into the Obsidian plugin bundle; keep them in the spawned processes.
+
+## 6) Next: vault-rule tools (frontmatter + typed links)
 
 Reference docs (source of truth):
 
@@ -60,7 +83,7 @@ Planned MCP tools (explicit write):
 - `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
   - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
 
-## 6) Integration / operations
+## 7) Integration / operations
 
 - Local config (API key, vault path)
 - Privacy documentation + opt-in options
