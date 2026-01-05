@@ -52,3 +52,28 @@ pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
 ```bash
 pnpm -C packages/mcp start
 ```
+
+## Obsidian plugin (ailss-obsidian)
+
+The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only (it spawns a local MCP stdio server).
+
+1. Build the plugin bundle
+
+```bash
+pnpm -C packages/obsidian-plugin build
+```
+
+2. Install into a vault for testing
+
+Copy (or symlink during development) these files into:
+
+- `<Vault>/.obsidian/plugins/ailss-obsidian/`
+  - `main.js`
+  - `manifest.json`
+  - `styles.css`
+
+3. Configure settings inside Obsidian
+
+- **OpenAI API key** (required)
+- **MCP command/args** (required): how to run the AILSS MCP server (stdio)
+  - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`

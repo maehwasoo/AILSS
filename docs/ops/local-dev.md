@@ -42,6 +42,40 @@ Required:
 - `OPENAI_API_KEY` (for query embeddings)
 - `AILSS_VAULT_PATH` (to resolve the default DB path, and to read files for `get_note`)
 
+## 5) Obsidian plugin (ailss-obsidian)
+
+The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only.
+
+### Build
+
+```bash
+pnpm -C packages/obsidian-plugin build
+```
+
+### Install (manual)
+
+Copy these files into:
+
+- `<Vault>/.obsidian/plugins/ailss-obsidian/`
+  - `main.js`
+  - `manifest.json`
+  - `styles.css`
+
+### Install (dev-friendly symlink)
+
+Instead of copying on every change, you can symlink the plugin folder into a test vault:
+
+```bash
+ln -s /absolute/path/to/AILSS-project/packages/obsidian-plugin "<Vault>/.obsidian/plugins/ailss-obsidian"
+pnpm -C packages/obsidian-plugin dev
+```
+
+### Configure (inside Obsidian)
+
+- **OpenAI API key**
+- **MCP command/args** (stdio)
+  - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
+
 ## 5) Quality checks
 
 During development, these commands are used frequently:
