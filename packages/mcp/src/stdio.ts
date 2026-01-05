@@ -5,7 +5,16 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-import { loadEnv, openAilssDb, resolveDefaultDbPath, semanticSearch } from "@ailss/core";
+import {
+  findNotesByTypedLink,
+  getNoteMeta,
+  loadEnv,
+  normalizeTypedLinkTargetInput,
+  openAilssDb,
+  resolveDefaultDbPath,
+  searchNotes,
+  semanticSearch,
+} from "@ailss/core";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -119,6 +128,119 @@ async function main(): Promise<void> {
           {
             type: "text",
             text: sliced,
+          },
+        ],
+      };
+    },
+  );
+
+  // get_note_meta tool
+  server.tool(
+    "get_note_meta",
+    {
+      path: z.string().min(1),
+    },
+    async (args) => {
+      const notePath = args.path;
+      const meta = getNoteMeta(db, notePath);
+      if (!meta) {
+        throw new Error(
+          `Note metadata not found for path="${notePath}". Re-run the indexer to populate frontmatter/typed links.`,
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(meta, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // search_notes tool
+  server.tool(
+    "search_notes",
+    {
+      path_prefix: z.string().min(1).optional(),
+      title_query: z.string().min(1).optional(),
+      entity: z.string().min(1).optional(),
+      layer: z.string().min(1).optional(),
+      status: z.string().min(1).optional(),
+      tags_any: z.array(z.string().min(1)).optional(),
+      tags_all: z.array(z.string().min(1)).optional(),
+      keywords_any: z.array(z.string().min(1)).optional(),
+      limit: z.number().int().min(1).max(500).default(50),
+    },
+    async (args) => {
+      const results = searchNotes(db, {
+        limit: args.limit,
+        ...(args.path_prefix ? { pathPrefix: args.path_prefix } : {}),
+        ...(args.title_query ? { titleQuery: args.title_query } : {}),
+        ...(args.entity ? { entity: args.entity } : {}),
+        ...(args.layer ? { layer: args.layer } : {}),
+        ...(args.status ? { status: args.status } : {}),
+        ...(args.tags_any ? { tagsAny: args.tags_any } : {}),
+        ...(args.tags_all ? { tagsAll: args.tags_all } : {}),
+        ...(args.keywords_any ? { keywordsAny: args.keywords_any } : {}),
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                filters: args,
+                db: dbPath,
+                results,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  // find_notes_by_typed_link tool
+  server.tool(
+    "find_notes_by_typed_link",
+    {
+      rel: z.string().min(1).optional(),
+      target: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(1000).default(200),
+    },
+    async (args) => {
+      const toTarget = args.target ? normalizeTypedLinkTargetInput(args.target) : undefined;
+
+      const results = findNotesByTypedLink(db, {
+        limit: args.limit,
+        ...(args.rel ? { rel: args.rel } : {}),
+        ...(toTarget ? { toTarget } : {}),
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                query: {
+                  rel: args.rel,
+                  target: args.target,
+                  normalized_target: toTarget,
+                  limit: args.limit,
+                },
+                db: dbPath,
+                results,
+              },
+              null,
+              2,
+            ),
           },
         ],
       };

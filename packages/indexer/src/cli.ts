@@ -8,14 +8,19 @@ import OpenAI from "openai";
 import {
   chunkMarkdownByHeadings,
   getFileSha256,
+  normalizeAilssNoteMeta,
   insertChunkWithEmbedding,
   listMarkdownFiles,
   loadEnv,
   openAilssDb,
   parseMarkdownNote,
+  replaceNoteKeywords,
+  replaceNoteTags,
+  replaceTypedLinks,
   resolveDefaultDbPath,
   statMarkdownFile,
   upsertFile,
+  upsertNote,
   deleteChunksByPath,
   readUtf8File,
 } from "@ailss/core";
@@ -96,6 +101,7 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
     const markdown = await readUtf8File(file.absPath);
     const parsed = parseMarkdownNote(markdown);
     const chunks = chunkMarkdownByHeadings(parsed.body, { maxChars: options.maxChars });
+    const noteMeta = normalizeAilssNoteMeta(parsed.frontmatter);
 
     // Upsert file metadata
     upsertFile(db, {
@@ -107,6 +113,24 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
 
     // Delete and reinsert chunks for this file
     deleteChunksByPath(db, file.relPath);
+
+    // Note metadata and typed links
+    upsertNote(db, {
+      path: file.relPath,
+      noteId: noteMeta.noteId,
+      created: noteMeta.created,
+      title: noteMeta.title,
+      summary: noteMeta.summary,
+      entity: noteMeta.entity,
+      layer: noteMeta.layer,
+      status: noteMeta.status,
+      updated: noteMeta.updated,
+      viewed: noteMeta.viewed,
+      frontmatterJson: JSON.stringify(noteMeta.frontmatter),
+    });
+    replaceNoteTags(db, file.relPath, noteMeta.tags);
+    replaceNoteKeywords(db, file.relPath, noteMeta.keywords);
+    replaceTypedLinks(db, file.relPath, noteMeta.typedLinks);
 
     // Embedding batch calls
     const batchSize = Math.max(1, options.batchSize);

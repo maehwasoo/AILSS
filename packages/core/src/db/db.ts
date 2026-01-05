@@ -40,7 +40,7 @@ export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
 }
 
 function migrate(db: AilssDb, embeddingDim: number): void {
-  // Schema: files, chunks, chunk_embeddings(vec0)
+  // Schema: files, chunks, chunk_embeddings(vec0), note metadata, typed links
   // - vec0 is rowid-based, so we map chunk_id to rowid
 
   db.exec(`
@@ -97,6 +97,69 @@ function migrate(db: AilssDb, embeddingDim: number): void {
     FROM chunks c
     JOIN chunk_rowids r ON r.chunk_id = c.chunk_id;
   `);
+
+  // Notes table
+  // - stores normalized frontmatter fields + raw JSON for future flexibility
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notes (
+      path TEXT PRIMARY KEY,
+      note_id TEXT,
+      created TEXT,
+      title TEXT,
+      summary TEXT,
+      entity TEXT,
+      layer TEXT,
+      status TEXT,
+      updated TEXT,
+      viewed INTEGER,
+      frontmatter_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(path) REFERENCES files(path) ON DELETE CASCADE
+    );
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_layer ON notes(layer);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);`);
+
+  // Tag/keyword mappings
+  // - avoids relying on sqlite json1 in all environments
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS note_tags (
+      path TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      PRIMARY KEY(path, tag),
+      FOREIGN KEY(path) REFERENCES notes(path) ON DELETE CASCADE
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag);`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS note_keywords (
+      path TEXT NOT NULL,
+      keyword TEXT NOT NULL,
+      PRIMARY KEY(path, keyword),
+      FOREIGN KEY(path) REFERENCES notes(path) ON DELETE CASCADE
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_note_keywords_keyword ON note_keywords(keyword);`);
+
+  // Typed links (frontmatter relations)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS typed_links (
+      from_path TEXT NOT NULL,
+      rel TEXT NOT NULL,
+      to_target TEXT NOT NULL,
+      to_wikilink TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY(from_path, rel, to_target, position),
+      FOREIGN KEY(from_path) REFERENCES notes(path) ON DELETE CASCADE
+    );
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_typed_links_from_rel ON typed_links(from_path, rel);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_typed_links_rel_to ON typed_links(rel, to_target);`);
 }
 
 export type UpsertFileInput = {
@@ -147,6 +210,363 @@ export function deleteChunksByPath(db: AilssDb, filePath: string): void {
   }
 
   db.prepare(`DELETE FROM chunks WHERE path = ?`).run(filePath);
+}
+
+export type UpsertNoteInput = {
+  path: string;
+  noteId: string | null;
+  created: string | null;
+  title: string | null;
+  summary: string | null;
+  entity: string | null;
+  layer: string | null;
+  status: string | null;
+  updated: string | null;
+  viewed: number | null;
+  frontmatterJson: string;
+};
+
+export function upsertNote(db: AilssDb, input: UpsertNoteInput): void {
+  const stmt = db.prepare(`
+    INSERT INTO notes(
+      path, note_id, created, title, summary,
+      entity, layer, status, updated, viewed,
+      frontmatter_json, updated_at
+    )
+    VALUES (
+      @path, @note_id, @created, @title, @summary,
+      @entity, @layer, @status, @updated, @viewed,
+      @frontmatter_json, @updated_at
+    )
+    ON CONFLICT(path) DO UPDATE SET
+      note_id=excluded.note_id,
+      created=excluded.created,
+      title=excluded.title,
+      summary=excluded.summary,
+      entity=excluded.entity,
+      layer=excluded.layer,
+      status=excluded.status,
+      updated=excluded.updated,
+      viewed=excluded.viewed,
+      frontmatter_json=excluded.frontmatter_json,
+      updated_at=excluded.updated_at
+  `);
+
+  stmt.run({
+    path: input.path,
+    note_id: input.noteId,
+    created: input.created,
+    title: input.title,
+    summary: input.summary,
+    entity: input.entity,
+    layer: input.layer,
+    status: input.status,
+    updated: input.updated,
+    viewed: input.viewed,
+    frontmatter_json: input.frontmatterJson,
+    updated_at: nowIso(),
+  });
+}
+
+export function replaceNoteTags(db: AilssDb, notePath: string, tags: string[]): void {
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM note_tags WHERE path = ?`).run(notePath);
+    const insert = db.prepare(`INSERT INTO note_tags(path, tag) VALUES (?, ?)`);
+    for (const tag of tags) {
+      insert.run(notePath, tag);
+    }
+  });
+  tx();
+}
+
+export function replaceNoteKeywords(db: AilssDb, notePath: string, keywords: string[]): void {
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM note_keywords WHERE path = ?`).run(notePath);
+    const insert = db.prepare(`INSERT INTO note_keywords(path, keyword) VALUES (?, ?)`);
+    for (const keyword of keywords) {
+      insert.run(notePath, keyword);
+    }
+  });
+  tx();
+}
+
+export type TypedLinkInput = {
+  rel: string;
+  toTarget: string;
+  toWikilink: string;
+  position: number;
+};
+
+export function replaceTypedLinks(db: AilssDb, fromPath: string, links: TypedLinkInput[]): void {
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM typed_links WHERE from_path = ?`).run(fromPath);
+    const insert = db.prepare(`
+      INSERT INTO typed_links(from_path, rel, to_target, to_wikilink, position, created_at)
+      VALUES (@from_path, @rel, @to_target, @to_wikilink, @position, @created_at)
+    `);
+
+    for (const link of links) {
+      insert.run({
+        from_path: fromPath,
+        rel: link.rel,
+        to_target: link.toTarget,
+        to_wikilink: link.toWikilink,
+        position: link.position,
+        created_at: nowIso(),
+      });
+    }
+  });
+
+  tx();
+}
+
+export type NoteRow = {
+  path: string;
+  note_id: string | null;
+  created: string | null;
+  title: string | null;
+  summary: string | null;
+  entity: string | null;
+  layer: string | null;
+  status: string | null;
+  updated: string | null;
+  viewed: number | null;
+  frontmatter_json: string;
+  updated_at: string;
+};
+
+export type NoteMeta = {
+  path: string;
+  noteId: string | null;
+  created: string | null;
+  title: string | null;
+  summary: string | null;
+  entity: string | null;
+  layer: string | null;
+  status: string | null;
+  updated: string | null;
+  viewed: number | null;
+  tags: string[];
+  keywords: string[];
+  frontmatter: Record<string, unknown>;
+  typedLinks: Array<{
+    rel: string;
+    toTarget: string;
+    toWikilink: string;
+    position: number;
+  }>;
+};
+
+function safeParseJsonObject(input: string): Record<string, unknown> {
+  try {
+    const value = JSON.parse(input);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+export function getNoteMeta(db: AilssDb, notePath: string): NoteMeta | null {
+  const note = db.prepare(`SELECT * FROM notes WHERE path = ?`).get(notePath) as
+    | NoteRow
+    | undefined;
+  if (!note) return null;
+
+  const tags = db
+    .prepare(`SELECT tag FROM note_tags WHERE path = ? ORDER BY tag`)
+    .all(notePath) as Array<{ tag: string }>;
+
+  const keywords = db
+    .prepare(`SELECT keyword FROM note_keywords WHERE path = ? ORDER BY keyword`)
+    .all(notePath) as Array<{ keyword: string }>;
+
+  const typedLinks = db
+    .prepare(
+      `SELECT rel, to_target, to_wikilink, position FROM typed_links WHERE from_path = ? ORDER BY rel, position`,
+    )
+    .all(notePath) as Array<{
+    rel: string;
+    to_target: string;
+    to_wikilink: string;
+    position: number;
+  }>;
+
+  return {
+    path: note.path,
+    noteId: note.note_id,
+    created: note.created,
+    title: note.title,
+    summary: note.summary,
+    entity: note.entity,
+    layer: note.layer,
+    status: note.status,
+    updated: note.updated,
+    viewed: note.viewed,
+    tags: tags.map((t) => t.tag),
+    keywords: keywords.map((k) => k.keyword),
+    frontmatter: safeParseJsonObject(note.frontmatter_json),
+    typedLinks: typedLinks.map((l) => ({
+      rel: l.rel,
+      toTarget: l.to_target,
+      toWikilink: l.to_wikilink,
+      position: l.position,
+    })),
+  };
+}
+
+export type SearchNotesFilters = {
+  pathPrefix?: string;
+  titleQuery?: string;
+  entity?: string | string[];
+  layer?: string | string[];
+  status?: string | string[];
+  tagsAny?: string[];
+  tagsAll?: string[];
+  keywordsAny?: string[];
+  limit?: number;
+};
+
+export type SearchNotesResult = {
+  path: string;
+  title: string | null;
+  entity: string | null;
+  layer: string | null;
+  status: string | null;
+};
+
+function normalizeStringList(input: string | string[] | undefined): string[] | undefined {
+  if (typeof input === "string") return [input];
+  if (Array.isArray(input)) return input;
+  return undefined;
+}
+
+export function searchNotes(db: AilssDb, filters: SearchNotesFilters = {}): SearchNotesResult[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (filters.pathPrefix) {
+    where.push(`notes.path LIKE ?`);
+    params.push(`${filters.pathPrefix}%`);
+  }
+
+  if (filters.titleQuery) {
+    where.push(`notes.title LIKE ?`);
+    params.push(`%${filters.titleQuery}%`);
+  }
+
+  const entityList = normalizeStringList(filters.entity);
+  if (entityList && entityList.length > 0) {
+    where.push(`notes.entity IN (${entityList.map(() => "?").join(", ")})`);
+    params.push(...entityList);
+  }
+
+  const layerList = normalizeStringList(filters.layer);
+  if (layerList && layerList.length > 0) {
+    where.push(`notes.layer IN (${layerList.map(() => "?").join(", ")})`);
+    params.push(...layerList);
+  }
+
+  const statusList = normalizeStringList(filters.status);
+  if (statusList && statusList.length > 0) {
+    where.push(`notes.status IN (${statusList.map(() => "?").join(", ")})`);
+    params.push(...statusList);
+  }
+
+  const tagsAny = filters.tagsAny?.filter(Boolean) ?? [];
+  if (tagsAny.length > 0) {
+    where.push(
+      `EXISTS (SELECT 1 FROM note_tags t WHERE t.path = notes.path AND t.tag IN (${tagsAny
+        .map(() => "?")
+        .join(", ")}))`,
+    );
+    params.push(...tagsAny);
+  }
+
+  const tagsAll = filters.tagsAll?.filter(Boolean) ?? [];
+  for (const tag of tagsAll) {
+    where.push(`EXISTS (SELECT 1 FROM note_tags t WHERE t.path = notes.path AND t.tag = ?)`);
+    params.push(tag);
+  }
+
+  const keywordsAny = filters.keywordsAny?.filter(Boolean) ?? [];
+  if (keywordsAny.length > 0) {
+    where.push(
+      `EXISTS (SELECT 1 FROM note_keywords k WHERE k.path = notes.path AND k.keyword IN (${keywordsAny
+        .map(() => "?")
+        .join(", ")}))`,
+    );
+    params.push(...keywordsAny);
+  }
+
+  const limit = Math.min(Math.max(1, filters.limit ?? 50), 500);
+
+  const sql = `
+    SELECT path, title, entity, layer, status
+    FROM notes
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY path
+    LIMIT ?
+  `;
+
+  const rows = db.prepare(sql).all(...params, limit) as Array<{
+    path: string;
+    title: string | null;
+    entity: string | null;
+    layer: string | null;
+    status: string | null;
+  }>;
+
+  return rows;
+}
+
+export type TypedLinkQuery = {
+  rel?: string;
+  toTarget?: string;
+  limit?: number;
+};
+
+export type TypedLinkBackref = {
+  fromPath: string;
+  fromTitle: string | null;
+  rel: string;
+  toTarget: string;
+  toWikilink: string;
+};
+
+export function findNotesByTypedLink(db: AilssDb, query: TypedLinkQuery): TypedLinkBackref[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (query.rel) {
+    where.push(`tl.rel = ?`);
+    params.push(query.rel);
+  }
+
+  if (query.toTarget) {
+    where.push(`tl.to_target = ?`);
+    params.push(query.toTarget);
+  }
+
+  const limit = Math.min(Math.max(1, query.limit ?? 100), 1000);
+
+  const sql = `
+    SELECT
+      tl.from_path AS fromPath,
+      n.title AS fromTitle,
+      tl.rel AS rel,
+      tl.to_target AS toTarget,
+      tl.to_wikilink AS toWikilink
+    FROM typed_links tl
+    JOIN notes n ON n.path = tl.from_path
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY tl.rel, tl.to_target, tl.from_path, tl.position
+    LIMIT ?
+  `;
+
+  return db.prepare(sql).all(...params, limit) as TypedLinkBackref[];
 }
 
 export type InsertChunkInput = {
