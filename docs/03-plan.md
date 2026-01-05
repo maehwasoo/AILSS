@@ -54,7 +54,7 @@ Goal:
 
 UX target (Smart Connections-style):
 
-- Install + enable → indexing starts automatically in the background (after OpenAI API key is configured).
+- Install + enable → indexing can run automatically in the background (after OpenAI API key is configured and auto indexing is explicitly enabled).
 - No separate CLI step for day-to-day usage (manual “Reindex now” remains as a fallback).
 - A visible status surface (status bar / modal) replaces spammy notifications:
   - “initial indexing complete”

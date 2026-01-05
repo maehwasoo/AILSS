@@ -30,6 +30,18 @@ pnpm -C packages/obsidian-plugin build
 - Copy `main.js`, `manifest.json`, `styles.css` into:
     - `<Vault>/.obsidian/plugins/ailss-obsidian/`
 
+Dev-friendly option (recommended while developing): symlink this folder into your vault:
+
+```bash
+# If you previously installed by copying, rename/remove the existing folder first.
+ln -s /absolute/path/to/AILSS-project/packages/obsidian-plugin "<Vault>/.obsidian/plugins/ailss-obsidian"
+pnpm -C packages/obsidian-plugin dev
+```
+
+Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at your repo path.
+
+When symlinked from the monorepo, you can usually leave MCP/indexer args empty and the plugin will auto-detect `../mcp/dist/stdio.js` and `../indexer/dist/cli.js`.
+
 4. Configure settings inside Obsidian
 
 - **OpenAI API key**: required for query embeddings

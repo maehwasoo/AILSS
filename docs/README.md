@@ -33,3 +33,6 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 - ADR overview: [adr/README.md](./adr/README.md)
 - 0001: [adr/0001-monorepo-packages.md](./adr/0001-monorepo-packages.md)
 - 0002: [adr/0002-desktop-local-db.md](./adr/0002-desktop-local-db.md)
+- 0003: [adr/0003-obsidian-plugin-spawns-processes.md](./adr/0003-obsidian-plugin-spawns-processes.md)
+- 0004: [adr/0004-frontmatter-and-typed-links-indexing.md](./adr/0004-frontmatter-and-typed-links-indexing.md)
+- 0005: [adr/0005-db-migrations-and-embedding-dimensions.md](./adr/0005-db-migrations-and-embedding-dimensions.md)

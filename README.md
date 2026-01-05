@@ -44,13 +44,13 @@ pnpm build
 3. Run indexing
 
 ```bash
-pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
+pnpm -C packages/indexer start
 ```
 
 To index only specific vault-relative paths:
 
 ```bash
-pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH" --paths "notes/a.md" "notes/b.md"
+pnpm -C packages/indexer start -- --paths "notes/a.md" "notes/b.md"
 ```
 
 This populates the local DB with:
@@ -78,6 +78,11 @@ Frontmatter query support (current):
 - Queryable via `find_notes_by_typed_link`: typed-link keys (e.g. `part_of`, `depends_on`, `instance_of`, etc.)
 - Stored/returned via `get_note_meta` but not directly filterable yet: other frontmatter fields (e.g. `id`, `created`, `updated`, `aliases`, `source`)
 
+MCP DB configuration:
+
+- Recommended: set `AILSS_VAULT_PATH` so the server can derive the default DB path and read files for `get_note`.
+- Advanced: set `AILSS_DB_PATH` to point directly to an existing DB file (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`).
+
 ## Obsidian plugin (ailss-obsidian)
 
 The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only (it spawns a local MCP stdio server).
@@ -90,12 +95,22 @@ pnpm -C packages/obsidian-plugin build
 
 2. Install into a vault for testing
 
-Copy (or symlink during development) these files into:
+Option A (manual copy): copy these files into:
 
 - `<Vault>/.obsidian/plugins/ailss-obsidian/`
   - `main.js`
   - `manifest.json`
   - `styles.css`
+
+Option B (dev-friendly symlink): link the plugin folder into your vault (recommended for development):
+
+```bash
+# If you previously installed by copying, rename/remove the existing folder first.
+ln -s /absolute/path/to/AILSS-project/packages/obsidian-plugin "<Vault>/.obsidian/plugins/ailss-obsidian"
+pnpm -C packages/obsidian-plugin dev
+```
+
+Confirm: `ls -la "<Vault>/.obsidian/plugins" | rg "ailss-obsidian"` should show a `ailss-obsidian -> /absolute/path/...` symlink.
 
 3. Configure settings inside Obsidian
 

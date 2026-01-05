@@ -266,6 +266,8 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	private getPluginDirRealpathOrNull(): string | null {
+		// Realpath resolution
+		// - supports symlink installs during development
 		try {
 			const vaultPath = this.getVaultPath();
 			const configDir = this.app.vault.configDir;

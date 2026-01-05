@@ -9,6 +9,11 @@ Create a `.env` at the repo root based on `.env.example`, and set:
 - `OPENAI_API_KEY`
 - `AILSS_VAULT_PATH` (absolute path)
 - `OPENAI_EMBEDDING_MODEL` (optional; default: `text-embedding-3-small`)
+- `AILSS_DB_PATH` (optional; MCP only): absolute path to an existing DB file when `AILSS_VAULT_PATH` is not set
+
+Notes:
+
+- The indexer and MCP server load `.env` by searching upwards from the current working directory for the nearest `.env` file.
 
 ## 2) Install / build
 
@@ -23,7 +28,7 @@ pnpm build
 ## 3) Run indexing
 
 ```bash
-pnpm -C packages/indexer start -- --vault "$AILSS_VAULT_PATH"
+pnpm -C packages/indexer start
 ```
 
 Options:
@@ -41,7 +46,9 @@ pnpm -C packages/mcp start
 Required:
 
 - `OPENAI_API_KEY` (for query embeddings)
-- `AILSS_VAULT_PATH` (to resolve the default DB path, and to read files for `get_note`)
+- DB path configuration:
+  - Recommended: `AILSS_VAULT_PATH` (derives the default DB path, and enables reading files for `get_note`)
+  - Advanced: `AILSS_DB_PATH` (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`)
 
 ### Test tools with MCP Inspector (optional)
 
@@ -82,10 +89,14 @@ Copy these files into:
 
 Instead of copying on every change, you can symlink the plugin folder into a test vault:
 
+Note: if `ailss-obsidian` already exists in the vault plugins folder, rename/remove it first (symlink creation fails if the path exists).
+
 ```bash
 ln -s /absolute/path/to/AILSS-project/packages/obsidian-plugin "<Vault>/.obsidian/plugins/ailss-obsidian"
 pnpm -C packages/obsidian-plugin dev
 ```
+
+Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at your repo path.
 
 ### Configure (inside Obsidian)
 

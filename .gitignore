@@ -10,6 +10,7 @@ coverage/
 # Env
 .env
 .env.*
+!.env.example
 .pnpm-store/
 .npm-cache/
 .node-gyp/
