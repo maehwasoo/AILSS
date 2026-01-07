@@ -50,6 +50,10 @@ Required:
   - Recommended: `AILSS_VAULT_PATH` (derives the default DB path, and enables reading files for `get_note`)
   - Advanced: `AILSS_DB_PATH` (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`)
 
+Optional:
+
+- `AILSS_ENABLE_WRITE_TOOLS=1` (enables explicit write tools like `edit_note`)
+
 ### Test tools with MCP Inspector (optional)
 
 Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be useful to call tools directly via the MCP Inspector UI.
@@ -57,7 +61,7 @@ Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be us
 Notes:
 
 - The inspector will launch the STDIO server command you provide and let you call tools like `activate_context` and `semantic_search`.
-- For write tools (e.g. `capture_note`), prefer `dry_run` first and only confirm/apply when you are sure the output path is correct.
+- For write tools (e.g. `edit_note`), prefer `apply=false` first and only confirm/apply when you are sure the target path and patch ops are correct.
 
 Example:
 
@@ -106,6 +110,7 @@ Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at y
 - **Indexer command/args** (optional; enables reindex + auto-index)
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
 - If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
+- Index maintenance: use **Reset index DB** if you switch embedding models (1536 vs 3072); use **Indexer logs** to see which file failed.
 - Command palette: `AILSS: Reindex vault`
 - Optional: enable auto indexing (debounced; costs money)
 
