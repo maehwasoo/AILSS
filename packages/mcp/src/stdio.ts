@@ -13,6 +13,7 @@ import { PROMETHEUS_AGENT_INSTRUCTIONS, registerPrometheusPrompt } from "./prome
 import type { McpToolDeps } from "./mcpDeps.js";
 import { registerActivateContextTool } from "./tools/activateContext.js";
 import { registerFindNotesByTypedLinkTool } from "./tools/findNotesByTypedLink.js";
+import { registerEditNoteTool } from "./tools/editNote.js";
 import { registerGetNoteTool } from "./tools/getNote.js";
 import { registerGetNoteMetaTool } from "./tools/getNoteMeta.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
@@ -59,6 +60,10 @@ async function main(): Promise<void> {
   registerGetNoteMetaTool(server, deps);
   registerSearchNotesTool(server, deps);
   registerFindNotesByTypedLinkTool(server, deps);
+
+  if (env.enableWriteTools) {
+    registerEditNoteTool(server, deps);
+  }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
