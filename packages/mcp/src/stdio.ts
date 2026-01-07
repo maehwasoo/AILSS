@@ -26,7 +26,8 @@ async function main(): Promise<void> {
   const embeddingDim = embeddingDimForModel(embeddingModel);
 
   const vaultPath = env.vaultPath;
-  const dbPath = vaultPath ? await resolveDefaultDbPath(vaultPath) : process.env.AILSS_DB_PATH;
+  const dbPath =
+    process.env.AILSS_DB_PATH ?? (vaultPath ? await resolveDefaultDbPath(vaultPath) : undefined);
   if (!dbPath) {
     throw new Error("DB path is missing. Set AILSS_VAULT_PATH or AILSS_DB_PATH.");
   }
@@ -36,7 +37,7 @@ async function main(): Promise<void> {
     throw new Error("OPENAI_API_KEY is missing. Set it via .env or environment variables.");
   }
 
-  const db = openAilssDb({ dbPath, embeddingModel, embeddingDim });
+  const db = openAilssDb({ dbPath, embeddingModel, embeddingDim, mode: "readonly" });
   const openai = new OpenAI({ apiKey: openaiApiKey });
 
   const server = new McpServer(
