@@ -15,6 +15,8 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 - Indexer MVP exists (`packages/indexer`)
   - Supports full-vault indexing and path-scoped updates (`--paths`)
+  - Supports explicit DB reset (`--reset-db`) when switching embedding models
+  - Validates DB embedding identity (model/dimension) and fails fast on mismatch
   - Full-vault runs prune DB entries for deleted files
 - MCP server MVP exists (`packages/mcp`)
   - Read tools: `semantic_search`, `activate_context`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
@@ -25,7 +27,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
 ## 1) Design the index schema
 
 - File level: `path`, `mtime`, `size`, `hash`
-- Chunk level: `chunk_id`, `start/end`, `heading`, `text`, `embedding`
+- Chunk level: `chunk_id`, `path`, `heading`, `heading_path_json`, `content`, `content_sha256`, `embedding`
 - Links: outgoing/incoming, type
 
 ## 2) Indexer MVP
@@ -150,7 +152,7 @@ Plan:
 
 - Plugin-managed **long-lived MCP process** (avoid spawn-per-search latency; restart on crash; stop on unload)
 - Indexer **single-writer lock** (prevent concurrent indexing from plugin/CLI)
-- DB **identity + validation** (schema version + embedding model/dimension; clear “reindex required” errors)
+- DB **identity + validation** (embedding model/dimension now; schema version later)
 
 ## 9) Production readiness (public distribution)
 

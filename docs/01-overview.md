@@ -10,6 +10,10 @@ Responsibilities:
 - Chunk content and generate embeddings.
 - Store embeddings + metadata in a local DB (e.g., SQLite).
 
+Operational notes:
+
+- The embedding model/dimension is treated as part of the DB’s identity. If you switch models, recreate the DB and reindex.
+
 Output (example):
 
 - `chunk_id`, `path`, `heading`, `front matter`, `hash`, `embedding vector`, `text`

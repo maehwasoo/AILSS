@@ -39,6 +39,10 @@ Options:
 - `--paths notes/a.md notes/b.md`: only index these vault-relative markdown paths
 - `--reset-db`: delete and recreate the DB before indexing (recommended when switching embedding models)
 
+Note:
+
+- The index DB records the embedding model/dimension and refuses to start on mismatch. Use `--reset-db` (or a different `--db` path) when switching models.
+
 ## 4) Run MCP server (STDIO)
 
 ```bash

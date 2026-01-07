@@ -7,11 +7,13 @@ status: accepted
 - The vector index uses `sqlite-vec` (`vec0`) which fixes the embedding vector dimension at table creation time.
 - OpenAI embedding models can have different default dimensions (e.g. 1536 vs 3072).
 - The current DB migration approach is “create tables if missing” (no schema version table yet).
+- The DB stores identity/config keys (e.g. embedding model/dimension) in a small `db_meta` table.
 
 ## Decision
 
-- Treat the embedding model’s dimension as part of the DB’s identity:
-  - If `OPENAI_EMBEDDING_MODEL` changes to a model with a different dimension, the DB must be **recreated** and the vault reindexed.
+- Treat the embedding model **and** its dimension as part of the DB’s identity:
+  - If `OPENAI_EMBEDDING_MODEL` changes (even if the dimension stays the same), the DB must be **recreated** and the vault reindexed.
+  - If the dimension changes, the DB must be **recreated** (vec0 dimension is fixed at creation time).
 - Keep migrations simple for now:
   - Use “create-if-not-exists” schema setup.
   - When a schema change is not backward-compatible, prefer a DB rebuild until we introduce explicit schema versioning.

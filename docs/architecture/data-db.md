@@ -26,6 +26,13 @@ Stores chunk-level text and metadata.
 - `heading`, `heading_path_json`
 - `content`, `content_sha256`
 
+### `db_meta` table
+
+Stores DB identity/config values.
+
+- `embedding_model`: the embedding model used to build the DB
+- `embedding_dim`: the embedding vector dimension used to create the `vec0` table
+
 ### `chunk_embeddings` (`vec0`)
 
 A sqlite-vec `vec0` virtual table for vector search.
@@ -73,6 +80,7 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 
 ## Indexing flow
 
+0. Open (or create) the DB and validate the embedding model/dimension identity (`db_meta`). If mismatched, stop and require a DB reset/reindex.
 1. Scan for `.md` files in the vault (default ignores: `.obsidian`, `.git`, `.trash`, `.ailss`, etc.)
 2. Compare the file sha256 to the DB; if it differs, treat as “changed”
 3. Upsert `files`
@@ -92,5 +100,6 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 
 ## Embedding dimension caveat
 
-- Embedding dimensions vary by model
-- `chunk_embeddings` fixes the dimension at DB creation time, so changing the model may require recreating the DB
+- Embedding model outputs vary by model (and can differ even when dimensions match).
+- `chunk_embeddings` fixes the dimension at DB creation time, so changing the embedding model requires recreating the DB.
+- AILSS records and validates `embedding_model` + `embedding_dim` in `db_meta`; on mismatch it fails fast with an explicit “reindex required” error.
