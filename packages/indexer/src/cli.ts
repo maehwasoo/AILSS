@@ -37,6 +37,7 @@ type IndexCommandOptions = {
   db?: string;
   model?: string;
   paths?: string[];
+  resetDb?: boolean;
   maxChars: number;
   batchSize: number;
 };
@@ -103,7 +104,15 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
 
   const dbPath = options.db ?? (await resolveDefaultDbPath(vaultPath));
   const embeddingDim = embeddingDimForModel(embeddingModel);
-  const db = openAilssDb({ dbPath, embeddingDim });
+
+  if (options.resetDb) {
+    console.log(`[ailss-indexer] reset-db: deleting ${dbPath}`);
+    await fs.rm(dbPath, { force: true });
+    await fs.rm(`${dbPath}-wal`, { force: true });
+    await fs.rm(`${dbPath}-shm`, { force: true });
+  }
+
+  const db = openAilssDb({ dbPath, embeddingModel, embeddingDim });
   const client = await createOpenAiClient(openaiApiKey);
 
   const requestedPaths = (options.paths ?? []).map((p) => p.trim()).filter(Boolean);
@@ -286,6 +295,7 @@ program
   .option("--db <path>", "DB file path (default: <vault>/.ailss/index.sqlite)")
   .option("--model <name>", "OpenAI embeddings model")
   .option("--paths <paths...>", "Only index these vault-relative markdown paths")
+  .option("--reset-db", "Delete and recreate the DB before indexing")
   .option("--max-chars <n>", "Max chunk size (characters)", (v) => Number(v), 4000)
   .option("--batch-size <n>", "Embedding request batch size", (v) => Number(v), 32);
 
@@ -295,6 +305,7 @@ program.action(async (opts) => {
     db: opts.db,
     model: opts.model,
     paths: opts.paths,
+    resetDb: opts.resetDb,
     maxChars: opts.maxChars,
     batchSize: opts.batchSize,
   };
