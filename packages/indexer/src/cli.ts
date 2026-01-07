@@ -236,9 +236,11 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
           );
         }
 
-        // Global chunk_id includes file path to avoid collisions
+        // Global chunk_id includes file path + ordinal to avoid collisions
+        // - identical heading paths + identical content can occur within one note
+        const chunkOrdinal = i + j;
         const chunkId = sha256Text(
-          `${file.relPath}\n${JSON.stringify(chunk.headingPath)}\n${chunk.contentSha256}`,
+          `${file.relPath}\n${chunkOrdinal}\n${JSON.stringify(chunk.headingPath)}\n${chunk.contentSha256}`,
         );
 
         insertChunkWithEmbedding(db, {
