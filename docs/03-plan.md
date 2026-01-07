@@ -95,6 +95,9 @@ MCP tools (read-only):
 
 Implemented:
 
+- `semantic_search`: query → return related notes/chunks (vector similarity over indexed chunks)
+- `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops
+- `get_note`: read a vault note by path (requires `AILSS_VAULT_PATH`)
 - `get_note_meta`: return normalized frontmatter + typed links from the index DB
 - `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
 - `find_notes_by_typed_link`: find notes that point to a typed-link target (typed-link “backrefs”)
@@ -118,6 +121,8 @@ TODO (to expand structured queries):
 
 Planned MCP tools (explicit write):
 
+- `edit_note`: apply line-based patch ops to an existing `.md` note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run and an optional `expected_sha256` guard; returns `needs_reindex` after applying
 - `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
   - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
 

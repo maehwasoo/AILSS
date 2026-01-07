@@ -53,6 +53,11 @@ Read-first tools (planned):
 Explicit write tools (apply):
 
 - `capture_note`: write a new note (default: `<vault>/100. Inbox/`) with correct frontmatter
+- `edit_note`: apply patch ops to an existing note (line-based); returns `needs_reindex` after applying
+
+Write tools are gated and not exposed by default:
+
+- Set `AILSS_ENABLE_WRITE_TOOLS=1` to register write tools like `edit_note` in the MCP server
 
 ## 3) Obsidian plugin
 
