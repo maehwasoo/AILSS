@@ -30,7 +30,7 @@ Read-first tools (implemented in this repo):
 - `get_note`: by path → return note content/metadata
 - `get_note_meta`: return normalized frontmatter + typed links from the index DB
 - `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
-- `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`)
+- `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`, or `links_to` → `Some Note`)
 
 Server guidance:
 
