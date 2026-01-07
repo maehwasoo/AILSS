@@ -33,9 +33,11 @@ pnpm -C packages/indexer start
 
 Options:
 
+- `--model text-embedding-3-small`: override the embedding model for this run (default: `OPENAI_EMBEDDING_MODEL` / `text-embedding-3-small`)
 - `--max-chars 4000`: max chunk size (characters)
 - `--batch-size 32`: embedding request batch size
 - `--paths notes/a.md notes/b.md`: only index these vault-relative markdown paths
+- `--reset-db`: delete and recreate the DB before indexing (recommended when switching embedding models)
 
 ## 4) Run MCP server (STDIO)
 
@@ -110,7 +112,7 @@ Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at y
 - **Indexer command/args** (optional; enables reindex + auto-index)
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
 - If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
-- Index maintenance: use **Reset index DB** if you switch embedding models (1536 vs 3072); use **Indexer logs** to see which file failed.
+- Index maintenance: use **Reset index DB** if you switch embedding models (e.g. `text-embedding-3-small` ↔ `text-embedding-3-large`); use **Indexer logs** to see which file failed.
 - Command palette: `AILSS: Reindex vault`
 - Optional: enable auto indexing (debounced; costs money)
 
