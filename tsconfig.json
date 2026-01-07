@@ -3,5 +3,6 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["packages/**/*.ts"]
+  "include": ["packages/**/*.ts"],
+  "exclude": ["packages/obsidian-plugin/**"]
 }
