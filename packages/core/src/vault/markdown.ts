@@ -4,6 +4,9 @@
 import { createHash } from "node:crypto";
 import matter from "gray-matter";
 
+import type { TypedLink } from "./frontmatter.js";
+import { toWikilink, wikilinkTarget } from "./frontmatter.js";
+
 export type MarkdownFrontmatter = Record<string, unknown>;
 
 export type MarkdownChunk = {
@@ -20,11 +23,24 @@ export type ParsedMarkdownNote = {
 };
 
 export function parseMarkdownNote(markdown: string): ParsedMarkdownNote {
-  const parsed = matter(markdown);
-  return {
-    frontmatter: (parsed.data ?? {}) as MarkdownFrontmatter,
-    body: parsed.content ?? "",
-  };
+  const split = splitFrontmatter(markdown);
+  if (!split) {
+    return { frontmatter: {}, body: markdown ?? "" };
+  }
+
+  const sanitizedFrontmatter = sanitizeFrontmatterForWikilinks(split.frontmatterRaw);
+  const sanitized = `---\n${sanitizedFrontmatter}\n---\n${split.body}`;
+
+  try {
+    const parsed = matter(sanitized);
+    return {
+      frontmatter: (parsed.data ?? {}) as MarkdownFrontmatter,
+      body: parsed.content ?? "",
+    };
+  } catch {
+    // Tolerant fallback: strip the frontmatter block but keep indexing the note
+    return { frontmatter: {}, body: split.body };
+  }
 }
 
 function sha256Text(input: string): string {
@@ -169,4 +185,131 @@ export function chunkMarkdownByHeadings(
   }
 
   return chunks;
+}
+
+export function extractWikilinkTypedLinksFromMarkdownBody(
+  bodyMarkdown: string,
+  options: { rel?: string; maxLinks?: number } = {},
+): TypedLink[] {
+  const rel = options.rel ?? "links_to";
+  const maxLinks = Math.min(Math.max(1, options.maxLinks ?? 2000), 50_000);
+
+  type Extracted = { toWikilink: string; toTarget: string };
+  const extracted: Extracted[] = [];
+
+  // Line-based scan with simple fence skipping to avoid false positives in code blocks.
+  const lines = normalizeNewlines(bodyMarkdown ?? "").split("\n");
+  let inFence = false;
+
+  for (const line of lines) {
+    const fenceMatch = line.match(/^```/);
+    if (fenceMatch) inFence = !inFence;
+    if (inFence) continue;
+
+    for (const wikilink of extractWikilinksFromLine(line)) {
+      const normalizedWikilink = toWikilink(wikilink);
+      const target = wikilinkTarget(normalizedWikilink);
+      if (!target) continue;
+      extracted.push({ toWikilink: normalizedWikilink, toTarget: target });
+      if (extracted.length >= maxLinks) break;
+    }
+
+    if (extracted.length >= maxLinks) break;
+  }
+
+  // Stable dedupe by rel+target (keep first occurrence)
+  const out: TypedLink[] = [];
+  const seen = new Set<string>();
+  for (const item of extracted) {
+    const key = `${rel}\n${item.toTarget}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      rel,
+      toTarget: item.toTarget,
+      toWikilink: item.toWikilink,
+      position: out.length,
+    });
+  }
+
+  return out;
+}
+
+type FrontmatterSplit = { frontmatterRaw: string; body: string };
+
+function splitFrontmatter(markdown: string): FrontmatterSplit | null {
+  const normalized = normalizeNewlines(markdown ?? "");
+  const input = normalized.startsWith("\ufeff") ? normalized.slice(1) : normalized;
+  if (!input.startsWith("---\n")) return null;
+
+  const lines = input.split("\n");
+  if ((lines[0] ?? "") !== "---") return null;
+
+  let end = -1;
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    if (line === "---" || line === "...") {
+      end = i;
+      break;
+    }
+  }
+
+  if (end === -1) return null;
+
+  const frontmatterRaw = lines.slice(1, end).join("\n");
+  const body = lines.slice(end + 1).join("\n");
+  return { frontmatterRaw, body };
+}
+
+function sanitizeFrontmatterForWikilinks(frontmatterRaw: string): string {
+  // Quote unquoted Obsidian wikilinks in YAML frontmatter.
+  // - YAML treats leading `[` as flow collection syntax; `[[...]]` often causes parse errors.
+  // - We rewrite:
+  //   - `- [[Note]]` -> `- "[[Note]]"`
+  //   - `key: [[Note]]` -> `key: "[[Note]]"`
+  const lines = normalizeNewlines(frontmatterRaw ?? "").split("\n");
+
+  return lines
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+      if (trimmed.startsWith("#")) return line;
+
+      // List item
+      const listMatch = line.match(/^(\s*-\s*)(\[\[[^\r\n]*\]\])(\s*(#.*)?)$/);
+      if (listMatch) {
+        const prefix = listMatch[1] ?? "";
+        const value = listMatch[2] ?? "";
+        const suffix = listMatch[3] ?? "";
+        return `${prefix}"${value}"${suffix}`;
+      }
+
+      // Key-value (single-line scalar)
+      const kvMatch = line.match(/^(\s*[^:\r\n]+:\s*)(\[\[[^\r\n]*\]\])(\s*(#.*)?)$/);
+      if (kvMatch) {
+        const prefix = kvMatch[1] ?? "";
+        const value = kvMatch[2] ?? "";
+        const suffix = kvMatch[3] ?? "";
+        return `${prefix}"${value}"${suffix}`;
+      }
+
+      return line;
+    })
+    .join("\n");
+}
+
+function extractWikilinksFromLine(line: string): string[] {
+  const out: string[] = [];
+  const input = line ?? "";
+
+  // Basic non-greedy scan for [[...]] without crossing line boundaries.
+  const re = /\[\[([^\]\r\n]+?)\]\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(input))) {
+    const inner = (match[1] ?? "").trim();
+    if (!inner) continue;
+    out.push(`[[${inner}]]`);
+  }
+
+  return out;
 }

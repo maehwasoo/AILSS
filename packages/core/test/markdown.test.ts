@@ -2,7 +2,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { chunkMarkdownByHeadings, parseMarkdownNote } from "../src/vault/markdown.js";
+import {
+  chunkMarkdownByHeadings,
+  extractWikilinkTypedLinksFromMarkdownBody,
+  parseMarkdownNote,
+} from "../src/vault/markdown.js";
 
 describe("parseMarkdownNote()", () => {
   it("splits frontmatter and body", () => {
@@ -22,6 +26,44 @@ This is the body.
     expect(parsed.frontmatter).toMatchObject({ title: "Hello" });
     expect(parsed.body).toContain("# H1");
     expect(parsed.body).toContain("This is the body.");
+  });
+
+  it("accepts unquoted Obsidian wikilinks in YAML frontmatter lists", () => {
+    const input = `---
+title: Hello
+aliases:
+  - [[HOUME-CLIENT 마이페이지 성능 병목 분석과 개선]]
+---
+
+# Body
+
+Text.
+`;
+
+    const parsed = parseMarkdownNote(input);
+
+    expect(parsed.frontmatter.title).toBe("Hello");
+    expect(parsed.frontmatter.aliases).toEqual([
+      "[[HOUME-CLIENT 마이페이지 성능 병목 분석과 개선]]",
+    ]);
+    expect(parsed.body).toContain("# Body");
+  });
+
+  it("does not fail indexing when YAML frontmatter is invalid", () => {
+    const input = `---
+title Hello
+aliases:
+  - [[Bad YAML]]
+---
+
+# Body
+`;
+
+    const parsed = parseMarkdownNote(input);
+
+    expect(parsed.frontmatter).toEqual({});
+    expect(parsed.body).toContain("# Body");
+    expect(parsed.body).not.toContain("title Hello");
   });
 });
 
@@ -61,5 +103,26 @@ paragraph-3-12345
 
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.every((c) => c.heading === "A")).toBe(true);
+  });
+});
+
+describe("extractWikilinkTypedLinksFromMarkdownBody()", () => {
+  it("extracts Obsidian [[wikilinks]] from markdown body and ignores code fences", () => {
+    const body = `
+# H1
+Link to [[Note A]] and [[Note B|Alias]].
+Duplicate: [[Note A]]
+Embed: ![[Embed Note]]
+
+\`\`\`md
+[[Not a link]]
+\`\`\`
+`.trim();
+
+    const links = extractWikilinkTypedLinksFromMarkdownBody(body);
+
+    expect(links.map((l) => l.rel)).toEqual(["links_to", "links_to", "links_to"]);
+    expect(links.map((l) => l.toTarget)).toEqual(["Note A", "Note B", "Embed Note"]);
+    expect(links.map((l) => l.position)).toEqual([0, 1, 2]);
   });
 });
