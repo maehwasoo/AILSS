@@ -13,9 +13,41 @@ import {
 } from "./settings.js";
 import { ConfirmModal } from "./ui/confirmModal.js";
 import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
+import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
+
+export type AilssIndexerStatusSnapshot = {
+	running: boolean;
+	startedAt: string | null;
+	lastSuccessAt: string | null;
+	lastFinishedAt: string | null;
+	lastExitCode: number | null;
+	lastErrorMessage: string | null;
+	progress: {
+		filesTotal: number | null;
+		filesProcessed: number;
+		currentFile: string | null;
+		currentMode: "index" | "meta" | null;
+		chunkCurrent: number | null;
+		chunkTotal: number | null;
+		summary: { changedFiles: number; indexedChunks: number; deletedFiles: number } | null;
+	};
+	liveLog: { stdout: string; stderr: string };
+};
+
+type AilssObsidianPluginDataV1 = {
+	version: 1;
+	settings: Partial<AilssObsidianSettings>;
+	indexer: {
+		lastSuccessAt: string | null;
+	};
+};
 
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
+
+	private statusBarEl: HTMLElement | null = null;
+	private indexerStatusListeners = new Set<(snapshot: AilssIndexerStatusSnapshot) => void>();
+	private indexerUiUpdateTimer: NodeJS.Timeout | null = null;
 
 	private autoIndexTimer: NodeJS.Timeout | null = null;
 	private autoIndexPendingPaths = new Set<string>();
@@ -24,28 +56,58 @@ export default class AilssObsidianPlugin extends Plugin {
 	private lastIndexerLog: string | null = null;
 	private lastIndexerFinishedAt: string | null = null;
 	private lastIndexerExitCode: number | null = null;
+	private lastIndexerErrorMessage: string | null = null;
+	private lastIndexerSuccessAt: string | null = null;
+
+	private indexerStartedAt: string | null = null;
+	private indexerLiveStdout = "";
+	private indexerLiveStderr = "";
+	private indexerStdoutRemainder = "";
+	private indexerPathLimitedRun = false;
+	private indexerFilesTotal: number | null = null;
+	private indexerFilesProcessed = 0;
+	private indexerCurrentFile: string | null = null;
+	private indexerCurrentMode: "index" | "meta" | null = null;
+	private indexerChunkCurrent: number | null = null;
+	private indexerChunkTotal: number | null = null;
+	private indexerSummary: {
+		changedFiles: number;
+		indexedChunks: number;
+		deletedFiles: number;
+	} | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
+		this.registerIndexerStatusUi();
 		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
 		registerCommands(this);
 		this.registerAutoIndexEvents();
+
+		this.emitIndexerStatusNow();
 	}
 
 	async loadSettings(): Promise<void> {
-		const raw = (await this.loadData()) as Partial<AilssObsidianSettings> | null;
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw ?? {});
+		const parsed = parseAilssPluginData(await this.loadData());
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings);
+		this.lastIndexerSuccessAt = parsed.indexer.lastSuccessAt;
 	}
 
 	async saveSettings(): Promise<void> {
-		await this.saveData(this.settings);
+		await this.saveData(
+			normalizeAilssPluginDataV1({
+				version: 1,
+				settings: this.settings,
+				indexer: { lastSuccessAt: this.lastIndexerSuccessAt },
+			}),
+		);
 	}
 
 	async reindexVault(): Promise<void> {
 		const vaultPath = this.getVaultPath();
 		if (this.indexerRunning) {
 			new Notice("AILSS indexing is already running.");
+			this.openIndexerStatusModal();
 			return;
 		}
 
@@ -53,6 +115,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		this.autoIndexPendingPaths.clear();
 		this.autoIndexNeedsRerun = false;
 
+		this.openIndexerStatusModal();
 		new Notice("AILSS indexing started…");
 		try {
 			await this.runIndexer();
@@ -60,6 +123,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const hint = this.describeIndexerFailureHint(message);
+			this.recordIndexerFailure(message);
 			new Notice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
 	}
@@ -111,6 +175,10 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	openLastIndexerLogModal(): void {
 		new AilssIndexerLogModal(this.app, this).open();
+	}
+
+	openIndexerStatusModal(): void {
+		new AilssIndexerStatusModal(this.app, this).open();
 	}
 
 	getLastIndexerLogSnapshot(): {
@@ -250,6 +318,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			await this.runIndexer(paths);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
+			this.recordIndexerFailure(message);
 			new Notice(`AILSS auto-index failed: ${message}`);
 		} finally {
 			if (this.autoIndexNeedsRerun) {
@@ -260,54 +329,73 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	private async runIndexer(paths?: string[]): Promise<void> {
-		const vaultPath = this.getVaultPath();
-		const openaiApiKey = this.settings.openaiApiKey.trim();
-		if (!openaiApiKey) {
-			throw new Error(
-				"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
-			);
-		}
-
-		const indexerCommand = this.settings.indexerCommand.trim();
-		const indexerArgs = this.resolveIndexerArgs();
-		if (!indexerCommand || indexerArgs.length === 0) {
-			throw new Error(
-				"Missing indexer command/args. Set it in settings (e.g. command=node, args=/abs/path/to/packages/indexer/dist/cli.js).",
-			);
-		}
-
-		// Env overrides for the spawned indexer process
-		const env: Record<string, string> = {
-			OPENAI_API_KEY: openaiApiKey,
-			OPENAI_EMBEDDING_MODEL:
-				this.settings.openaiEmbeddingModel.trim() || DEFAULT_SETTINGS.openaiEmbeddingModel,
-			AILSS_VAULT_PATH: vaultPath,
-		};
-
-		const args = [...indexerArgs, "--vault", vaultPath];
-		const uniquePaths = (paths ?? [])
-			.map(normalizeVaultRelPath)
-			.filter(shouldIndexVaultRelPath);
-		if (uniquePaths.length > 0) {
-			args.push("--paths", ...Array.from(new Set(uniquePaths)));
-		}
-
-		const cwd = this.getPluginDirRealpathOrNull();
-		const spawnEnv = { ...process.env, ...env };
-		const resolved = resolveSpawnCommandAndEnv(indexerCommand, spawnEnv);
-		if (resolved.command === "node") {
-			throw new Error(nodeNotFoundMessage("Indexer"));
-		}
-
-		this.indexerRunning = true;
-		this.lastIndexerLog = null;
-		this.lastIndexerFinishedAt = null;
-		this.lastIndexerExitCode = null;
 		try {
-			const result = await spawnAndCapture(resolved.command, args, {
-				...(cwd ? { cwd } : {}),
-				env: resolved.env,
-			});
+			const vaultPath = this.getVaultPath();
+			const openaiApiKey = this.settings.openaiApiKey.trim();
+			if (!openaiApiKey) {
+				throw new Error(
+					"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
+				);
+			}
+
+			const indexerCommand = this.settings.indexerCommand.trim();
+			const indexerArgs = this.resolveIndexerArgs();
+			if (!indexerCommand || indexerArgs.length === 0) {
+				throw new Error(
+					"Missing indexer command/args. Set it in settings (e.g. command=node, args=/abs/path/to/packages/indexer/dist/cli.js).",
+				);
+			}
+
+			// Env overrides for the spawned indexer process
+			const env: Record<string, string> = {
+				OPENAI_API_KEY: openaiApiKey,
+				OPENAI_EMBEDDING_MODEL:
+					this.settings.openaiEmbeddingModel.trim() ||
+					DEFAULT_SETTINGS.openaiEmbeddingModel,
+				AILSS_VAULT_PATH: vaultPath,
+			};
+
+			const args = [...indexerArgs, "--vault", vaultPath];
+			const uniquePaths = (paths ?? [])
+				.map(normalizeVaultRelPath)
+				.filter(shouldIndexVaultRelPath);
+			if (uniquePaths.length > 0) {
+				args.push("--paths", ...Array.from(new Set(uniquePaths)));
+			}
+			const pathLimitedRun = uniquePaths.length > 0;
+
+			const cwd = this.getPluginDirRealpathOrNull();
+			const spawnEnv = { ...process.env, ...env };
+			const resolved = resolveSpawnCommandAndEnv(indexerCommand, spawnEnv);
+			if (resolved.command === "node") {
+				throw new Error(nodeNotFoundMessage("Indexer"));
+			}
+
+			this.beginIndexerRun({ pathLimitedRun });
+			const result = await spawnAndCapture(
+				resolved.command,
+				args,
+				{ ...(cwd ? { cwd } : {}), env: resolved.env },
+				{
+					onStdoutChunk: (chunk) => {
+						this.indexerLiveStdout = appendLimited(
+							this.indexerLiveStdout,
+							chunk,
+							40_000,
+						);
+						this.consumeIndexerStdout(chunk);
+						this.scheduleIndexerStatusUpdate();
+					},
+					onStderrChunk: (chunk) => {
+						this.indexerLiveStderr = appendLimited(
+							this.indexerLiveStderr,
+							chunk,
+							20_000,
+						);
+						this.scheduleIndexerStatusUpdate();
+					},
+				},
+			);
 
 			this.lastIndexerExitCode = result.code;
 			this.lastIndexerFinishedAt = nowIso();
@@ -324,8 +412,15 @@ export default class AilssObsidianPlugin extends Plugin {
 				const suffix = result.stderr.trim() ? `\n${result.stderr.trim()}` : "";
 				throw new Error(`Process exited with code ${result.code}.${suffix}`);
 			}
+
+			this.lastIndexerSuccessAt = this.lastIndexerFinishedAt;
+			await this.saveSettings();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.recordIndexerFailure(message);
+			throw error;
 		} finally {
-			this.indexerRunning = false;
+			this.endIndexerRun();
 		}
 	}
 
@@ -407,6 +502,9 @@ export default class AilssObsidianPlugin extends Plugin {
 		this.lastIndexerLog = null;
 		this.lastIndexerExitCode = null;
 		this.lastIndexerFinishedAt = null;
+		this.lastIndexerErrorMessage = null;
+		this.lastIndexerSuccessAt = null;
+		await this.saveSettings();
 
 		return deletedPaths.length;
 	}
@@ -424,6 +522,234 @@ export default class AilssObsidianPlugin extends Plugin {
 
 		return null;
 	}
+
+	getIndexerStatusSnapshot(): AilssIndexerStatusSnapshot {
+		return {
+			running: this.indexerRunning,
+			startedAt: this.indexerStartedAt,
+			lastSuccessAt: this.lastIndexerSuccessAt,
+			lastFinishedAt: this.lastIndexerFinishedAt,
+			lastExitCode: this.lastIndexerExitCode,
+			lastErrorMessage: this.lastIndexerErrorMessage,
+			progress: {
+				filesTotal: this.indexerFilesTotal,
+				filesProcessed: this.indexerFilesProcessed,
+				currentFile: this.indexerCurrentFile,
+				currentMode: this.indexerCurrentMode,
+				chunkCurrent: this.indexerChunkCurrent,
+				chunkTotal: this.indexerChunkTotal,
+				summary: this.indexerSummary,
+			},
+			liveLog: { stdout: this.indexerLiveStdout, stderr: this.indexerLiveStderr },
+		};
+	}
+
+	subscribeIndexerStatus(listener: (snapshot: AilssIndexerStatusSnapshot) => void): () => void {
+		this.indexerStatusListeners.add(listener);
+		listener(this.getIndexerStatusSnapshot());
+		return () => this.indexerStatusListeners.delete(listener);
+	}
+
+	private registerIndexerStatusUi(): void {
+		const el = this.addStatusBarItem();
+		this.statusBarEl = el;
+		el.addClass("ailss-obsidian-statusbar");
+		el.setAttribute("role", "button");
+		el.addEventListener("click", () => this.openIndexerStatusModal());
+		this.register(() => el.remove());
+	}
+
+	private scheduleIndexerStatusUpdate(): void {
+		if (this.indexerUiUpdateTimer) return;
+		this.indexerUiUpdateTimer = setTimeout(() => {
+			this.indexerUiUpdateTimer = null;
+			this.emitIndexerStatusNow();
+		}, 100);
+	}
+
+	private emitIndexerStatusNow(): void {
+		const snapshot = this.getIndexerStatusSnapshot();
+		this.updateStatusBar(snapshot);
+		for (const listener of this.indexerStatusListeners) {
+			listener(snapshot);
+		}
+	}
+
+	private updateStatusBar(snapshot: AilssIndexerStatusSnapshot): void {
+		const el = this.statusBarEl;
+		if (!el) return;
+
+		el.removeClass("is-running");
+		el.removeClass("is-error");
+
+		if (snapshot.running) {
+			const total = snapshot.progress.filesTotal;
+			const done = snapshot.progress.filesProcessed;
+			const suffix = total ? ` ${Math.min(done, total)}/${total}` : "";
+			el.textContent = `AILSS: Indexing${suffix}`;
+			el.addClass("is-running");
+			el.setAttribute(
+				"title",
+				[
+					"AILSS indexing in progress",
+					snapshot.progress.currentFile
+						? `Current: ${snapshot.progress.currentFile}`
+						: "",
+					snapshot.lastSuccessAt ? `Last success: ${snapshot.lastSuccessAt}` : "",
+				]
+					.filter(Boolean)
+					.join("\n"),
+			);
+			return;
+		}
+
+		if (snapshot.lastErrorMessage) {
+			el.textContent = "AILSS: Index error";
+			el.addClass("is-error");
+			el.setAttribute(
+				"title",
+				[
+					"AILSS indexing error",
+					snapshot.lastFinishedAt ? `Last attempt: ${snapshot.lastFinishedAt}` : "",
+					snapshot.lastSuccessAt ? `Last success: ${snapshot.lastSuccessAt}` : "",
+					snapshot.lastErrorMessage,
+				]
+					.filter(Boolean)
+					.join("\n"),
+			);
+			return;
+		}
+
+		if (snapshot.lastSuccessAt) {
+			el.textContent = "AILSS: Ready";
+			el.setAttribute("title", `Last success: ${snapshot.lastSuccessAt}`);
+			return;
+		}
+
+		el.textContent = "AILSS: Not indexed";
+		el.setAttribute("title", "No successful index run recorded yet.");
+	}
+
+	private beginIndexerRun(options: { pathLimitedRun: boolean }): void {
+		this.indexerRunning = true;
+		this.indexerStartedAt = nowIso();
+		this.indexerLiveStdout = "";
+		this.indexerLiveStderr = "";
+		this.indexerStdoutRemainder = "";
+		this.indexerPathLimitedRun = options.pathLimitedRun;
+		this.indexerFilesTotal = null;
+		this.indexerFilesProcessed = 0;
+		this.indexerCurrentFile = null;
+		this.indexerCurrentMode = null;
+		this.indexerChunkCurrent = null;
+		this.indexerChunkTotal = null;
+		this.indexerSummary = null;
+		this.lastIndexerErrorMessage = null;
+		this.lastIndexerFinishedAt = null;
+		this.lastIndexerExitCode = null;
+		this.lastIndexerLog = null;
+		this.emitIndexerStatusNow();
+	}
+
+	private endIndexerRun(): void {
+		if (!this.indexerRunning) return;
+		this.indexerRunning = false;
+		this.indexerStartedAt = null;
+		this.emitIndexerStatusNow();
+	}
+
+	private recordIndexerFailure(message: string): void {
+		this.lastIndexerErrorMessage = message;
+		if (!this.lastIndexerFinishedAt) this.lastIndexerFinishedAt = nowIso();
+		this.emitIndexerStatusNow();
+	}
+
+	private consumeIndexerStdout(chunk: string): void {
+		// Indexer progress parsing
+		const chunkMatch = /\[chunks\]\s+(\d+)\/(\d+)/.exec(chunk);
+		if (chunkMatch) {
+			this.indexerChunkCurrent = Number(chunkMatch[1]);
+			this.indexerChunkTotal = Number(chunkMatch[2]);
+		}
+
+		this.indexerStdoutRemainder += chunk;
+		const lines = this.indexerStdoutRemainder.split("\n");
+		this.indexerStdoutRemainder = lines.pop() ?? "";
+		for (const rawLine of lines) {
+			const line = rawLine.replace(/\r/g, "").trimEnd();
+			this.consumeIndexerStdoutLine(line);
+		}
+	}
+
+	private consumeIndexerStdoutLine(line: string): void {
+		const filesMatch = /^\[ailss-indexer\]\s+files=(\d+)\s*$/.exec(line);
+		if (filesMatch) {
+			if (this.indexerPathLimitedRun) return;
+			this.indexerFilesTotal = Number(filesMatch[1]);
+			return;
+		}
+
+		const fileMatch = /^\[(index|meta)\]\s+(.+)\s*$/.exec(line);
+		if (fileMatch) {
+			this.indexerCurrentMode = fileMatch[1] === "index" ? "index" : "meta";
+			this.indexerCurrentFile = fileMatch[2] ?? null;
+			this.indexerFilesProcessed += 1;
+			this.indexerChunkCurrent = null;
+			this.indexerChunkTotal = null;
+			return;
+		}
+
+		const summaryMatch =
+			/^\[summary\]\s+changedFiles=(\d+),\s+indexedChunks=(\d+),\s+deletedFiles=(\d+)/.exec(
+				line,
+			);
+		if (summaryMatch) {
+			this.indexerSummary = {
+				changedFiles: Number(summaryMatch[1]),
+				indexedChunks: Number(summaryMatch[2]),
+				deletedFiles: Number(summaryMatch[3]),
+			};
+		}
+	}
+}
+
+function normalizeAilssPluginDataV1(data: AilssObsidianPluginDataV1): AilssObsidianPluginDataV1 {
+	return {
+		version: 1,
+		settings: data.settings,
+		indexer: { lastSuccessAt: data.indexer.lastSuccessAt ?? null },
+	};
+}
+
+function parseAilssPluginData(raw: unknown): {
+	settings: Partial<AilssObsidianSettings>;
+	indexer: { lastSuccessAt: string | null };
+} {
+	const empty = { settings: {}, indexer: { lastSuccessAt: null } };
+
+	if (!isRecord(raw)) return empty;
+
+	// v1 shape
+	if (raw.version === 1 && isRecord(raw.settings)) {
+		const indexer = isRecord(raw.indexer) ? raw.indexer : {};
+		return {
+			settings: raw.settings as Partial<AilssObsidianSettings>,
+			indexer: {
+				lastSuccessAt:
+					typeof indexer.lastSuccessAt === "string" ? indexer.lastSuccessAt : null,
+			},
+		};
+	}
+
+	// Legacy shape: settings object stored at the root
+	return {
+		settings: raw as Partial<AilssObsidianSettings>,
+		indexer: { lastSuccessAt: null },
+	};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 function clampTopK(input: number): number {
@@ -466,6 +792,11 @@ function shouldIndexVaultRelPath(vaultRelPath: string): boolean {
 
 type SpawnOptions = { cwd?: string; env: NodeJS.ProcessEnv };
 
+type SpawnHandlers = {
+	onStdoutChunk?: (chunk: string) => void;
+	onStderrChunk?: (chunk: string) => void;
+};
+
 type SpawnCaptureResult = {
 	code: number | null;
 	signal: NodeJS.Signals | null;
@@ -477,6 +808,7 @@ async function spawnAndCapture(
 	command: string,
 	args: string[],
 	options: SpawnOptions,
+	handlers?: SpawnHandlers,
 ): Promise<SpawnCaptureResult> {
 	return await new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
@@ -489,10 +821,14 @@ async function spawnAndCapture(
 		let stdout = "";
 		let stderr = "";
 		child.stdout?.on("data", (chunk: unknown) => {
-			stdout = appendLimited(stdout, chunk, limit);
+			const text = typeof chunk === "string" ? chunk : String(chunk);
+			stdout = appendLimited(stdout, text, limit);
+			handlers?.onStdoutChunk?.(text);
 		});
 		child.stderr?.on("data", (chunk: unknown) => {
-			stderr = appendLimited(stderr, chunk, limit);
+			const text = typeof chunk === "string" ? chunk : String(chunk);
+			stderr = appendLimited(stderr, text, limit);
+			handlers?.onStderrChunk?.(text);
 		});
 
 		child.on("error", (error) => {
@@ -780,8 +1116,8 @@ function nowIso(): string {
 	return new Date().toISOString().slice(0, 19);
 }
 
-function appendLimited(existing: string, chunk: unknown, limit: number): string {
-	const next = existing + (typeof chunk === "string" ? chunk : String(chunk));
+function appendLimited(existing: string, chunk: string, limit: number): string {
+	const next = existing + chunk;
 	if (next.length <= limit) return next;
 	return next.slice(next.length - limit);
 }

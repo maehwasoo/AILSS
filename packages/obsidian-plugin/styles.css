@@ -10,6 +10,7 @@ If your plugin does not need CSS, delete this file.
 .ailss-obsidian .ailss-status {
 	margin: 8px 0 12px;
 	color: var(--text-muted);
+	white-space: pre-wrap;
 }
 
 .ailss-obsidian .ailss-results {
@@ -38,4 +39,16 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 	font-size: 0.9em;
 	white-space: pre-wrap;
+}
+
+.ailss-obsidian-statusbar {
+	cursor: pointer;
+}
+
+.ailss-obsidian-statusbar.is-running {
+	color: var(--text-accent);
+}
+
+.ailss-obsidian-statusbar.is-error {
+	color: var(--text-error);
 }

@@ -60,3 +60,6 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 
 - `AILSS: Semantic search`: opens the search modal
 - `AILSS: Reindex vault`: runs the indexer to update `<Vault>/.ailss/index.sqlite`
+- `AILSS: Indexing status`: shows indexing progress + last successful indexing time
+
+The plugin also adds a status bar item that shows whether indexing is running, and the last successful index time.

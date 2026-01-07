@@ -16,6 +16,12 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 		callback: () => void plugin.reindexVault(),
 	});
 
+	plugin.addCommand({
+		id: "indexing-status",
+		name: "AILSS: Indexing status",
+		callback: () => plugin.openIndexerStatusModal(),
+	});
+
 	plugin.addRibbonIcon("search", "AILSS semantic search", () => {
 		new AilssSemanticSearchModal(plugin.app, plugin).open();
 	});
