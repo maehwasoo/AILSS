@@ -9,9 +9,10 @@ It also records a few **hard decisions** so code and docs stay consistent.
 - Write scope: **recommendation-first**, with **explicit write tools** only when the user triggers an apply action.
   - Default write destination for “job done / capture” notes: `<vault>/100. Inbox/`
   - No auto-classification into other folders yet (triage later per vault rules).
-- Codex integration: Codex should be **read-only for the vault filesystem**.
+- Codex integration: Codex should not need vault filesystem permissions.
   - Codex connects to AILSS via a **plugin-hosted MCP server over localhost** (streamable HTTP).
-  - The Obsidian plugin becomes the only component that reads/writes the vault DB and applies note edits.
+  - Codex can trigger explicit write tools over MCP (no per-edit UI flow) once enabled.
+  - Connection is configured globally once (e.g. `~/.codex/config.toml`) via a URL + token.
 - Vault path: the vault is **external** and provided via configuration (e.g., `AILSS_VAULT_PATH`).
 
 ## Current status
@@ -179,13 +180,10 @@ Plan:
 Goal:
 
 - Make Codex work with AILSS **without** any vault filesystem permissions in Codex.
-- Make Obsidian the single “trusted writer” for:
-  - vault note edits (Vault API)
-  - vault-local index DB writes (SQLite WAL in `<vault>/.ailss/`)
+- Let Codex trigger explicit vault writes over MCP (good UX), while keeping the service localhost-only.
 
 Non-goals:
 
-- No vault writes from Codex (including `<vault>/.ailss/`).
 - No “remote over the internet” server; this is localhost-only.
 
 ### 10.1 High-level architecture
@@ -194,28 +192,29 @@ Non-goals:
   - opens `<vault>/.ailss/index.sqlite` in WAL mode
   - reads vault files (for tools like `get_note`)
   - exposes MCP over **streamable HTTP** (SSE + HTTP POST) bound to `127.0.0.1`
-  - exposes only **read-first** tools to external clients (Codex)
+  - exposes read-first tools and (when enabled) explicit write tools
 - Codex connects to that service using a remote MCP configuration (`url = http://127.0.0.1:<port>/<path>`).
+  - Codex is configured globally once (via `~/.codex/config.toml`) using the URL + token.
 
 ### 10.2 Security + safety requirements
 
 - Bind address: `127.0.0.1` only (no LAN access by default).
 - Auth: require a per-vault token (Bearer token or equivalent).
   - Token stored in Obsidian plugin settings
-  - Provide a “Copy connection string” UI in the plugin
-- Tool surface: read-only for Codex.
-  - Do not expose vault write tools like `edit_note` to external clients by default.
-  - If we ever add privileged tools, they must use a separate port/token and require explicit UI confirmation in Obsidian.
+  - Provide a “Copy Codex config block” UI in the plugin (for `~/.codex/config.toml`)
+- Write tools must remain explicitly gated:
+  - Plugin toggle: “Enable write tools over MCP”
+  - All write tools must support `apply=false` by default and require explicit `apply=true`
+  - Recommend an `expected_sha256` guard for concurrency safety
 
 ### 10.3 Implementation plan (phased)
 
 Phase 0 — docs + contracts (no code changes)
 
-- Define the “Codex client contract”: Codex calls read tools only; edits are suggested as patch ops, not applied.
-- Define the “suggested ops” schema:
-  - target note path (vault-relative)
-  - expected sha256 (optional guard)
-  - line-based patch ops (`insert_lines` / `delete_lines` / `replace_lines`)
+- Define the “write tool contract”:
+  - tools must be safe by default (`apply=false`)
+  - tools must deny path traversal and restrict to `.md`
+  - tools should return `needs_reindex` when they change content
 
 Phase 1 — add HTTP transport for the MCP server
 
@@ -230,28 +229,27 @@ Phase 2 — Obsidian plugin “AILSS service” lifecycle
   - enable/disable local service
   - port (default e.g. 31415) + bind address (fixed to 127.0.0.1)
   - token (auto-generate on first run)
+- Add “Enable write tools over MCP” toggle
 - Add status UI:
   - service running / stopped / error
-  - “Copy URL/token” action
+  - “Copy Codex config block” action (global once)
   - “Restart service” action
 - Start the service on plugin load if enabled; stop on unload.
 
-Phase 3 — Obsidian-side apply flow (writer boundary)
+Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
-- Add a new plugin modal: “Apply suggested ops”
-  - paste JSON payload (ops + path)
-  - load the target note via Vault API
-  - preview the patched result and show a diff-like view (or at minimum “before/after” preview)
-  - explicit “Apply” button to write the file
-- After apply, trigger a path-scoped reindex (`--paths <file>`) so the DB stays consistent.
+- Expose explicit write tools over the localhost MCP server when enabled:
+  - `edit_note` (apply line-based patch ops; default apply=false)
+  - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
+  - future: `improve_frontmatter`, `relocate_note`
+- Ensure write tools trigger a path-scoped reindex after apply (or queue an index update).
 
 Phase 4 — Codex setup UX
 
-- Provide per-project helper docs/commands for configuring Codex to connect to the localhost MCP URL (no vault permissions).
-- Troubleshooting guide: “If you see MCP handshake failure, check that the Obsidian service is running and the token matches.”
+- Provide a plugin UI that outputs a ready-to-paste `~/.codex/config.toml` block.
+- Troubleshooting: if MCP fails, check service running + token + port.
 
 ### 10.4 Acceptance criteria
 
 - With Obsidian running and the service enabled, Codex can call `activate_context` successfully without any `writable_roots` configuration for the vault.
-- Codex cannot apply note edits directly (no write tools exposed).
-- Obsidian plugin can apply a suggested patch with preview + explicit confirmation, and the index DB is updated for that path.
+- With write tools enabled, Codex can call `edit_note` with `apply=true`, and the index DB is updated for that path.

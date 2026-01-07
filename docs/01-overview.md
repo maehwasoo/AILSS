@@ -76,11 +76,11 @@ Responsibilities:
 
 - Display recommendations in a UI.
 - Keep the local index DB up to date (manual reindex and optional debounced auto-index).
-- Only perform actual changes when the user clicks an explicit “Apply” action.
-- Applying changes can be implemented either by (A) calling existing scripts or (B) editing via an Obsidian Vault API.
+- Only perform vault writes when explicitly requested (for example an MCP write tool call with `apply=true`).
+- Applying changes can be implemented either via the Obsidian Vault API or via direct filesystem writes (but must remain gated and auditable).
 
 ## Data boundary
 
 - Indexing = file read + DB write
 - Recommendation = DB read
-- Apply = file write; requires explicit user action (including `capture_note`)
+- Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `capture_note`).
