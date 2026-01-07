@@ -4,6 +4,23 @@ This document explains how to run the AILSS MCP server from **Codex CLI** and av
 
 > `MCP startup failed: handshaking with MCP server failed: connection closed: initialize response`
 
+## Preferred direction (no vault filesystem permissions for Codex)
+
+We are moving toward a setup where **Obsidian hosts the AILSS MCP server over localhost**, and Codex connects to it via a remote MCP `url`.
+
+- Codex never opens the vault-local SQLite DB directly.
+- Codex never needs vault filesystem permissions (`writable_roots`).
+- The Obsidian plugin becomes the trusted boundary for:
+  - DB WAL sidecar writes in `<vault>/.ailss/`
+  - applying note edits via the Vault API
+
+See:
+
+- Plan: `docs/03-plan.md` (section “Codex integration via plugin-hosted MCP service (localhost)”)
+- ADR: `docs/adr/0007-obsidian-plugin-hosts-mcp-over-localhost.md`
+
+Until the plugin-hosted service is implemented, the legacy stdio setup below is still relevant.
+
 ## Why this happens
 
 AILSS uses a local SQLite index DB at `<vault>/.ailss/index.sqlite`.
@@ -17,7 +34,7 @@ That means the MCP server (and the indexer) need **write access to the DB direct
 
 Codex CLI’s `workspace-write` sandbox does **not** allow writes outside the workspace unless you explicitly allow them. When the MCP server cannot create/lock WAL sidecar files, it exits during startup, and Codex reports the handshake failure above.
 
-## Recommended setup
+## Legacy setup (Codex spawns the MCP server over stdio)
 
 ### 1) Keep write tools explicitly gated
 

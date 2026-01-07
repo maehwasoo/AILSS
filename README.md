@@ -92,7 +92,9 @@ When switching `OPENAI_EMBEDDING_MODEL`:
 
 ## Codex CLI sandbox note
 
-If you run the MCP server from Codex CLI with `sandbox_mode = "workspace-write"`, you must allow writes to the vault DB directory (`<vault>/.ailss/`) so SQLite can create WAL sidecar files. See [docs/ops/codex-cli.md](./docs/ops/codex-cli.md).
+Preferred direction: Codex connects to an Obsidian plugin-hosted MCP server over localhost, so Codex does not need any vault filesystem permissions.
+
+Until that is implemented, if you run the MCP server from Codex CLI with `sandbox_mode = "workspace-write"`, you must allow writes to the vault DB directory (`<vault>/.ailss/`) so SQLite can create WAL sidecar files. See [docs/ops/codex-cli.md](./docs/ops/codex-cli.md).
 
 ## Obsidian plugin (ailss-obsidian)
 
