@@ -8,6 +8,7 @@ import OpenAI from "openai";
 import {
   chunkMarkdownByHeadings,
   deleteFileByPath,
+  extractWikilinkTypedLinksFromMarkdownBody,
   getFileSha256,
   normalizeAilssNoteMeta,
   insertChunkWithEmbedding,
@@ -161,17 +162,28 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
     const file = await statMarkdownFile(vaultPath, absPath);
     const prevSha = getFileSha256(db, file.relPath);
 
-    if (prevSha && prevSha === file.sha256) {
-      continue;
-    }
+    const shaUnchanged = !!prevSha && prevSha === file.sha256;
+    const isFullVaultRun = requestedPaths.length === 0;
 
-    changedFiles += 1;
-    console.log(`\n[index] ${file.relPath}`);
+    // Incremental runs (auto-index via --paths) skip unchanged files entirely.
+    // Full vault runs refresh note metadata/typed-links for every file, but only recompute embeddings when the sha changes.
+    if (shaUnchanged && !isFullVaultRun) continue;
+
+    const needsEmbeddingUpdate = !shaUnchanged;
+    if (needsEmbeddingUpdate) {
+      changedFiles += 1;
+      console.log(`\n[index] ${file.relPath}`);
+    } else {
+      console.log(`\n[meta] ${file.relPath}`);
+    }
 
     const markdown = await readUtf8File(file.absPath);
     const parsed = parseMarkdownNote(markdown);
-    const chunks = chunkMarkdownByHeadings(parsed.body, { maxChars: options.maxChars });
+    const chunks = needsEmbeddingUpdate
+      ? chunkMarkdownByHeadings(parsed.body, { maxChars: options.maxChars })
+      : [];
     const noteMeta = normalizeAilssNoteMeta(parsed.frontmatter);
+    const bodyLinks = extractWikilinkTypedLinksFromMarkdownBody(parsed.body);
 
     // Upsert file metadata
     upsertFile(db, {
@@ -180,9 +192,6 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
       sizeBytes: file.size,
       sha256: file.sha256,
     });
-
-    // Delete and reinsert chunks for this file
-    deleteChunksByPath(db, file.relPath);
 
     // Note metadata and typed links
     upsertNote(db, {
@@ -200,7 +209,14 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
     });
     replaceNoteTags(db, file.relPath, noteMeta.tags);
     replaceNoteKeywords(db, file.relPath, noteMeta.keywords);
-    replaceTypedLinks(db, file.relPath, noteMeta.typedLinks);
+    replaceTypedLinks(db, file.relPath, [...noteMeta.typedLinks, ...bodyLinks]);
+
+    if (!needsEmbeddingUpdate) {
+      continue;
+    }
+
+    // Delete and reinsert chunks for this file
+    deleteChunksByPath(db, file.relPath);
 
     // Embedding batch calls
     const batchSize = Math.max(1, options.batchSize);
