@@ -6,3 +6,4 @@
 .ailss/**
 pnpm-lock.yaml
 packages/obsidian-plugin/main.js
+packages/obsidian-plugin/data.json

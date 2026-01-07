@@ -16,6 +16,9 @@ coverage/
 .node-gyp/
 tmp/
 
+# Local dev secrets / plugin state
+packages/obsidian-plugin/data.json
+
 # OS
 .DS_Store
 
