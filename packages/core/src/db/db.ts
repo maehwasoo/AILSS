@@ -11,6 +11,7 @@ export type OpenAilssDbOptions = {
   dbPath: string;
   embeddingModel: string;
   embeddingDim: number;
+  mode?: "readwrite" | "readonly";
 };
 
 export type AilssDb = Database.Database;
@@ -26,7 +27,11 @@ export async function resolveDefaultDbPath(vaultPath: string): Promise<string> {
 }
 
 export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
-  const db = new Database(options.dbPath);
+  const mode = options.mode ?? "readwrite";
+  const db =
+    mode === "readonly"
+      ? new Database(options.dbPath, { readonly: true, fileMustExist: true })
+      : new Database(options.dbPath);
 
   try {
     // Load sqlite-vec extension
@@ -34,8 +39,14 @@ export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
     loadSqliteVec(db);
 
     // Stability pragmas
-    db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
+    if (mode === "readonly") {
+      db.pragma("query_only = ON");
+      validateExistingDb(db, options);
+      return db;
+    }
+
+    db.pragma("journal_mode = WAL");
 
     migrate(db, options);
     return db;
@@ -47,6 +58,60 @@ export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
       // ignore
     }
     throw error;
+  }
+}
+
+function validateExistingDb(db: AilssDb, options: OpenAilssDbOptions): void {
+  const hasTable = (name: string): boolean => {
+    const row = db
+      .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`)
+      .get(name) as { 1?: 1 } | undefined;
+    return !!row;
+  };
+
+  if (!hasTable("chunks") || !hasTable("db_meta")) {
+    throw new Error(
+      [
+        "Index DB schema is missing or incomplete.",
+        `DB path: ${options.dbPath}`,
+        "Fix: run ailss-indexer to create the DB (or set AILSS_DB_PATH to an existing index.sqlite).",
+      ].join(" "),
+    );
+  }
+
+  const getMeta = (key: string): string | null => {
+    const row = db.prepare(`SELECT value FROM db_meta WHERE key = ?`).get(key) as
+      | { value?: string }
+      | undefined;
+    return row?.value ?? null;
+  };
+
+  const existingModel = getMeta("embedding_model");
+  const existingDimRaw = getMeta("embedding_dim");
+  const existingDim = existingDimRaw ? Number(existingDimRaw) : null;
+
+  const missingMeta = !existingModel || !existingDimRaw || !Number.isFinite(existingDim);
+  if (missingMeta) {
+    throw new Error(
+      [
+        "Index DB does not record the embedding model/dimension (likely uninitialized or created by an older AILSS version).",
+        "Refusing to continue to avoid mixing incompatible embeddings in one DB.",
+        `DB path: ${options.dbPath}`,
+        "Fix: delete the DB and reindex (or choose a different DB path).",
+      ].join(" "),
+    );
+  }
+
+  if (existingModel !== options.embeddingModel || existingDim !== options.embeddingDim) {
+    throw new Error(
+      [
+        "Embedding config mismatch for the index DB.",
+        `DB path: ${options.dbPath}`,
+        `DB expects: model=${existingModel}, dim=${existingDimRaw}`,
+        `Current run: model=${options.embeddingModel}, dim=${options.embeddingDim}`,
+        "Fix: delete the DB and reindex (or choose a new DB path).",
+      ].join(" "),
+    );
   }
 }
 
