@@ -52,29 +52,15 @@ If scope is unclear, default to `monorepo` or `docs`.
 
 - Summarize in one line and omit the trailing period
 - English is preferred (Korean is acceptable when needed), but keep terminology consistent
-- Make it obvious what changed (the “why” can go in the body)
+- Make it obvious what changed (put the “why” in a PR description, an issue, or docs/ADRs)
 - Include file paths or specific names only when helpful
 
-## Body guidelines
+## Body policy
 
-A one-line subject is usually enough. Add a body when:
+Commit messages in this repo are **single-line only**.
 
-- There is a design/behavior change (e.g., a DB schema change)
-- Users need migration steps
-- There are security/privacy implications
-
-Body template example:
-
-```
-Context:
-- ...
-
-Decision:
-- ...
-
-Notes:
-- ...
-```
+- Do not add a body, footers, or trailers (e.g., `Signed-off-by:`)
+- Put extra context in a PR description, an issue, or docs/ADRs instead
 
 ## Automated validation (hook)
 
