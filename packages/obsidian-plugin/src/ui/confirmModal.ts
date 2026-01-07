@@ -24,7 +24,7 @@ export class ConfirmModal extends Modal {
 		contentEl.addClass("ailss-obsidian");
 
 		contentEl.createEl("h2", { text: this.options.title });
-		contentEl.createDiv({ text: this.options.message });
+		contentEl.createDiv({ cls: "ailss-modal-message", text: this.options.message });
 
 		new Setting(contentEl)
 			.addButton((button) => {

@@ -41,6 +41,11 @@ If your plugin does not need CSS, delete this file.
 	white-space: pre-wrap;
 }
 
+.ailss-obsidian .ailss-modal-message {
+	margin: 8px 0 12px;
+	white-space: pre-wrap;
+}
+
 .ailss-obsidian-statusbar {
 	cursor: pointer;
 }

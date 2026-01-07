@@ -213,14 +213,26 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		const dbPath = this.resolveIndexerDbPathForReset();
-		const message = [
-			"This will delete the AILSS index DB file and its WAL/SHM files.",
-			`DB: ${dbPath}`,
-			"Your markdown notes are not modified.",
-			options.reindexAfter ? "After reset, indexing will start immediately." : "",
-		]
-			.filter(Boolean)
-			.join("\n");
+		const message = options.reindexAfter
+			? [
+					"This will delete the AILSS index database and immediately rebuild it.",
+					"",
+					`DB: ${dbPath}`,
+					"(including SQLite sidecar files like -wal/-shm)",
+					"",
+					"Your Markdown notes are not modified.",
+					"Reindexing will call the OpenAI embeddings API (costs money) and may take time depending on vault size.",
+				].join("\n")
+			: [
+					"This will delete the AILSS index database used for AILSS search and recommendations.",
+					"",
+					`DB: ${dbPath}`,
+					"(including SQLite sidecar files like -wal/-shm)",
+					"",
+					"Your Markdown notes are not modified.",
+					"After reset, AILSS search will return no results until you run “AILSS: Reindex vault”.",
+					"This will also clear the “Last success” timestamp shown in the status bar until you reindex.",
+				].join("\n");
 
 		new ConfirmModal(this.app, {
 			title: "Reset AILSS index DB",
