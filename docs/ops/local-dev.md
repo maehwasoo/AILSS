@@ -55,6 +55,7 @@ Required:
 - DB path configuration:
   - Recommended: `AILSS_VAULT_PATH` (derives the default DB path, and enables reading files for `get_note`)
   - Advanced: `AILSS_DB_PATH` (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`)
+  - If both are set: `AILSS_DB_PATH` takes precedence
 
 Optional:
 

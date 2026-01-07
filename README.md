@@ -83,6 +83,7 @@ MCP DB configuration:
 
 - Recommended: set `AILSS_VAULT_PATH` so the server can derive the default DB path and read files for `get_note`.
 - Advanced: set `AILSS_DB_PATH` to point directly to an existing DB file (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`).
+- If both are set: `AILSS_DB_PATH` takes precedence.
 
 ## Obsidian plugin (ailss-obsidian)
 
