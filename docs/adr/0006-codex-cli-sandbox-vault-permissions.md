@@ -1,6 +1,7 @@
 # 0006. Codex CLI sandbox permissions for vault-backed MCP
 
-status: accepted
+status: superseded
+superseded_by: 0007-obsidian-plugin-hosts-mcp-over-localhost
 
 ## Context
 

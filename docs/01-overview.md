@@ -41,6 +41,13 @@ Server guidance:
 - The MCP server exposes initialize-time instructions branded as **Prometheus Agent** (clients may use this to steer tool usage).
 - The server also provides a prompt template `prometheus-agent` that instructs: “call `activate_context` first, then answer.”
 
+Transport / client integration:
+
+- Recommended: the Obsidian plugin hosts the MCP server over **localhost** (streamable HTTP), and Codex connects via a remote MCP `url`.
+  - This avoids granting Codex any vault filesystem permissions.
+  - The plugin remains the only writer (vault edits + DB writes).
+- Local dev still supports running the MCP server over stdio (CLI).
+
 Frontmatter query support (current):
 
 - Queryable via `search_notes`: `note_id` (from frontmatter `id`), `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters
