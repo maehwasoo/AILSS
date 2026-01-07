@@ -11,6 +11,8 @@ import {
 	DEFAULT_SETTINGS,
 	type AilssObsidianSettings,
 } from "./settings.js";
+import { ConfirmModal } from "./ui/confirmModal.js";
+import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
 
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
@@ -19,6 +21,9 @@ export default class AilssObsidianPlugin extends Plugin {
 	private autoIndexPendingPaths = new Set<string>();
 	private autoIndexNeedsRerun = false;
 	private indexerRunning = false;
+	private lastIndexerLog: string | null = null;
+	private lastIndexerFinishedAt: string | null = null;
+	private lastIndexerExitCode: number | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -54,7 +59,8 @@ export default class AilssObsidianPlugin extends Plugin {
 			new Notice(`AILSS indexing complete. (${vaultPath})`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			new Notice(`AILSS indexing failed: ${message}`);
+			const hint = this.describeIndexerFailureHint(message);
+			new Notice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
 	}
 
@@ -101,6 +107,69 @@ export default class AilssObsidianPlugin extends Plugin {
 		} finally {
 			await client.close();
 		}
+	}
+
+	openLastIndexerLogModal(): void {
+		new AilssIndexerLogModal(this.app, this).open();
+	}
+
+	getLastIndexerLogSnapshot(): {
+		log: string | null;
+		finishedAt: string | null;
+		exitCode: number | null;
+	} {
+		return {
+			log: this.lastIndexerLog,
+			finishedAt: this.lastIndexerFinishedAt,
+			exitCode: this.lastIndexerExitCode,
+		};
+	}
+
+	async saveLastIndexerLogToFile(): Promise<string> {
+		const vaultPath = this.getVaultPath();
+		const log = this.lastIndexerLog?.trim() ?? "";
+		if (!log) throw new Error("No indexer log available.");
+
+		const dir = path.join(vaultPath, ".ailss");
+		await fs.promises.mkdir(dir, { recursive: true });
+
+		const filePath = path.join(dir, "ailss-indexer-last.log");
+		await fs.promises.writeFile(filePath, log + "\n", "utf8");
+		return filePath;
+	}
+
+	confirmResetIndexDb(options: { reindexAfter: boolean }): void {
+		if (this.indexerRunning) {
+			new Notice("AILSS indexing is currently running.");
+			return;
+		}
+
+		const dbPath = this.resolveIndexerDbPathForReset();
+		const message = [
+			"This will delete the AILSS index DB file and its WAL/SHM files.",
+			`DB: ${dbPath}`,
+			"Your markdown notes are not modified.",
+			options.reindexAfter ? "After reset, indexing will start immediately." : "",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		new ConfirmModal(this.app, {
+			title: "Reset AILSS index DB",
+			message,
+			confirmText: options.reindexAfter ? "Reset and reindex" : "Reset",
+			onConfirm: async () => {
+				const deletedCount = await this.resetIndexDb(dbPath);
+				new Notice(
+					deletedCount > 0
+						? `AILSS index DB reset. (deleted ${deletedCount} file${deletedCount === 1 ? "" : "s"})`
+						: "No index DB files found to delete.",
+				);
+				if (options.reindexAfter) {
+					await this.reindexVault();
+				}
+			},
+		}).open();
 	}
 
 	private registerAutoIndexEvents(): void {
@@ -231,11 +300,30 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		this.indexerRunning = true;
+		this.lastIndexerLog = null;
+		this.lastIndexerFinishedAt = null;
+		this.lastIndexerExitCode = null;
 		try {
-			await spawnAndWait(resolved.command, args, {
+			const result = await spawnAndCapture(resolved.command, args, {
 				...(cwd ? { cwd } : {}),
 				env: resolved.env,
 			});
+
+			this.lastIndexerExitCode = result.code;
+			this.lastIndexerFinishedAt = nowIso();
+			this.lastIndexerLog = formatIndexerLog({
+				command: resolved.command,
+				args,
+				code: result.code,
+				signal: result.signal,
+				stdout: result.stdout,
+				stderr: result.stderr,
+			});
+
+			if (result.code !== 0) {
+				const suffix = result.stderr.trim() ? `\n${result.stderr.trim()}` : "";
+				throw new Error(`Process exited with code ${result.code}.${suffix}`);
+			}
 		} finally {
 			this.indexerRunning = false;
 		}
@@ -286,6 +374,56 @@ export default class AilssObsidianPlugin extends Plugin {
 			return null;
 		}
 	}
+
+	private resolveIndexerDbPathForReset(): string {
+		const vaultPath = this.getVaultPath();
+		const pluginDir = this.getPluginDirRealpathOrNull();
+		const args = this.resolveIndexerArgs();
+
+		const fromArgs = parseCliArgValue(args, "--db");
+		if (fromArgs) {
+			if (path.isAbsolute(fromArgs)) return fromArgs;
+			if (pluginDir) return path.resolve(pluginDir, fromArgs);
+			return path.resolve(fromArgs);
+		}
+
+		return path.join(vaultPath, ".ailss", "index.sqlite");
+	}
+
+	private async resetIndexDb(dbPath: string): Promise<number> {
+		const candidates = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`];
+		const deletedPaths: string[] = [];
+
+		for (const filePath of candidates) {
+			try {
+				if (!(await fileExists(filePath))) continue;
+				await fs.promises.rm(filePath, { force: true });
+				deletedPaths.push(filePath);
+			} catch {
+				// ignore
+			}
+		}
+
+		this.lastIndexerLog = null;
+		this.lastIndexerExitCode = null;
+		this.lastIndexerFinishedAt = null;
+
+		return deletedPaths.length;
+	}
+
+	private describeIndexerFailureHint(message: string): string | null {
+		const msg = message.toLowerCase();
+
+		if (msg.includes("dimension mismatch") && msg.includes("embedding")) {
+			return "Embedding model mismatch: reset the index DB (Settings → AILSS Obsidian → Index maintenance) or switch the embedding model back to the one used when the DB was created.";
+		}
+
+		if (msg.includes("missed comma between flow collection entries")) {
+			return 'YAML frontmatter parse error: if you have unquoted Obsidian wikilinks in frontmatter lists (e.g. `- [[Some Note]]`), quote them: `- "[[Some Note]]"`. Use the indexer log to see which file was being indexed.';
+		}
+
+		return null;
+	}
 }
 
 function clampTopK(input: number): number {
@@ -328,26 +466,40 @@ function shouldIndexVaultRelPath(vaultRelPath: string): boolean {
 
 type SpawnOptions = { cwd?: string; env: NodeJS.ProcessEnv };
 
-async function spawnAndWait(command: string, args: string[], options: SpawnOptions): Promise<void> {
+type SpawnCaptureResult = {
+	code: number | null;
+	signal: NodeJS.Signals | null;
+	stdout: string;
+	stderr: string;
+};
+
+async function spawnAndCapture(
+	command: string,
+	args: string[],
+	options: SpawnOptions,
+): Promise<SpawnCaptureResult> {
 	return await new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: options.cwd,
 			env: options.env,
-			stdio: ["ignore", "ignore", "pipe"],
+			stdio: ["ignore", "pipe", "pipe"],
 		});
 
+		const limit = 80_000;
+		let stdout = "";
 		let stderr = "";
+		child.stdout?.on("data", (chunk: unknown) => {
+			stdout = appendLimited(stdout, chunk, limit);
+		});
 		child.stderr?.on("data", (chunk: unknown) => {
-			stderr += typeof chunk === "string" ? chunk : String(chunk);
+			stderr = appendLimited(stderr, chunk, limit);
 		});
 
 		child.on("error", (error) => {
 			reject(enhanceSpawnError(error, command, options.env));
 		});
-		child.on("close", (code) => {
-			if (code === 0) return resolve();
-			const suffix = stderr.trim() ? `\n${stderr.trim()}` : "";
-			reject(new Error(`Process exited with code ${code}.${suffix}`));
+		child.on("close", (code, signal) => {
+			resolve({ code, signal, stdout, stderr });
 		});
 	});
 }
@@ -622,4 +774,67 @@ function nodePathExamplesByPlatform(): string[] {
 	if (process.platform === "linux") return ["/usr/bin/node", "/usr/local/bin/node"];
 	if (process.platform === "win32") return ["C:\\\\Program Files\\\\nodejs\\\\node.exe"];
 	return [];
+}
+
+function nowIso(): string {
+	return new Date().toISOString().slice(0, 19);
+}
+
+function appendLimited(existing: string, chunk: unknown, limit: number): string {
+	const next = existing + (typeof chunk === "string" ? chunk : String(chunk));
+	if (next.length <= limit) return next;
+	return next.slice(next.length - limit);
+}
+
+function formatIndexerLog(input: {
+	command: string;
+	args: string[];
+	code: number | null;
+	signal: NodeJS.Signals | null;
+	stdout: string;
+	stderr: string;
+}): string {
+	const header = [
+		`[time] ${nowIso()}`,
+		`[command] ${input.command} ${input.args.join(" ")}`,
+		`[exit] ${input.code ?? "null"}${input.signal ? ` (signal ${input.signal})` : ""}`,
+	]
+		.filter(Boolean)
+		.join("\n");
+
+	return [
+		header,
+		"",
+		"[stdout]",
+		input.stdout.trimEnd(),
+		"",
+		"[stderr]",
+		input.stderr.trimEnd(),
+		"",
+	].join("\n");
+}
+
+function parseCliArgValue(args: string[], key: string): string | null {
+	for (let i = 0; i < args.length; i += 1) {
+		const arg = args[i] ?? "";
+		if (arg === key) {
+			const next = args[i + 1];
+			return typeof next === "string" ? next : null;
+		}
+
+		if (arg.startsWith(`${key}=`)) {
+			return arg.slice(key.length + 1);
+		}
+	}
+
+	return null;
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+	try {
+		await fs.promises.stat(filePath);
+		return true;
+	} catch {
+		return false;
+	}
 }

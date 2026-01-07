@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "./main.js";
 
@@ -143,6 +143,46 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 						.map((line) => line.trim())
 						.filter(Boolean);
 					await this.plugin.saveSettings();
+				});
+			});
+
+		containerEl.createEl("h3", { text: "Index maintenance" });
+
+		new Setting(containerEl)
+			.setName("Reset index DB")
+			.setDesc(
+				"Deletes the SQLite DB file used for indexing (and its WAL/SHM files). This does not modify your markdown notes.",
+			)
+			.addButton((button) => {
+				button.setButtonText("Reset");
+				button.setWarning();
+				button.onClick(() => this.plugin.confirmResetIndexDb({ reindexAfter: false }));
+			})
+			.addButton((button) => {
+				button.setButtonText("Reset and reindex");
+				button.setWarning();
+				button.onClick(() => this.plugin.confirmResetIndexDb({ reindexAfter: true }));
+			});
+
+		new Setting(containerEl)
+			.setName("Indexer logs")
+			.setDesc(
+				"Shows the output from the last indexing run (stdout/stderr). Useful for finding which file failed.",
+			)
+			.addButton((button) => {
+				button.setButtonText("Show logs");
+				button.onClick(() => this.plugin.openLastIndexerLogModal());
+			})
+			.addButton((button) => {
+				button.setButtonText("Save log to file");
+				button.onClick(() => {
+					void this.plugin
+						.saveLastIndexerLogToFile()
+						.then((filePath) => new Notice(`Saved log: ${filePath}`))
+						.catch((error) => {
+							const message = error instanceof Error ? error.message : String(error);
+							new Notice(`Save failed: ${message}`);
+						});
 				});
 			});
 
