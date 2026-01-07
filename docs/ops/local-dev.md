@@ -105,6 +105,7 @@ Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at y
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
 - **Indexer command/args** (optional; enables reindex + auto-index)
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
+- If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
 - Command palette: `AILSS: Reindex vault`
 - Optional: enable auto indexing (debounced; costs money)
 
