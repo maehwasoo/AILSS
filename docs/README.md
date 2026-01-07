@@ -27,6 +27,7 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 ## Ops
 
 - Local development: [ops/local-dev.md](./ops/local-dev.md)
+- Codex CLI integration: [ops/codex-cli.md](./ops/codex-cli.md)
 
 ## ADRs
 
@@ -36,3 +37,4 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 - 0003: [adr/0003-obsidian-plugin-spawns-processes.md](./adr/0003-obsidian-plugin-spawns-processes.md)
 - 0004: [adr/0004-frontmatter-and-typed-links-indexing.md](./adr/0004-frontmatter-and-typed-links-indexing.md)
 - 0005: [adr/0005-db-migrations-and-embedding-dimensions.md](./adr/0005-db-migrations-and-embedding-dimensions.md)
+- 0006: [adr/0006-codex-cli-sandbox-vault-permissions.md](./adr/0006-codex-cli-sandbox-vault-permissions.md)

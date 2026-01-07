@@ -84,6 +84,8 @@ MCP DB configuration:
 - Recommended: set `AILSS_VAULT_PATH` so the server can derive the default DB path and read files for `get_note`.
 - Advanced: set `AILSS_DB_PATH` to point directly to an existing DB file (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`).
 - Note: the index DB uses SQLite **WAL mode** (Write-Ahead Logging), so the MCP server/indexer need write access to the DB directory (creates `*-wal`/`*-shm` files next to the DB).
+- If you run the MCP server from Codex CLI with `sandbox_mode = "workspace-write"`, see [docs/ops/codex-cli.md](./docs/ops/codex-cli.md).
+- If you plan to use note write tools (for example `edit_note`), configure the sandbox with full vault write permission (not just `<vault>/.ailss/`).
 
 ## Obsidian plugin (ailss-obsidian)
 
