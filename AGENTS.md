@@ -73,7 +73,7 @@ This repo recommends Conventional Commits.
 - **Agent rule (must follow)**: before drafting a commit message, check `commitlint.config.cjs` (source of truth) and use only allowed scopes.
   - Allowed scopes: `monorepo`, `core`, `indexer`, `mcp`, `plugin`, `docs`, `ops`
   - Example mapping: changes under `packages/obsidian-plugin/*` → scope `plugin` (not `obsidian-plugin`)
-  - If a change spans multiple areas and you’re making a single commit, default scope to `monorepo` unless the user asks to split commits
+  - If a change spans multiple areas, **default to splitting into multiple commits** with the tightest valid scope per commit; use `monorepo` only for inherently cross-cutting changes (or when the user explicitly wants a single commit)
 
 ---
 
@@ -94,7 +94,7 @@ This repo recommends Conventional Commits.
   - Dev/ops changes (install/build/env/runtime) and operational runbooks/logs: `docs/ops/local-dev.md` (or add a new file under `docs/ops/` and link it from `docs/README.md`)
   - New architectural decision or tradeoff: add/update an ADR in `docs/adr/` (use the template in `docs/adr/README.md`)
   - Vault rule changes: refresh `docs/vault-ref/vault-root/{README.md,AGENTS.md}` snapshots (keep them as close to verbatim as possible)
-- Commit message drafting (required): after completing a job, draft a Conventional Commit message that matches `commitlint.config.cjs` (type + allowed scope), and include it in the final response
+- Commit message drafting (required): after completing a job, draft Conventional Commit message(s) that match `commitlint.config.cjs` (type + allowed scope); if the change spans multiple scopes, include a suggested commit breakdown (scope → files) and one message per commit
 - Destructive actions (delete/reset/rollback) require prior notice
 
 ---
