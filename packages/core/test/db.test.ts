@@ -12,8 +12,10 @@ import {
   insertChunkWithEmbedding,
   listFilePaths,
   openAilssDb,
+  searchNotes,
   semanticSearch,
   upsertFile,
+  upsertNote,
 } from "../src/db/db.js";
 
 let tempDir: string | null = null;
@@ -34,7 +36,7 @@ describe("openAilssDb() + semanticSearch()", () => {
   it("returns vector search results after inserting a chunk", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
-    const db = openAilssDb({ dbPath, embeddingDim: 3 });
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
 
     try {
       upsertFile(db, {
@@ -67,7 +69,7 @@ describe("openAilssDb() + semanticSearch()", () => {
   it("deleteChunksByPath() also removes vec0 rows", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
-    const db = openAilssDb({ dbPath, embeddingDim: 3 });
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
 
     try {
       upsertFile(db, {
@@ -99,7 +101,7 @@ describe("openAilssDb() + semanticSearch()", () => {
   it("deleteFileByPath() removes file rows and cascades", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
-    const db = openAilssDb({ dbPath, embeddingDim: 3 });
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
 
     try {
       upsertFile(db, {
@@ -128,5 +130,118 @@ describe("openAilssDb() + semanticSearch()", () => {
     } finally {
       db.close();
     }
+  });
+});
+
+describe("searchNotes()", () => {
+  it("filters by noteId (notes.note_id)", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "notes/a.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-a",
+      });
+      upsertFile(db, {
+        path: "notes/b.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-b",
+      });
+
+      upsertNote(db, {
+        path: "notes/a.md",
+        noteId: "note-a",
+        created: null,
+        title: "A",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        viewed: null,
+        frontmatterJson: "{}",
+      });
+      upsertNote(db, {
+        path: "notes/b.md",
+        noteId: "note-b",
+        created: null,
+        title: "B",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        viewed: null,
+        frontmatterJson: "{}",
+      });
+
+      expect(searchNotes(db, { noteId: "note-a" })).toEqual([
+        { path: "notes/a.md", title: "A", entity: null, layer: null, status: null },
+      ]);
+      expect(searchNotes(db, { noteId: ["note-a", "note-b"] })).toEqual([
+        { path: "notes/a.md", title: "A", entity: null, layer: null, status: null },
+        { path: "notes/b.md", title: "B", entity: null, layer: null, status: null },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+});
+
+describe("openAilssDb() embedding config validation", () => {
+  it("throws when embedding model changes", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+
+    const db = openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 3 });
+    db.close();
+
+    expect(() => openAilssDb({ dbPath, embeddingModel: "model-b", embeddingDim: 3 })).toThrow(
+      /Embedding config mismatch/i,
+    );
+  });
+
+  it("throws when embedding dimension changes", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+
+    const db = openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 3 });
+    db.close();
+
+    expect(() => openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 4 })).toThrow(
+      /Embedding config mismatch/i,
+    );
+  });
+
+  it("refuses to guess embedding config for a non-empty DB without meta", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+
+    const db = openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 3 });
+    try {
+      upsertFile(db, { path: "notes/a.md", mtimeMs: 0, sizeBytes: 0, sha256: "file-sha" });
+      insertChunkWithEmbedding(db, {
+        chunkId: "chunk-1",
+        path: "notes/a.md",
+        heading: "A",
+        headingPathJson: JSON.stringify(["A"]),
+        content: "hello world",
+        contentSha256: "content-sha",
+        embedding: [0.1, 0.2, 0.3],
+      });
+
+      db.prepare(`DELETE FROM db_meta`).run();
+    } finally {
+      db.close();
+    }
+
+    expect(() => openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 3 })).toThrow(
+      /does not record the embedding model\/dimension/i,
+    );
   });
 });

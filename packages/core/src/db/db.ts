@@ -9,6 +9,7 @@ import { ensureDir } from "../vault/filesystem.js";
 
 export type OpenAilssDbOptions = {
   dbPath: string;
+  embeddingModel: string;
   embeddingDim: number;
 };
 
@@ -27,19 +28,29 @@ export async function resolveDefaultDbPath(vaultPath: string): Promise<string> {
 export function openAilssDb(options: OpenAilssDbOptions): AilssDb {
   const db = new Database(options.dbPath);
 
-  // Load sqlite-vec extension
-  // - use vec0 virtual table for vector search
-  loadSqliteVec(db);
+  try {
+    // Load sqlite-vec extension
+    // - use vec0 virtual table for vector search
+    loadSqliteVec(db);
 
-  // Stability pragmas
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+    // Stability pragmas
+    db.pragma("journal_mode = WAL");
+    db.pragma("foreign_keys = ON");
 
-  migrate(db, options.embeddingDim);
-  return db;
+    migrate(db, options);
+    return db;
+  } catch (error) {
+    // Avoid leaving the DB locked if migration/validation fails
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+    throw error;
+  }
 }
 
-function migrate(db: AilssDb, embeddingDim: number): void {
+function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
   // Schema: files, chunks, chunk_embeddings(vec0), note metadata, typed links
   // - vec0 is rowid-based, so we map chunk_id to rowid
 
@@ -66,6 +77,70 @@ function migrate(db: AilssDb, embeddingDim: number): void {
     );
   `);
 
+  // DB metadata
+  // - helps prevent mixing embeddings from different models/dimensions
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS db_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  const hasAnyChunks = !!db.prepare(`SELECT 1 FROM chunks LIMIT 1`).get();
+
+  const getMeta = (key: string): string | null => {
+    const row = db.prepare(`SELECT value FROM db_meta WHERE key = ?`).get(key) as
+      | { value?: string }
+      | undefined;
+    return row?.value ?? null;
+  };
+
+  const setMeta = (key: string, value: string): void => {
+    db.prepare(
+      `
+      INSERT INTO db_meta(key, value, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value=excluded.value,
+        updated_at=excluded.updated_at
+    `,
+    ).run(key, value, nowIso());
+  };
+
+  const existingModel = getMeta("embedding_model");
+  const existingDimRaw = getMeta("embedding_dim");
+  const existingDim = existingDimRaw ? Number(existingDimRaw) : null;
+
+  const missingMeta = !existingModel || !existingDimRaw || !Number.isFinite(existingDim);
+  if (missingMeta) {
+    if (hasAnyChunks) {
+      throw new Error(
+        [
+          "Index DB does not record the embedding model/dimension (likely created by an older AILSS version).",
+          "Refusing to continue to avoid mixing incompatible embeddings in one DB.",
+          `DB path: ${options.dbPath}`,
+          "Fix: delete the DB and reindex (or choose a new --db path).",
+        ].join(" "),
+      );
+    }
+
+    setMeta("embedding_model", options.embeddingModel);
+    setMeta("embedding_dim", String(options.embeddingDim));
+  } else {
+    if (existingModel !== options.embeddingModel || existingDim !== options.embeddingDim) {
+      throw new Error(
+        [
+          "Embedding config mismatch for the index DB.",
+          `DB path: ${options.dbPath}`,
+          `DB expects: model=${existingModel}, dim=${existingDimRaw}`,
+          `Current run: model=${options.embeddingModel}, dim=${options.embeddingDim}`,
+          "Fix: delete the DB and reindex (or choose a new --db path).",
+        ].join(" "),
+      );
+    }
+  }
+
   // sqlite-vec vec0 table
   // - keep a separate mapping table to align rowid 1:1 with chunks.chunk_id
   db.exec(`
@@ -78,7 +153,7 @@ function migrate(db: AilssDb, embeddingDim: number): void {
 
   db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
-      embedding FLOAT[${embeddingDim}]
+      embedding FLOAT[${options.embeddingDim}]
     );
   `);
 
@@ -121,6 +196,7 @@ function migrate(db: AilssDb, embeddingDim: number): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_layer ON notes(layer);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_note_id ON notes(note_id);`);
 
   // Tag/keyword mappings
   // - avoids relying on sqlite json1 in all environments
@@ -433,6 +509,7 @@ export function getNoteMeta(db: AilssDb, notePath: string): NoteMeta | null {
 export type SearchNotesFilters = {
   pathPrefix?: string;
   titleQuery?: string;
+  noteId?: string | string[];
   entity?: string | string[];
   layer?: string | string[];
   status?: string | string[];
@@ -468,6 +545,12 @@ export function searchNotes(db: AilssDb, filters: SearchNotesFilters = {}): Sear
   if (filters.titleQuery) {
     where.push(`notes.title LIKE ?`);
     params.push(`%${filters.titleQuery}%`);
+  }
+
+  const noteIdList = normalizeStringList(filters.noteId);
+  if (noteIdList && noteIdList.length > 0) {
+    where.push(`notes.note_id IN (${noteIdList.map(() => "?").join(", ")})`);
+    params.push(...noteIdList);
   }
 
   const entityList = normalizeStringList(filters.entity);

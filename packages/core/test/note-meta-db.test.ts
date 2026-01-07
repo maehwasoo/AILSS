@@ -35,7 +35,7 @@ describe("notes + typed_links queries", () => {
   it("searchNotes() filters by fields and tags", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
-    const db = openAilssDb({ dbPath, embeddingDim: 3 });
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
 
     try {
       upsertFile(db, { path: "notes/a.md", mtimeMs: 0, sizeBytes: 0, sha256: "a" });
@@ -86,7 +86,7 @@ describe("notes + typed_links queries", () => {
   it("findNotesByTypedLink() returns backrefs for a target", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
-    const db = openAilssDb({ dbPath, embeddingDim: 3 });
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
 
     try {
       upsertFile(db, { path: "notes/a.md", mtimeMs: 0, sizeBytes: 0, sha256: "a" });
