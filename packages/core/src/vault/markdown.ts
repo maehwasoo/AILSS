@@ -59,6 +59,7 @@ export function chunkMarkdownByHeadings(
   bodyMarkdown: string,
   options: ChunkMarkdownOptions = { maxChars: 4000 },
 ): MarkdownChunk[] {
+  const maxChars = Math.max(1, options.maxChars);
   const body = normalizeNewlines(bodyMarkdown).trim();
   if (!body) return [];
 
@@ -140,7 +141,7 @@ export function chunkMarkdownByHeadings(
     const fullText = section.buffer.join("\n").trim();
     if (!fullText) continue;
 
-    if (fullText.length <= options.maxChars) {
+    if (fullText.length <= maxChars) {
       const contentSha256 = sha256Text(fullText);
       chunks.push({
         chunkId: contentSha256,
@@ -155,33 +156,87 @@ export function chunkMarkdownByHeadings(
     // Simple split: accumulate by blank-line paragraphs
     const paragraphs = fullText.split(/\n{2,}/g);
     let buffer = "";
+
+    const hardSplit = (text: string): string[] => {
+      const parts: string[] = [];
+      for (let start = 0; start < text.length; start += maxChars) {
+        parts.push(text.slice(start, start + maxChars));
+      }
+      return parts;
+    };
+
+    const splitOversizedParagraph = (paragraph: string): string[] => {
+      if (paragraph.length <= maxChars) return [paragraph];
+
+      // Newline packing, then hard split
+      const parts: string[] = [];
+      const lines = paragraph.split("\n");
+
+      let lineBuffer = "";
+      const flush = (): void => {
+        if (lineBuffer.trim()) parts.push(lineBuffer);
+        lineBuffer = "";
+      };
+
+      for (const line of lines) {
+        const next = lineBuffer ? `${lineBuffer}\n${line}` : line;
+        if (next.length > maxChars && lineBuffer) {
+          flush();
+          lineBuffer = line;
+        } else {
+          lineBuffer = next;
+        }
+
+        if (lineBuffer.length > maxChars) {
+          const hardParts = hardSplit(lineBuffer);
+          parts.push(...hardParts.slice(0, -1));
+          lineBuffer = hardParts[hardParts.length - 1] ?? "";
+        }
+      }
+
+      flush();
+      return parts;
+    };
+
+    const pushChunk = (text: string): void => {
+      const content = text.trim();
+      if (!content) return;
+      const contentSha256 = sha256Text(content);
+      chunks.push({
+        chunkId: contentSha256,
+        content,
+        contentSha256,
+        heading: section.heading,
+        headingPath: section.headingPath,
+      });
+    };
+
+    const flushBuffer = (): void => {
+      if (!buffer.trim()) return;
+      pushChunk(buffer);
+      buffer = "";
+    };
+
     for (const paragraph of paragraphs) {
+      if (paragraph.length > maxChars) {
+        flushBuffer();
+        for (const part of splitOversizedParagraph(paragraph)) {
+          pushChunk(part);
+        }
+        buffer = "";
+        continue;
+      }
+
       const next = buffer ? `${buffer}\n\n${paragraph}` : paragraph;
-      if (next.length > options.maxChars && buffer) {
-        const contentSha256 = sha256Text(buffer);
-        chunks.push({
-          chunkId: contentSha256,
-          content: buffer,
-          contentSha256,
-          heading: section.heading,
-          headingPath: section.headingPath,
-        });
+      if (next.length > maxChars && buffer) {
+        flushBuffer();
         buffer = paragraph;
         continue;
       }
       buffer = next;
     }
 
-    if (buffer.trim()) {
-      const contentSha256 = sha256Text(buffer);
-      chunks.push({
-        chunkId: contentSha256,
-        content: buffer,
-        contentSha256,
-        heading: section.heading,
-        headingPath: section.headingPath,
-      });
-    }
+    flushBuffer();
   }
 
   return chunks;

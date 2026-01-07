@@ -104,6 +104,20 @@ paragraph-3-12345
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.every((c) => c.heading === "A")).toBe(true);
   });
+
+  it("hard-splits when a single paragraph exceeds maxChars", () => {
+    const longLine = "a".repeat(120);
+    const body = `
+# A
+${longLine}
+`.trim();
+
+    const chunks = chunkMarkdownByHeadings(body, { maxChars: 25 });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((c) => c.heading === "A")).toBe(true);
+    expect(chunks.every((c) => c.content.length <= 25)).toBe(true);
+  });
 });
 
 describe("extractWikilinkTypedLinksFromMarkdownBody()", () => {
