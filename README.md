@@ -75,9 +75,9 @@ Implemented MCP tools include:
 
 Frontmatter query support (current):
 
-- Queryable via `search_notes`: `entity`, `layer`, `status`, `tags`, `keywords`, `path_prefix`, `title_query`
+- Queryable via `search_notes`: `note_id` (from frontmatter `id`), `entity`, `layer`, `status`, `tags`, `keywords`, `path_prefix`, `title_query`
 - Queryable via `find_notes_by_typed_link`: typed-link keys (e.g. `part_of`, `depends_on`, `instance_of`, etc.)
-- Stored/returned via `get_note_meta` but not directly filterable yet: other frontmatter fields (e.g. `id`, `created`, `updated`, `aliases`, `source`)
+- Stored/returned via `get_note_meta` but not directly filterable yet: other frontmatter fields (e.g. `created`, `updated`, `aliases`, `source`)
 
 MCP DB configuration:
 

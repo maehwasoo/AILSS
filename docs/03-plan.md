@@ -99,12 +99,12 @@ Implemented:
 - `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops
 - `get_note`: read a vault note by path (requires `AILSS_VAULT_PATH`)
 - `get_note_meta`: return normalized frontmatter + typed links from the index DB
-- `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
+- `search_notes`: filter notes by frontmatter-derived fields (e.g. `note_id`, `entity`, `layer`, `status`) plus tags/keywords
 - `find_notes_by_typed_link`: find notes that point to a typed-link target (typed-link “backrefs”)
 
 Notes on queryability (current):
 
-- `search_notes` supports only a fixed set of frontmatter-derived filters: `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters.
+- `search_notes` supports only a fixed set of frontmatter-derived filters: `note_id`, `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters.
 - Typed links are queryable via `find_notes_by_typed_link` by `rel` + `target` (target normalized from `[[wikilinks]]`).
 - Other frontmatter keys are stored (normalized JSON) and visible via `get_note_meta`, but are not directly filterable yet.
 

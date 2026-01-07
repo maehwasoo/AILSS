@@ -29,7 +29,7 @@ Read-first tools (implemented in this repo):
 - `activate_context`: query → seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns note previews + evidence)
 - `get_note`: by path → return note content/metadata
 - `get_note_meta`: return normalized frontmatter + typed links from the index DB
-- `search_notes`: filter notes by frontmatter-derived fields (e.g. `entity`, `layer`, `status`) plus tags/keywords
+- `search_notes`: filter notes by frontmatter-derived fields (e.g. `note_id`, `entity`, `layer`, `status`) plus tags/keywords
 - `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`, or `links_to` → `Some Note`)
 
 Server guidance:
@@ -39,9 +39,9 @@ Server guidance:
 
 Frontmatter query support (current):
 
-- Queryable via `search_notes`: `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters
+- Queryable via `search_notes`: `note_id` (from frontmatter `id`), `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters
 - Queryable via `find_notes_by_typed_link`: typed-link backrefs by `rel` + `target` (targets are normalized from `[[wikilinks]]`)
-- Not yet queryable (stored and returned via `get_note_meta` only): arbitrary frontmatter keys like `id`, `created`, `updated`, `aliases`, `source`
+- Not yet queryable (stored and returned via `get_note_meta` only): arbitrary frontmatter keys like `created`, `updated`, `aliases`, `source`
 
 Read-first tools (planned):
 

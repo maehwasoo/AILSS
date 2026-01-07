@@ -65,7 +65,7 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 ## Query support (current)
 
 - `search_notes` supports only a fixed set of filters backed by indexed columns/tables:
-  - `notes.entity`, `notes.layer`, `notes.status`
+  - `notes.note_id`, `notes.entity`, `notes.layer`, `notes.status`
   - `note_tags.tag`, `note_keywords.keyword`
   - basic path/title filters
 - `find_notes_by_typed_link` supports typed-link “backrefs” by `rel` + `to_target`.
@@ -87,7 +87,7 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 
 - `semantic_search` embeds the query and performs a KNN search via sqlite-vec using `MATCH` + `k = ?`
 - Due to sqlite-vec constraints, the KNN query needs `k = ?` or `LIMIT`, so matches are separated with a CTE
-- `search_notes` queries `notes` + mapping tables for frontmatter-derived filtering (entity/layer/status/tags/keywords)
+- `search_notes` queries `notes` + mapping tables for frontmatter-derived filtering (note_id/entity/layer/status/tags/keywords)
 - `find_notes_by_typed_link` queries `typed_links` for typed-link “backrefs” (relation + target)
 
 ## Embedding dimension caveat
