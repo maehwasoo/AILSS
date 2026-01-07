@@ -53,6 +53,7 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
     - Example for monorepo dev:
         - command: `node`
         - args: `/absolute/path/to/Ailss-project/packages/indexer/dist/cli.js`
+- If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
 
 ## Commands
 

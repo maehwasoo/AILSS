@@ -85,7 +85,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Command")
-			.setDesc("How to launch the AILSS MCP server (stdio).")
+			.setDesc(
+				"How to launch the AILSS MCP server (stdio). If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
+			)
 			.addText((text) => {
 				text.setPlaceholder("node");
 				text.setValue(this.plugin.settings.mcpCommand);
@@ -115,7 +117,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Command")
-			.setDesc("How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite).")
+			.setDesc(
+				"How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite). If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
+			)
 			.addText((text) => {
 				text.setPlaceholder("node");
 				text.setValue(this.plugin.settings.indexerCommand);
