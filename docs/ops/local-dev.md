@@ -59,7 +59,7 @@ Required:
 Notes:
 
 - The index DB uses SQLite **WAL mode** (Write-Ahead Logging), which creates sidecar files next to the DB (e.g. `index.sqlite-wal` and `index.sqlite-shm`). The MCP server and indexer therefore need **write access to the DB directory**, even when only running read-only tools.
-- If you run the MCP server via Codex CLI with `sandbox_mode = "workspace-write"`, add your vault path (or at least `<vault>/.ailss/`) to the sandbox’s writable roots (e.g. start Codex with `codex --add-dir "<vault>"`).
+- If you run the MCP server via Codex CLI with `sandbox_mode = "workspace-write"`, you must allow writes to the vault DB directory via `sandbox_workspace_write.writable_roots`. See: [Codex CLI integration](./codex-cli.md).
 
 Optional:
 
