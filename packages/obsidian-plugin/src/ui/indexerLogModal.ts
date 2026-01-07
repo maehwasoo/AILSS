@@ -53,7 +53,18 @@ export class AilssIndexerLogModal extends Modal {
 		}
 
 		try {
-			await navigator.clipboard.writeText(text);
+			// Clipboard API availability varies across Obsidian/Electron contexts.
+			// TODO plugin clipboard abstraction
+			// - prefer Obsidian-native helper if available
+			const clipboard = (
+				navigator as unknown as { clipboard?: { writeText?: (v: string) => Promise<void> } }
+			).clipboard;
+			if (!clipboard?.writeText) {
+				new Notice("Clipboard not available.");
+				return;
+			}
+
+			await clipboard.writeText(text);
 			new Notice("Copied log to clipboard.");
 		} catch {
 			new Notice("Copy failed.");
