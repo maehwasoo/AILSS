@@ -8,6 +8,7 @@ import { config as loadDotenv } from "dotenv";
 export type AilssEnv = {
   openaiApiKey: string | undefined;
   openaiEmbeddingModel: string;
+  enableWriteTools: boolean;
   vaultPath: string | undefined;
 };
 
@@ -39,6 +40,7 @@ export function loadEnv(): AilssEnv {
   return {
     openaiApiKey: process.env.OPENAI_API_KEY,
     openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+    enableWriteTools: process.env.AILSS_ENABLE_WRITE_TOOLS === "1",
     vaultPath: process.env.AILSS_VAULT_PATH,
   };
 }
