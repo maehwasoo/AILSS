@@ -39,7 +39,7 @@ export function loadEnv(): AilssEnv {
 
   return {
     openaiApiKey: process.env.OPENAI_API_KEY,
-    openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+    openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-large",
     enableWriteTools: process.env.AILSS_ENABLE_WRITE_TOOLS === "1",
     vaultPath: process.env.AILSS_VAULT_PATH,
   };

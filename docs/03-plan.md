@@ -127,6 +127,10 @@ Planned MCP tools (explicit write):
   - Supports `apply=false` dry-run and an optional `expected_sha256` guard; returns `needs_reindex` after applying
 - `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
   - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
+- `improve_frontmatter` (TODO): improve/normalize a note’s frontmatter to match vault rules (schema + typed links), returning patch ops and `needs_reindex`
+  - Must support preview/dry-run and refuse unsafe changes by default
+- `relocate_note` (TODO): move/rename a note into a better vault folder path (and optionally update references), returning the final path and `needs_reindex`
+  - Must support preview/dry-run and require explicit confirmation of source/target paths
 
 Safety contract (for all MCP tools that touch the vault):
 

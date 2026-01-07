@@ -8,7 +8,7 @@ Create a `.env` at the repo root based on `.env.example`, and set:
 
 - `OPENAI_API_KEY`
 - `AILSS_VAULT_PATH` (absolute path)
-- `OPENAI_EMBEDDING_MODEL` (optional; default: `text-embedding-3-small`)
+- `OPENAI_EMBEDDING_MODEL` (optional; default: `text-embedding-3-large`)
 - `AILSS_DB_PATH` (optional; MCP only): absolute path to an existing DB file when `AILSS_VAULT_PATH` is not set
 
 Notes:
@@ -33,11 +33,12 @@ pnpm -C packages/indexer start
 
 Options:
 
-- `--model text-embedding-3-small`: override the embedding model for this run (default: `OPENAI_EMBEDDING_MODEL` / `text-embedding-3-small`)
-- `--max-chars 4000`: max chunk size (characters)
-- `--batch-size 32`: embedding request batch size
-- `--paths notes/a.md notes/b.md`: only index these vault-relative markdown paths
-- `--reset-db`: delete and recreate the DB before indexing (recommended when switching embedding models)
+- `--model <model>`: override the embedding model for this run (default: `OPENAI_EMBEDDING_MODEL` / `text-embedding-3-large`)
+  - Examples: `text-embedding-3-large`, `text-embedding-3-small`
+  - `--max-chars 4000`: max chunk size (characters)
+  - `--batch-size 32`: embedding request batch size
+  - `--paths notes/a.md notes/b.md`: only index these vault-relative markdown paths
+  - `--reset-db`: delete and recreate the DB before indexing (recommended when switching embedding models)
 
 Note:
 

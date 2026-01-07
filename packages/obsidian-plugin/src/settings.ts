@@ -16,7 +16,7 @@ export interface AilssObsidianSettings {
 
 export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	openaiApiKey: "",
-	openaiEmbeddingModel: "text-embedding-3-small",
+	openaiEmbeddingModel: "text-embedding-3-large",
 	topK: 10,
 	mcpCommand: "node",
 	mcpArgs: [],
@@ -55,13 +55,29 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Embedding model")
-			.setDesc("Defaults to text-embedding-3-small.")
-			.addText((text) => {
-				text.setPlaceholder("text-embedding-3-small");
-				text.setValue(this.plugin.settings.openaiEmbeddingModel);
-				text.onChange(async (value) => {
-					this.plugin.settings.openaiEmbeddingModel =
-						value.trim() || DEFAULT_SETTINGS.openaiEmbeddingModel;
+			.setDesc("Defaults to text-embedding-3-large.")
+			.addDropdown((dropdown) => {
+				const supportedModels = [
+					"text-embedding-3-large",
+					"text-embedding-3-small",
+				] as const;
+
+				for (const model of supportedModels) {
+					dropdown.addOption(model, model);
+				}
+
+				const current =
+					this.plugin.settings.openaiEmbeddingModel.trim() ||
+					DEFAULT_SETTINGS.openaiEmbeddingModel;
+				const isSupported = supportedModels.includes(
+					current as (typeof supportedModels)[number],
+				);
+				if (!isSupported) dropdown.addOption(current, `${current} (custom)`);
+
+				dropdown.setValue(current);
+
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.openaiEmbeddingModel = value;
 					await this.plugin.saveSettings();
 				});
 			});
