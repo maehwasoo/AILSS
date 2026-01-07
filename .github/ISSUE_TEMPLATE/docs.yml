@@ -1,0 +1,27 @@
+name: Documentation issue
+description: Report missing/incorrect docs
+title: "docs: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Doc location
+      description: Which doc needs updating?
+      placeholder: "docs/ops/local-dev.md, README.md, ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What’s wrong / missing?
+      description: Describe the doc problem and what you expected to see
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix (optional)
+      placeholder: "Proposed wording, command, or link"

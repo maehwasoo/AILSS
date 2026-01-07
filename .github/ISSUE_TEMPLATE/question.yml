@@ -1,0 +1,32 @@
+name: Question / support
+description: Ask a question about setup, usage, or behavior
+title: "question: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What are you trying to do, and what’s blocking you?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context (optional)
+      placeholder: "Commands you ran, settings you changed, and what happened"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output (redact secrets)
+      render: text
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I confirm I did not include API keys or other secrets in this issue
+          required: true

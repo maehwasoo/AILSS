@@ -46,7 +46,18 @@ Scope expresses where the change happened. Prefer one of:
 - `docs`: `docs/*`
 - `ops`: local runbook docs or ops scripts
 
-If scope is unclear, default to `monorepo` or `docs`.
+Notes:
+
+- Scope is required in this repo (enforced by commitlint).
+- Prefer the smallest scope that matches where the change lives.
+- If a change spans multiple scopes, prefer splitting into multiple commits.
+- Use `monorepo` only when the change is inherently cross-cutting or repo-level (e.g. CI/workflows, root config, shared tooling), or when it cannot be reasonably split.
+
+Examples:
+
+- `ci(monorepo): tighten workflow permissions`
+- `build(monorepo): bump pnpm version`
+- `docs(ops): document indexer reset flow`
 
 ## `subject` rules
 

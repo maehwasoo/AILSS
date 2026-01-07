@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an improvement or new capability
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+      placeholder: "It's hard to ... / I want to be able to ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen?
+      placeholder: "Add a flag/tool/behavior that ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Constraints / context (optional)
+      description: Any constraints or context we should know?
+      placeholder: "Must stay local-first / avoid new network calls / keep read-only by default ..."

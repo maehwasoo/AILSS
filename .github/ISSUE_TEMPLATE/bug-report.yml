@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible problem in AILSS
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include a minimal repro and relevant logs.
+        Do not paste API keys or private note content.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where is the issue happening?
+      options:
+        - Indexer (packages/indexer)
+        - MCP server (packages/mcp)
+        - Obsidian plugin (packages/obsidian-plugin)
+        - Core/shared (packages/core)
+        - Docs
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what happened, and what did you expect?
+      placeholder: "Indexer crashes with ... / MCP tool returns ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps so we can reproduce
+      placeholder: |
+        1. Set OPENAI_EMBEDDING_MODEL=...
+        2. Run pnpm -C packages/indexer start -- ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output (redact secrets)
+      description: |
+        Paste relevant stdout/stderr. Please redact API keys and private note content.
+      render: text
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I confirm I did not include API keys or other secrets in this issue
+          required: true
+        - label: I can reproduce this on the latest `main` (or I included the exact commit SHA I tested)
+          required: false
