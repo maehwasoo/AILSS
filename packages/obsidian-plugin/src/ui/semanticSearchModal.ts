@@ -101,8 +101,9 @@ export class AilssSemanticSearchModal extends Modal {
 			this.setStatus(`Results: ${results.length}`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
+			const hint = describeSearchFailureHint(message);
 			this.setStatus("Search failed.");
-			new Notice(`AILSS search failed: ${message}`);
+			new Notice(`AILSS search failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
 	}
 }
@@ -111,4 +112,21 @@ function isEnterKeyEvent(event: unknown): event is { key: "Enter"; preventDefaul
 	if (!event || typeof event !== "object") return false;
 	const obj = event as { key?: unknown; preventDefault?: unknown };
 	return obj.key === "Enter" && typeof obj.preventDefault === "function";
+}
+
+function describeSearchFailureHint(message: string): string | null {
+	const msg = message.toLowerCase();
+
+	if (msg.includes("sqlite_cantopen") || msg.includes("unable to open database file")) {
+		return "SQLite DB open failed: ensure <vault>/.ailss/ is writable and not locked. Fix: run AILSS: Reindex vault (or reset the index DB in Settings → AILSS Obsidian).";
+	}
+
+	if (
+		msg.includes("embedding config mismatch") ||
+		(msg.includes("embedding") && msg.includes("mismatch"))
+	) {
+		return "Embedding config mismatch: reset the index DB (Settings → AILSS Obsidian → Index maintenance) or switch the embedding model back.";
+	}
+
+	return null;
 }
