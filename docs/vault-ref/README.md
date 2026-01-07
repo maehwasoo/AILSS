@@ -16,6 +16,17 @@ Copy the vault root files into the paths below (prefer keeping them verbatim):
 
 > This repo should not contain the full Obsidian vault. The default is to snapshot only these two rule documents.
 
+## Optional: Codex skill snapshots
+
+This repo also keeps a small set of **reference snapshots** for the AILSS Codex skills (used to automate vault workflows):
+
+- `docs/vault-ref/ailss/*/SKILL.md`
+
+Notes:
+
+- Source of truth for skills is your Codex config directory (for example: `~/.codex/skills/ailss/*/SKILL.md`).
+- These snapshots may reference older Codex CLI flags; prefer the current sandbox guidance in `docs/ops/codex-cli.md`.
+
 ## Sync rules
 
 - The source of truth always lives in the vault: `~/Obsidian/AILSS/README.md`, `~/Obsidian/AILSS/AGENTS.md`
