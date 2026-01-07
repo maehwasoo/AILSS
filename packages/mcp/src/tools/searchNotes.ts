@@ -13,10 +13,11 @@ export function registerSearchNotesTool(server: McpServer, deps: McpToolDeps): v
     {
       title: "Search notes (metadata)",
       description:
-        "Filters indexed notes by frontmatter-derived fields (entity/layer/status) plus tags/keywords and path/title filters. Does not use embeddings.",
+        "Filters indexed notes by frontmatter-derived fields (note_id/entity/layer/status) plus tags/keywords and path/title filters. Does not use embeddings.",
       inputSchema: {
         path_prefix: z.string().min(1).optional().describe("Filter by vault-relative path prefix"),
         title_query: z.string().min(1).optional().describe("Substring match against title"),
+        note_id: z.string().min(1).optional().describe("Exact note id match (frontmatter-derived)"),
         entity: z.string().min(1).optional().describe("Exact entity match (frontmatter-derived)"),
         layer: z.string().min(1).optional().describe("Exact layer match (frontmatter-derived)"),
         status: z.string().min(1).optional().describe("Exact status match (frontmatter-derived)"),
@@ -44,6 +45,7 @@ export function registerSearchNotesTool(server: McpServer, deps: McpToolDeps): v
         limit: args.limit,
         ...(args.path_prefix ? { pathPrefix: args.path_prefix } : {}),
         ...(args.title_query ? { titleQuery: args.title_query } : {}),
+        ...(args.note_id ? { noteId: args.note_id } : {}),
         ...(args.entity ? { entity: args.entity } : {}),
         ...(args.layer ? { layer: args.layer } : {}),
         ...(args.status ? { status: args.status } : {}),
