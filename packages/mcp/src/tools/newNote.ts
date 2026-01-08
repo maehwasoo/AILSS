@@ -1,15 +1,17 @@
 // new_note tool
 // - vault filesystem create (explicit apply)
-// - optional reindex after write
+// - full frontmatter template by default
 
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { isDefaultIgnoredVaultRelPath, parseMarkdownNote } from "@ailss/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
+import { buildAilssFrontmatter, renderMarkdownWithFrontmatter } from "../lib/ailssNoteTemplate.js";
 import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
 import { resolveVaultPathSafely, writeVaultFileText } from "../lib/vaultFs.js";
 
@@ -34,16 +36,24 @@ export function registerNewNoteTool(server: McpServer, deps: McpToolDeps): void 
     {
       title: "New note",
       description:
-        "Creates a new vault Markdown note by writing full text. Requires AILSS_VAULT_PATH. Writes only when apply=true.",
+        "Creates a new Markdown note in the vault. Prepends a full AILSS frontmatter template (or merges/normalizes an existing frontmatter block). Requires AILSS_VAULT_PATH. No write occurs unless apply=true.",
       inputSchema: {
-        path: z.string().min(1).describe('Vault-relative note path (e.g. "Projects/New Note.md")'),
-        text: z.string().default("").describe("Full note text (may include frontmatter)"),
+        path: z
+          .string()
+          .min(1)
+          .describe('Vault-relative Markdown path to create (must end with ".md")'),
+        title: z.string().min(1).optional().describe("Frontmatter title override (optional)"),
+        text: z
+          .string()
+          .default("")
+          .describe("Note markdown content (may include a frontmatter block)"),
         apply: z.boolean().default(false).describe("Apply file write; false = dry-run"),
         overwrite: z.boolean().default(false).describe("Allow overwriting an existing note"),
         reindex_after_apply: z
           .boolean()
           .default(true)
-          .describe("If apply=true, also reindex this path into the DB"),
+          .describe("If apply=true and the write succeeds, also reindex this path into the DB"),
+        frontmatter: z.record(z.any()).optional().describe("Frontmatter overrides (optional)"),
       },
       outputSchema: z.object({
         path: z.string(),
@@ -73,10 +83,27 @@ export function registerNewNoteTool(server: McpServer, deps: McpToolDeps): void 
       if (path.posix.extname(args.path).toLowerCase() !== ".md") {
         throw new Error(`Refusing to create non-markdown file: path="${args.path}".`);
       }
+      if (isDefaultIgnoredVaultRelPath(args.path)) {
+        throw new Error(`Refusing to create note in ignored folder: path="${args.path}".`);
+      }
 
       const abs = resolveVaultPathSafely(vaultPath, args.path);
       const dir = path.dirname(abs);
-      const sha256 = sha256HexUtf8(args.text);
+
+      const parsed = parseMarkdownNote(args.text);
+      const titleFromPath = path.posix.basename(args.path).replace(/\.md$/i, "");
+      const resolvedTitle =
+        args.title ??
+        (typeof parsed.frontmatter.title === "string" && parsed.frontmatter.title.trim()
+          ? parsed.frontmatter.title.trim()
+          : titleFromPath);
+      const frontmatter = buildAilssFrontmatter({
+        title: resolvedTitle,
+        preserve: parsed.frontmatter,
+        overrides: { ...(args.frontmatter ?? {}), title: resolvedTitle },
+      });
+      const markdown = renderMarkdownWithFrontmatter({ frontmatter, body: parsed.body });
+      const sha256 = sha256HexUtf8(markdown);
 
       const run = async () => {
         const existsBefore = await fileExists(abs);
@@ -107,7 +134,7 @@ export function registerNewNoteTool(server: McpServer, deps: McpToolDeps): void 
         }
 
         await fs.mkdir(dir, { recursive: true });
-        await writeVaultFileText({ vaultPath, vaultRelPath: args.path, text: args.text });
+        await writeVaultFileText({ vaultPath, vaultRelPath: args.path, text: markdown });
 
         let reindexed = false;
         let reindexSummary: {
