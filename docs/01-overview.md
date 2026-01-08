@@ -36,6 +36,8 @@ Read-first tools (implemented in this repo):
 - `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
 - `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target); target is normalized from `[[wikilinks]]`
 - `search_vault`: keyword/regex search over vault files (filesystem-backed)
+- `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
+- `get_vault_graph`: typed-link graph from the index DB (metadata only; does not read note bodies)
 
 Server guidance:
 
@@ -67,7 +69,7 @@ Explicit write tools (apply, implemented):
 - `new_note`: create a new note with full frontmatter (default: no overwrite; supports dry-run)
 - `capture_note`: capture a new inbox note with full frontmatter (default folder: `100. Inbox`; supports dry-run)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
-- `relocate_note`: move/rename a note within the vault (supports dry-run)
+- `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
 - `reindex_paths`: reindex specific vault paths into the DB (embeddings + metadata; supports dry-run; may incur embedding costs)
 
 Write tools (planned):

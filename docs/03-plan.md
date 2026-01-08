@@ -110,6 +110,9 @@ Implemented:
 - `get_note_meta`: read from the index DB by path → return normalized frontmatter + typed links (does not read vault files)
 - `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
 - `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target); target is normalized from `[[wikilinks]]`
+- `search_vault`: keyword/regex search over vault files (filesystem-backed; requires `AILSS_VAULT_PATH`)
+- `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
+- `get_vault_graph`: typed-link graph from the index DB (metadata only; does not read note bodies)
 
 Notes on queryability (current):
 
@@ -140,6 +143,7 @@ Write tools (explicit apply):
   - Optional `expected_sha256` guard; by default reindexes the edited path (set `reindex_after_apply=false` to skip)
 - `relocate_note`: move/rename a note within the vault (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run, optional overwrite, and optional reindex
+  - Updates frontmatter `updated` when a frontmatter block is present
   - Does not update inbound references (future enhancement)
 - `reindex_paths`: reindex specific vault paths into the DB (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run; uses embeddings (may incur OpenAI costs)
@@ -252,7 +256,7 @@ Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
   - `new_note` (create note with full frontmatter; default create-only)
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
-  - `relocate_note` (move/rename a note)
+  - `relocate_note` (move/rename a note; updates frontmatter `updated` when present)
   - future: `improve_frontmatter`
 - Ensure write tools trigger a path-scoped reindex after apply (or queue an index update).
 

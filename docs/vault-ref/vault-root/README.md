@@ -16,7 +16,7 @@ entity:
 # strategic | conceptual | logical | physical | operational
 # 왜 / 무엇 / 어떻게 / 구현 / 운영
 layer: conceptual
-tags: ['inbox']
+tags: [] # inbox 태그는 100. Inbox/ 아래 노트에만 사용 (예: ['inbox'])
 keywords: []
 # draft | in-review | published | archived
 status: draft

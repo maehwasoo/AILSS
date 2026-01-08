@@ -39,13 +39,15 @@ Read tools:
 - `get_note`, `get_note_meta`
 - `search_notes`, `find_notes_by_typed_link`
 - `search_vault`
+- `get_vault_tree`
+- `get_vault_graph`
 
 Write tools (only when enabled in the plugin; always require `apply=true`):
 
 - `new_note` (creates a new note with full frontmatter; default: no overwrite)
 - `capture_note` (creates a new inbox note with full frontmatter)
 - `edit_note` (by default reindexes the edited path and returns a reindex summary)
-- `relocate_note` (move/rename a note)
+- `relocate_note` (move/rename a note; updates frontmatter `updated` when present)
 - `reindex_paths`
 
 ## Notes / safety
