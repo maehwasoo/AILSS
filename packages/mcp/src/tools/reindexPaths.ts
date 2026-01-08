@@ -54,7 +54,9 @@ export function registerReindexPathsTool(server: McpServer, deps: McpToolDeps): 
         };
       }
 
-      const summary = await reindexVaultPaths(deps, paths);
+      const summary = await (deps.writeLock
+        ? deps.writeLock.runExclusive(() => reindexVaultPaths(deps, paths))
+        : reindexVaultPaths(deps, paths));
       const payload = {
         applied: true,
         paths,

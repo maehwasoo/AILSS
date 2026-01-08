@@ -83,81 +83,90 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
       }),
     },
     async (args) => {
-      if (!deps.vaultPath) {
+      const vaultPath = deps.vaultPath;
+      if (!vaultPath) {
         throw new Error("Cannot edit files because AILSS_VAULT_PATH is not set.");
       }
       if (path.posix.extname(args.path).toLowerCase() !== ".md") {
         throw new Error(`Refusing to edit non-markdown file: path="${args.path}".`);
       }
 
-      const beforeText = await readVaultFileFullText({
-        vaultPath: deps.vaultPath,
-        vaultRelPath: args.path,
-      });
-      const beforeSha256 = sha256HexUtf8(beforeText);
-
-      if (args.expected_sha256 && args.expected_sha256 !== beforeSha256) {
-        throw new Error(
-          [
-            "Edit rejected due to sha256 mismatch.",
-            `path="${args.path}"`,
-            `expected_sha256="${args.expected_sha256}"`,
-            `actual_sha256="${beforeSha256}"`,
-          ].join(" "),
-        );
-      }
-
-      const { text: afterText } = applyLinePatchOps(beforeText, args.ops);
-      const afterSha256 = sha256HexUtf8(afterText);
-      const changed = afterSha256 !== beforeSha256;
-
-      let reindexed = false;
-      let reindexSummary: {
-        changed_files: number;
-        indexed_chunks: number;
-        deleted_files: number;
-      } | null = null;
-      let reindexError: string | null = null;
-
-      if (args.apply && changed) {
-        await writeVaultFileText({
-          vaultPath: deps.vaultPath,
+      const run = async () => {
+        const beforeText = await readVaultFileFullText({
+          vaultPath,
           vaultRelPath: args.path,
-          text: afterText,
         });
+        const beforeSha256 = sha256HexUtf8(beforeText);
 
-        if (args.reindex_after_apply) {
-          try {
-            const summary = await reindexVaultPaths(deps, [args.path]);
-            reindexed = true;
-            reindexSummary = {
-              changed_files: summary.changedFiles,
-              indexed_chunks: summary.indexedChunks,
-              deleted_files: summary.deletedFiles,
-            };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            reindexError = message;
+        if (args.expected_sha256 && args.expected_sha256 !== beforeSha256) {
+          throw new Error(
+            [
+              "Edit rejected due to sha256 mismatch.",
+              `path="${args.path}"`,
+              `expected_sha256="${args.expected_sha256}"`,
+              `actual_sha256="${beforeSha256}"`,
+            ].join(" "),
+          );
+        }
+
+        const { text: afterText } = applyLinePatchOps(beforeText, args.ops);
+        const afterSha256 = sha256HexUtf8(afterText);
+        const changed = afterSha256 !== beforeSha256;
+
+        let reindexed = false;
+        let reindexSummary: {
+          changed_files: number;
+          indexed_chunks: number;
+          deleted_files: number;
+        } | null = null;
+        let reindexError: string | null = null;
+
+        if (args.apply && changed) {
+          await writeVaultFileText({
+            vaultPath,
+            vaultRelPath: args.path,
+            text: afterText,
+          });
+
+          if (args.reindex_after_apply) {
+            try {
+              const summary = await reindexVaultPaths(deps, [args.path]);
+              reindexed = true;
+              reindexSummary = {
+                changed_files: summary.changedFiles,
+                indexed_chunks: summary.indexedChunks,
+                deleted_files: summary.deletedFiles,
+              };
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              reindexError = message;
+            }
           }
         }
+
+        const payload = {
+          path: args.path,
+          applied: Boolean(args.apply && changed),
+          changed,
+          before_sha256: beforeSha256,
+          after_sha256: afterSha256,
+          needs_reindex: Boolean(args.apply && changed && !reindexed),
+          reindexed,
+          reindex_summary: reindexSummary,
+          reindex_error: reindexError,
+        };
+
+        return {
+          structuredContent: payload,
+          content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
+        };
+      };
+
+      if (args.apply) {
+        return await (deps.writeLock ? deps.writeLock.runExclusive(run) : run());
       }
 
-      const payload = {
-        path: args.path,
-        applied: Boolean(args.apply && changed),
-        changed,
-        before_sha256: beforeSha256,
-        after_sha256: afterSha256,
-        needs_reindex: Boolean(args.apply && changed && !reindexed),
-        reindexed,
-        reindex_summary: reindexSummary,
-        reindex_error: reindexError,
-      };
-
-      return {
-        structuredContent: payload,
-        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-      };
+      return await run();
     },
   );
 }
