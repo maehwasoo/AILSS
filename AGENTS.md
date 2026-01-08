@@ -128,3 +128,13 @@ This repo recommends Conventional Commits.
   - Then ≤5 bullets (What / Where / Risks / Next / Open questions)
 - All responses must be in English
 - For technical terms, include a short plain-English explanation on first use
+
+---
+
+## 6. Refactoring guidelines (required)
+
+- Refactor only when it reduces risk or duplication for the current task; avoid “cleanup” refactors that expand scope.
+- Prefer small, behavior-preserving extractions (helper functions/modules) over large rewrites; keep diffs easy to review.
+- Treat line count as a signal, not a rule. Refactor when a file is hard to navigate (mixed concerns, repeated setup/teardown, long helpers) even if it’s <500 lines.
+- Heuristics (non-binding): consider refactoring when a file exceeds ~500 lines, when helpers exceed ~150 lines, or when the same code block appears in 3+ places.
+- Verification requirement: after refactoring, run the closest tests/lint/typecheck available and ensure no public API/CLI behavior changes unless explicitly requested.
