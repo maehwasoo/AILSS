@@ -39,6 +39,7 @@ Server guidance:
 
 - The MCP server exposes initialize-time instructions branded as **Prometheus Agent** (clients may use this to steer tool usage).
 - The server also provides a prompt template `prometheus-agent` that instructs: “call `get_context` first, then answer.”
+- The server also provides a prompt template `prometheus-capture-note` that instructs: retrieve context, draft an AILSS-formatted note, then call `capture_note` (dry-run first).
 
 Transport / client integration:
 
