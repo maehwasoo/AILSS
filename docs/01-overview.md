@@ -45,7 +45,7 @@ Transport / client integration:
 
 - Recommended: the Obsidian plugin hosts the MCP server over **localhost** (streamable HTTP), and Codex connects via a remote MCP `url`.
   - This avoids granting Codex any vault filesystem permissions.
-  - The plugin remains the only writer (vault edits + DB writes).
+  - The plugin remains the only writer (vault DB writes + gated note edits via MCP write tools).
 - Local dev still supports running the MCP server over stdio (CLI).
 
 Frontmatter query support (current):

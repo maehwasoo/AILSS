@@ -24,10 +24,11 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
 - MCP server MVP exists (`packages/mcp`)
   - Read tools: `semantic_search`, `activate_context`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
-  - Transport: stdio only (plugin-hosted HTTP transport is planned)
+  - Transport: stdio + streamable HTTP (`/mcp` on localhost)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: semantic search modal that opens a selected note
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
+  - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
 
 ## 1) Design the index schema
 

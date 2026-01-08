@@ -1,6 +1,6 @@
 # 0007. Obsidian plugin hosts MCP over localhost (streamable HTTP)
 
-status: draft
+status: accepted
 
 ## Context
 
