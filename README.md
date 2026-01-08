@@ -41,6 +41,7 @@ Read tools:
 
 Write tools (only when enabled in the plugin; always require `apply=true`):
 
+- `new_note` (creates a new note by writing full text; default: no overwrite)
 - `edit_note` (by default reindexes the edited path and returns a reindex summary)
 - `reindex_paths`
 

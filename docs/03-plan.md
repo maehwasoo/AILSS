@@ -130,12 +130,15 @@ TODO (to expand structured queries):
 
 Write tools (explicit apply):
 
+- `new_note`: create a new note by writing full text (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run and an optional `overwrite` flag (default: create-only)
+  - By default reindexes the created path (set `reindex_after_apply=false` to skip)
 - `edit_note`: apply line-based patch ops to an existing `.md` note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run and an optional `expected_sha256` guard
   - By default reindexes the edited path (set `reindex_after_apply=false` to skip)
 - `reindex_paths`: reindex specific vault paths into the DB (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run to preview the target set without writing
-- `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
+- `capture_note` (TODO): create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
   - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
 - `improve_frontmatter` (TODO): improve/normalize a note’s frontmatter to match vault rules (schema + typed links), returning patch ops and `needs_reindex`
   - Must support preview/dry-run and refuse unsafe changes by default
@@ -244,8 +247,9 @@ Phase 2 — Obsidian plugin “AILSS service” lifecycle
 Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 - Expose explicit write tools over the localhost MCP server when enabled:
+  - `new_note` (create note by writing full text; default create-only)
   - `edit_note` (apply line-based patch ops; default apply=false)
-  - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
+  - `capture_note` (TODO: create new note in `<vault>/100. Inbox/` by default)
   - future: `improve_frontmatter`, `relocate_note`
 - Ensure write tools trigger a path-scoped reindex after apply (or queue an index update).
 

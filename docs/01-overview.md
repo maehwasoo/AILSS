@@ -62,11 +62,15 @@ Read-first tools (planned):
 - `suggest_typed_links`: suggest typed-link candidates
 - `find_broken_links`: detect broken links
 
-Explicit write tools (apply):
+Explicit write tools (apply, implemented):
 
-- `capture_note`: write a new note (default: `<vault>/100. Inbox/`) with correct frontmatter
+- `new_note`: create a new note by writing full text (default: no overwrite)
 - `edit_note`: apply patch ops to an existing note (line-based); by default reindexes the path and returns a reindex summary
 - `reindex_paths`: reindex specific vault paths into the DB (useful after manual edits)
+
+Write tools (planned):
+
+- `capture_note`: write a new note (default: `<vault>/100. Inbox/`) with correct frontmatter
 
 Write tools are gated and not exposed by default:
 
@@ -85,4 +89,4 @@ Responsibilities:
 
 - Indexing = file read + DB write
 - Recommendation = DB read
-- Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `capture_note`).
+- Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `new_note`).
