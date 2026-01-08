@@ -1,4 +1,4 @@
-// get_note tool
+// read_note tool
 // - vault filesystem read
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -9,9 +9,9 @@ import { readVaultFileText } from "../lib/vaultFs.js";
 
 export function registerGetNoteTool(server: McpServer, deps: McpToolDeps): void {
   server.registerTool(
-    "get_note",
+    "read_note",
     {
-      title: "Get note",
+      title: "Read note",
       description:
         "Reads a Markdown note from the vault filesystem by vault-relative path. Requires AILSS_VAULT_PATH; path traversal is blocked. Returns raw note text (may be truncated by `max_chars`).",
       inputSchema: {

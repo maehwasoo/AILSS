@@ -89,8 +89,6 @@ export function buildAilssFrontmatter(options: {
     keywords: [],
     status: "draft",
     updated: now,
-    viewed: 0,
-    source: [],
   };
 
   // Typed links: always present as arrays (stable shape for downstream normalization).
@@ -147,8 +145,6 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "keywords",
     "status",
     "updated",
-    "viewed",
-    "source",
     "instance_of",
     "part_of",
     "uses",

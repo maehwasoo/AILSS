@@ -15,31 +15,21 @@ import {
 } from "./httpTestUtils.js";
 
 describe("MCP HTTP server (read tools)", () => {
-  it("searches the vault via search_vault", async () => {
+  it("reads a note via read_note", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
-      await fs.writeFile(path.join(vaultPath, "Doc.md"), "a\nneedle\nb\n", "utf8");
+      await fs.writeFile(path.join(vaultPath, "Doc.md"), "a\nb\nc\n", "utf8");
 
       await withMcpHttpServer({ vaultPath, enableWriteTools: false }, async ({ url, token }) => {
         const sessionId = await mcpInitialize(url, token, "client-a");
-        const res = await mcpToolsCall(url, token, sessionId, "search_vault", {
-          query: "needle",
-          regex: false,
-          case_sensitive: true,
-          max_results: 10,
-          max_matches_per_file: 10,
+        const res = await mcpToolsCall(url, token, sessionId, "read_note", {
+          path: "Doc.md",
+          max_chars: 20_000,
         });
 
         const structured = getStructuredContent(res);
-        const results = structured["results"];
-        assertArray(results, "results");
-        expect(results.length).toBe(1);
-        assertRecord(results[0], "results[0]");
-        expect(results[0]["path"]).toBe("Doc.md");
-        const matches = results[0]["matches"];
-        assertArray(matches, "matches");
-        expect(matches.length).toBe(1);
-        assertRecord(matches[0], "matches[0]");
-        expect(matches[0]["line"]).toBe(2);
+        expect(structured["path"]).toBe("Doc.md");
+        expect(structured["truncated"]).toBe(false);
+        expect(String(structured["content"])).toBe("a\nb\nc\n");
       });
     });
   });
@@ -90,7 +80,52 @@ describe("MCP HTTP server (read tools)", () => {
     });
   });
 
-  it("returns a typed-link graph via get_vault_graph (and get_note_graph alias)", async () => {
+  it("validates frontmatter via frontmatter_validate", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await fs.writeFile(
+        path.join(vaultPath, "Ok.md"),
+        [
+          "---",
+          'id: "20260108123456"',
+          'created: "2026-01-08T12:34:56"',
+          'title: "Ok"',
+          "summary:",
+          "aliases: []",
+          "entity:",
+          "layer: conceptual",
+          "tags: []",
+          "keywords: []",
+          "status: draft",
+          'updated: "2026-01-08T12:34:56"',
+          "---",
+          "",
+          "ok",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      await fs.writeFile(path.join(vaultPath, "NoFrontmatter.md"), "nope\n", "utf8");
+
+      await withMcpHttpServer({ vaultPath, enableWriteTools: false }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+        const res = await mcpToolsCall(url, token, sessionId, "frontmatter_validate", {});
+
+        const structured = getStructuredContent(res);
+        expect(structured["files_scanned"]).toBe(2);
+        expect(structured["ok_count"]).toBe(1);
+        expect(structured["issue_count"]).toBe(1);
+
+        const issues = structured["issues"];
+        assertArray(issues, "issues");
+        expect(issues.length).toBe(1);
+        assertRecord(issues[0], "issues[0]");
+        expect(issues[0]["path"]).toBe("NoFrontmatter.md");
+        expect(issues[0]["has_frontmatter"]).toBe(false);
+      });
+    });
+  });
+
+  it("returns typed links via get_typed_links", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
@@ -98,6 +133,7 @@ describe("MCP HTTP server (read tools)", () => {
         { dbPath, enableWriteTools: false },
         async ({ url, token, runtime }) => {
           const now = new Date().toISOString().slice(0, 19);
+
           const fileStmt = runtime.deps.db.prepare(
             "INSERT INTO files(path, mtime_ms, size_bytes, sha256, updated_at) VALUES (?, ?, ?, ?, ?)",
           );
@@ -143,15 +179,18 @@ describe("MCP HTTP server (read tools)", () => {
           linkStmt.run("A.md", "see_also", "B", "[[B]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
-          const res = await mcpToolsCall(url, token, sessionId, "get_vault_graph", {
-            seed_paths: ["A.md"],
+          const res = await mcpToolsCall(url, token, sessionId, "get_typed_links", {
+            path: "A.md",
             max_hops: 1,
-            max_nodes: 10,
+            include_outgoing: true,
+            include_incoming: false,
+            max_notes: 10,
             max_edges: 10,
             max_resolutions_per_target: 5,
           });
 
           const structured = getStructuredContent(res);
+
           const nodes = structured["nodes"];
           assertArray(nodes, "nodes");
           expect(nodes.map((n) => (n as Record<string, unknown>)["path"]).sort()).toEqual([
@@ -163,28 +202,9 @@ describe("MCP HTTP server (read tools)", () => {
           assertArray(edges, "edges");
           expect(edges.length).toBe(1);
           assertRecord(edges[0], "edges[0]");
+          expect(edges[0]["direction"]).toBe("outgoing");
           expect(edges[0]["from_path"]).toBe("A.md");
-          expect(edges[0]["to_target"]).toBe("B");
-
-          const toPaths = edges[0]["to_paths"];
-          assertArray(toPaths, "edges[0].to_paths");
-          expect(toPaths.map((t) => (t as Record<string, unknown>)["path"])).toContain("B.md");
-
-          const noteGraph = await mcpToolsCall(url, token, sessionId, "get_note_graph", {
-            path: "A.md",
-            max_hops: 1,
-            max_nodes: 10,
-            max_edges: 10,
-            max_resolutions_per_target: 5,
-          });
-
-          const noteStructured = getStructuredContent(noteGraph);
-          const noteNodes = noteStructured["nodes"];
-          assertArray(noteNodes, "get_note_graph.nodes");
-          expect(noteNodes.map((n) => (n as Record<string, unknown>)["path"]).sort()).toEqual([
-            "A.md",
-            "B.md",
-          ]);
+          expect(edges[0]["to_path"]).toBe("B.md");
         },
       );
     });

@@ -7,20 +7,14 @@ import { AsyncMutex } from "./lib/asyncMutex.js";
 import { embeddingDimForModel } from "./lib/openaiEmbeddings.js";
 import { PROMETHEUS_AGENT_INSTRUCTIONS, registerPrometheusPrompt } from "./prometheus.js";
 import type { McpToolDeps } from "./mcpDeps.js";
-import { registerActivateContextTool } from "./tools/activateContext.js";
 import { registerCaptureNoteTool } from "./tools/captureNote.js";
-import { registerFindNotesByTypedLinkTool } from "./tools/findNotesByTypedLink.js";
 import { registerEditNoteTool } from "./tools/editNote.js";
+import { registerFrontmatterValidateTool } from "./tools/frontmatterValidate.js";
+import { registerGetContextTool } from "./tools/getContext.js";
 import { registerGetNoteTool } from "./tools/getNote.js";
-import { registerGetNoteMetaTool } from "./tools/getNoteMeta.js";
-import { registerGetNoteGraphTool, registerGetVaultGraphTool } from "./tools/getVaultGraph.js";
 import { registerGetVaultTreeTool } from "./tools/getVaultTree.js";
-import { registerNewNoteTool } from "./tools/newNote.js";
+import { registerGetTypedLinksTool } from "./tools/getTypedLinks.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
-import { registerReindexPathsTool } from "./tools/reindexPaths.js";
-import { registerSearchNotesTool } from "./tools/searchNotes.js";
-import { registerSearchVaultTool } from "./tools/searchVault.js";
-import { registerSemanticSearchTool } from "./tools/semanticSearch.js";
 
 export type AilssMcpRuntime = {
   deps: McpToolDeps;
@@ -73,23 +67,16 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
 
   registerPrometheusPrompt(server);
 
-  registerSemanticSearchTool(server, deps);
-  registerActivateContextTool(server, deps);
+  registerGetContextTool(server, deps);
+  registerGetTypedLinksTool(server, deps);
   registerGetNoteTool(server, deps);
-  registerGetNoteMetaTool(server, deps);
-  registerSearchNotesTool(server, deps);
-  registerFindNotesByTypedLinkTool(server, deps);
-  registerSearchVaultTool(server, deps);
   registerGetVaultTreeTool(server, deps);
-  registerGetVaultGraphTool(server, deps);
-  registerGetNoteGraphTool(server, deps);
+  registerFrontmatterValidateTool(server, deps);
 
   if (runtime.enableWriteTools) {
-    registerNewNoteTool(server, deps);
     registerCaptureNoteTool(server, deps);
     registerEditNoteTool(server, deps);
     registerRelocateNoteTool(server, deps);
-    registerReindexPathsTool(server, deps);
   }
 
   return { server, deps };

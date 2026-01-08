@@ -15,55 +15,6 @@ import {
 } from "./httpTestUtils.js";
 
 describe("MCP HTTP server (write tools)", () => {
-  it("creates a new note via new_note (dry-run + apply)", async () => {
-    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
-      await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
-        const sessionId = await mcpInitialize(url, token, "client-a");
-
-        const relPath = "C.md";
-        const absPath = path.join(vaultPath, relPath);
-
-        const dryRun = await mcpToolsCall(url, token, sessionId, "new_note", {
-          path: relPath,
-          text: "hello\n",
-          apply: false,
-        });
-        expect(getStructuredContent(dryRun)["applied"]).toBe(false);
-        await expect(fs.stat(absPath)).rejects.toThrow(/ENOENT/);
-
-        const applied = await mcpToolsCall(url, token, sessionId, "new_note", {
-          path: relPath,
-          text: "hello\n",
-          apply: true,
-          reindex_after_apply: false,
-        });
-        expect(getStructuredContent(applied)["applied"]).toBe(true);
-        expect(getStructuredContent(applied)["created"]).toBe(true);
-
-        const written = await fs.readFile(absPath, "utf8");
-        const parsed = parseMarkdownNote(written);
-        expect(typeof parsed.frontmatter.id).toBe("string");
-        expect(typeof parsed.frontmatter.created).toBe("string");
-        expect(parsed.frontmatter.title).toBe("C");
-        expect(Array.isArray(parsed.frontmatter.tags)).toBe(true);
-        expect(parsed.frontmatter.tags).not.toContain("inbox");
-        expect(parsed.body).toContain("hello");
-
-        const inboxRelPath = "100. Inbox/In.md";
-        await mcpToolsCall(url, token, sessionId, "new_note", {
-          path: inboxRelPath,
-          text: "inbox\n",
-          apply: true,
-          reindex_after_apply: false,
-        });
-        const inboxWritten = await fs.readFile(path.join(vaultPath, inboxRelPath), "utf8");
-        const inboxParsed = parseMarkdownNote(inboxWritten);
-        expect(Array.isArray(inboxParsed.frontmatter.tags)).toBe(true);
-        expect(inboxParsed.frontmatter.tags).toContain("inbox");
-      });
-    });
-  });
-
   it("captures a note via capture_note (dry-run + apply)", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
       await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
@@ -119,6 +70,57 @@ describe("MCP HTTP server (write tools)", () => {
     });
   });
 
+  it("edits a note via edit_note (dry-run + apply)", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      const noteRelPath = "Edit.md";
+      await fs.writeFile(
+        path.join(vaultPath, noteRelPath),
+        [
+          "---",
+          'id: "20260108123456"',
+          'created: "2026-01-08T12:34:56"',
+          'title: "Edit"',
+          "summary:",
+          "aliases: []",
+          "entity:",
+          "layer: conceptual",
+          "tags: []",
+          "keywords: []",
+          "status: draft",
+          'updated: "2026-01-08T12:34:56"',
+          "---",
+          "",
+          "hello",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+
+        const dryRun = await mcpToolsCall(url, token, sessionId, "edit_note", {
+          path: noteRelPath,
+          apply: false,
+          ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }],
+        });
+        expect(getStructuredContent(dryRun)["applied"]).toBe(false);
+        expect(await fs.readFile(path.join(vaultPath, noteRelPath), "utf8")).toContain("hello\n");
+
+        const applied = await mcpToolsCall(url, token, sessionId, "edit_note", {
+          path: noteRelPath,
+          apply: true,
+          reindex_after_apply: false,
+          ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }],
+        });
+        expect(getStructuredContent(applied)["applied"]).toBe(true);
+        expect(await fs.readFile(path.join(vaultPath, noteRelPath), "utf8")).toContain(
+          "hello world\n",
+        );
+      });
+    });
+  });
+
   it("relocates a note via relocate_note (dry-run + apply)", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
       await fs.writeFile(path.join(vaultPath, "From.md"), "from\n", "utf8");
@@ -147,12 +149,28 @@ describe("MCP HTTP server (write tools)", () => {
         await expect(fs.stat(path.join(vaultPath, "From.md"))).rejects.toThrow(/ENOENT/);
         expect(await fs.readFile(path.join(vaultPath, "To.md"), "utf8")).toBe("from\n");
 
-        await mcpToolsCall(url, token, sessionId, "new_note", {
-          path: "WithFrontmatter.md",
-          text: "x\n",
-          apply: true,
-          reindex_after_apply: false,
-        });
+        await fs.writeFile(
+          path.join(vaultPath, "WithFrontmatter.md"),
+          [
+            "---",
+            'id: "20260108123456"',
+            'created: "2026-01-08T12:34:56"',
+            'title: "WithFrontmatter"',
+            "summary:",
+            "aliases: []",
+            "entity:",
+            "layer: conceptual",
+            "tags: []",
+            "keywords: []",
+            "status: draft",
+            'updated: "2026-01-08T12:34:56"',
+            "---",
+            "",
+            "x",
+            "",
+          ].join("\n"),
+          "utf8",
+        );
         const relocated = await mcpToolsCall(url, token, sessionId, "relocate_note", {
           from_path: "WithFrontmatter.md",
           to_path: "WithFrontmatterMoved.md",
