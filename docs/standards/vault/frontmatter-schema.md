@@ -25,7 +25,7 @@ entity:
 layer: conceptual
 tags: [] # Only use the inbox tag for notes under 100. Inbox/ (example: ['inbox'])
 keywords: []
-# draft | in-review | published | archived
+# draft | in-review | active | archived
 status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 source: []
@@ -47,7 +47,7 @@ same_as: [] # equivalence / duplicates
 - Frontmatter is the minimum metadata set needed to keep the knowledge graph consistent.
 - The `entity` field should use an allowed type (concept, document, project, guide, tool, etc.).
 - The `layer` field should be one of: strategic, conceptual, logical, physical, operational.
-- The `status` field should be one of: draft, in-review, published, archived.
+- The `status` field should be one of: draft, in-review, active, archived.
 - Relationship keys should use the typed-link keys (see `./typed-links.md`).
 - If you are unsure, it is acceptable to leave `layer` empty temporarily (or keep `conceptual`) and refine during review.
 - Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
@@ -228,7 +228,7 @@ entity: procedure
 layer: operational
 tags: []
 keywords: []
-status: published
+status: active
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 source: []
 implements: ['[[CI 파이프라인(CI Pipeline)]]']
