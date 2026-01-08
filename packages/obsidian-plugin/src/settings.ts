@@ -8,6 +8,10 @@ export interface AilssObsidianSettings {
 	topK: number;
 	mcpCommand: string;
 	mcpArgs: string[];
+	mcpHttpServiceEnabled: boolean;
+	mcpHttpServicePort: number;
+	mcpHttpServiceToken: string;
+	mcpHttpServiceEnableWriteTools: boolean;
 	indexerCommand: string;
 	indexerArgs: string[];
 	autoIndexEnabled: boolean;
@@ -20,6 +24,10 @@ export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	topK: 10,
 	mcpCommand: "node",
 	mcpArgs: [],
+	mcpHttpServiceEnabled: false,
+	mcpHttpServicePort: 31415,
+	mcpHttpServiceToken: "",
+	mcpHttpServiceEnableWriteTools: false,
 	indexerCommand: "node",
 	indexerArgs: [],
 	autoIndexEnabled: false,
@@ -127,6 +135,95 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 						.filter(Boolean);
 					await this.plugin.saveSettings();
 				});
+			});
+
+		containerEl.createEl("h3", { text: "MCP service (Codex, localhost)" });
+
+		new Setting(containerEl)
+			.setName("Enable service")
+			.setDesc(
+				`${this.plugin.getMcpHttpServiceStatusLine()}\n\nRuns a localhost MCP server for Codex to connect to (URL + token).`,
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.mcpHttpServiceEnabled);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.mcpHttpServiceEnabled = value;
+					await this.plugin.saveSettings();
+					if (value) {
+						await this.plugin.startMcpHttpService();
+					} else {
+						await this.plugin.stopMcpHttpService();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Port")
+			.setDesc("Localhost port for the MCP service (recommended: 31415).")
+			.addText((text) => {
+				text.setPlaceholder(String(DEFAULT_SETTINGS.mcpHttpServicePort));
+				text.setValue(String(this.plugin.settings.mcpHttpServicePort));
+				text.onChange(async (value) => {
+					const parsed = Number(value);
+					this.plugin.settings.mcpHttpServicePort = Number.isFinite(parsed)
+						? Math.floor(parsed)
+						: DEFAULT_SETTINGS.mcpHttpServicePort;
+					await this.plugin.saveSettings();
+					if (this.plugin.settings.mcpHttpServiceEnabled) {
+						await this.plugin.restartMcpHttpService();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Enable write tools over MCP")
+			.setDesc("Allows Codex to call write tools like edit_note (still requires apply=true).")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.mcpHttpServiceEnableWriteTools);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.mcpHttpServiceEnableWriteTools = value;
+					await this.plugin.saveSettings();
+					if (this.plugin.settings.mcpHttpServiceEnabled) {
+						await this.plugin.restartMcpHttpService();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Token")
+			.setDesc(
+				"Bearer token required by the localhost service (stored in Obsidian settings).",
+			)
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.setPlaceholder("(auto-generated)");
+				text.setValue(this.plugin.settings.mcpHttpServiceToken);
+				text.onChange(async (value) => {
+					this.plugin.settings.mcpHttpServiceToken = value.trim();
+					await this.plugin.saveSettings();
+					if (this.plugin.settings.mcpHttpServiceEnabled) {
+						await this.plugin.restartMcpHttpService();
+					}
+				});
+			})
+			.addButton((button) => {
+				button.setButtonText("Regenerate");
+				button.setWarning();
+				button.onClick(() => void this.plugin.regenerateMcpHttpServiceToken());
+			});
+
+		new Setting(containerEl)
+			.setName("Codex config")
+			.setDesc(
+				"Copies a ready-to-paste ~/.codex/config.toml block for connecting to this service.",
+			)
+			.addButton((button) => {
+				button.setButtonText("Copy config block");
+				button.onClick(() => void this.plugin.copyCodexMcpConfigBlockToClipboard());
+			})
+			.addButton((button) => {
+				button.setButtonText("Restart service");
+				button.onClick(() => void this.plugin.restartMcpHttpService());
 			});
 
 		containerEl.createEl("h3", { text: "Indexer (local)" });

@@ -1,5 +1,6 @@
 import { FileSystemAdapter, Notice, Plugin, TFile } from "obsidian";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -49,6 +50,14 @@ export default class AilssObsidianPlugin extends Plugin {
 	private indexerStatusListeners = new Set<(snapshot: AilssIndexerStatusSnapshot) => void>();
 	private indexerUiUpdateTimer: NodeJS.Timeout | null = null;
 
+	private mcpHttpServiceProc: ChildProcess | null = null;
+	private mcpHttpServiceLiveStdout = "";
+	private mcpHttpServiceLiveStderr = "";
+	private mcpHttpServiceStartedAt: string | null = null;
+	private mcpHttpServiceLastExitCode: number | null = null;
+	private mcpHttpServiceLastStoppedAt: string | null = null;
+	private mcpHttpServiceLastErrorMessage: string | null = null;
+
 	private autoIndexTimer: NodeJS.Timeout | null = null;
 	private autoIndexPendingPaths = new Set<string>();
 	private autoIndexNeedsRerun = false;
@@ -78,13 +87,22 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+		await this.ensureMcpHttpServiceToken();
 
 		this.registerIndexerStatusUi();
 		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
 		registerCommands(this);
 		this.registerAutoIndexEvents();
 
+		if (this.settings.mcpHttpServiceEnabled) {
+			await this.startMcpHttpService();
+		}
+
 		this.emitIndexerStatusNow();
+	}
+
+	async onunload(): Promise<void> {
+		await this.stopMcpHttpService();
 	}
 
 	async loadSettings(): Promise<void> {
@@ -101,6 +119,231 @@ export default class AilssObsidianPlugin extends Plugin {
 				indexer: { lastSuccessAt: this.lastIndexerSuccessAt },
 			}),
 		);
+	}
+
+	getMcpHttpServiceUrl(): string {
+		const port = clampPort(this.settings.mcpHttpServicePort);
+		return `http://127.0.0.1:${port}/mcp`;
+	}
+
+	getMcpHttpServiceStatusLine(): string {
+		if (this.mcpHttpServiceProc) {
+			return `Status: Running (${this.getMcpHttpServiceUrl()})`;
+		}
+
+		if (this.mcpHttpServiceLastErrorMessage) {
+			return `Status: Error\n${this.mcpHttpServiceLastErrorMessage}`;
+		}
+
+		if (this.mcpHttpServiceLastStoppedAt) {
+			return `Status: Stopped (last: ${this.mcpHttpServiceLastStoppedAt})`;
+		}
+
+		return "Status: Stopped";
+	}
+
+	getCodexMcpConfigBlock(): string {
+		const url = this.getMcpHttpServiceUrl();
+		const token = this.settings.mcpHttpServiceToken.trim();
+
+		return [
+			"[mcp_servers.ailss]",
+			`url = ${JSON.stringify(url)}`,
+			"",
+			"[mcp_servers.ailss.http_headers]",
+			`Authorization = ${JSON.stringify(`Bearer ${token}`)}`,
+			"",
+		].join("\n");
+	}
+
+	async copyCodexMcpConfigBlockToClipboard(): Promise<void> {
+		const token = this.settings.mcpHttpServiceToken.trim();
+		if (!token) {
+			new Notice("Missing MCP service token. Generate a token first.");
+			return;
+		}
+
+		try {
+			const clipboard = (
+				navigator as unknown as { clipboard?: { writeText?: (v: string) => Promise<void> } }
+			).clipboard;
+			if (!clipboard?.writeText) {
+				new Notice("Clipboard not available.");
+				return;
+			}
+
+			await clipboard.writeText(this.getCodexMcpConfigBlock());
+			new Notice("Copied Codex MCP config block.");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			new Notice(`Copy failed: ${message}`);
+		}
+	}
+
+	async regenerateMcpHttpServiceToken(): Promise<void> {
+		this.settings.mcpHttpServiceToken = generateToken();
+		await this.saveSettings();
+		new Notice("Generated a new MCP service token.");
+
+		if (this.settings.mcpHttpServiceEnabled) {
+			await this.restartMcpHttpService();
+		}
+	}
+
+	async startMcpHttpService(): Promise<void> {
+		if (this.mcpHttpServiceProc) return;
+
+		try {
+			await this.ensureMcpHttpServiceToken();
+			const token = this.settings.mcpHttpServiceToken.trim();
+			if (!token) {
+				throw new Error("Missing MCP service token.");
+			}
+
+			const vaultPath = this.getVaultPath();
+			const openaiApiKey = this.settings.openaiApiKey.trim();
+			if (!openaiApiKey) {
+				throw new Error(
+					"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
+				);
+			}
+
+			const mcpCommand = this.settings.mcpCommand.trim();
+			const mcpArgs = this.resolveMcpHttpArgs();
+			if (!mcpCommand || mcpArgs.length === 0) {
+				throw new Error(
+					"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
+				);
+			}
+
+			const port = clampPort(this.settings.mcpHttpServicePort);
+			if (port !== this.settings.mcpHttpServicePort) {
+				this.settings.mcpHttpServicePort = port;
+				await this.saveSettings();
+			}
+
+			const env: Record<string, string> = {
+				OPENAI_API_KEY: openaiApiKey,
+				OPENAI_EMBEDDING_MODEL:
+					this.settings.openaiEmbeddingModel.trim() ||
+					DEFAULT_SETTINGS.openaiEmbeddingModel,
+				AILSS_VAULT_PATH: vaultPath,
+				AILSS_MCP_HTTP_HOST: "127.0.0.1",
+				AILSS_MCP_HTTP_PORT: String(port),
+				AILSS_MCP_HTTP_PATH: "/mcp",
+				AILSS_MCP_HTTP_TOKEN: token,
+			};
+
+			if (this.settings.mcpHttpServiceEnableWriteTools) {
+				env.AILSS_ENABLE_WRITE_TOOLS = "1";
+			}
+
+			const cwd = this.getPluginDirRealpathOrNull();
+			const spawnEnv = { ...process.env, ...env };
+			const resolved = resolveSpawnCommandAndEnv(mcpCommand, spawnEnv);
+			if (resolved.command === "node") {
+				throw new Error(nodeNotFoundMessage("MCP"));
+			}
+
+			this.mcpHttpServiceLiveStdout = "";
+			this.mcpHttpServiceLiveStderr = "";
+			this.mcpHttpServiceStartedAt = nowIso();
+			this.mcpHttpServiceLastExitCode = null;
+			this.mcpHttpServiceLastStoppedAt = null;
+			this.mcpHttpServiceLastErrorMessage = null;
+
+			const child = spawn(resolved.command, mcpArgs, {
+				stdio: ["ignore", "pipe", "pipe"],
+				...(cwd ? { cwd } : {}),
+				env: resolved.env,
+			});
+
+			this.mcpHttpServiceProc = child;
+
+			child.stdout?.on("data", (chunk: unknown) => {
+				const text = typeof chunk === "string" ? chunk : String(chunk);
+				this.mcpHttpServiceLiveStdout = appendLimited(
+					this.mcpHttpServiceLiveStdout,
+					text,
+					40_000,
+				);
+			});
+
+			child.stderr?.on("data", (chunk: unknown) => {
+				const text = typeof chunk === "string" ? chunk : String(chunk);
+				this.mcpHttpServiceLiveStderr = appendLimited(
+					this.mcpHttpServiceLiveStderr,
+					text,
+					40_000,
+				);
+			});
+
+			child.on("error", (error) => {
+				const message = error instanceof Error ? error.message : String(error);
+				this.mcpHttpServiceLastErrorMessage = message;
+				this.mcpHttpServiceProc = null;
+				new Notice(`AILSS MCP service failed: ${message}`);
+			});
+
+			child.on("close", (code, signal) => {
+				this.mcpHttpServiceLastExitCode = code;
+				this.mcpHttpServiceLastStoppedAt = nowIso();
+				this.mcpHttpServiceProc = null;
+
+				if (this.settings.mcpHttpServiceEnabled) {
+					const suffix =
+						code === null ? (signal ? ` (${signal})` : "") : ` (exit ${code})`;
+					new Notice(`AILSS MCP service stopped${suffix}.`);
+				}
+			});
+
+			new Notice(`AILSS MCP service started: ${this.getMcpHttpServiceUrl()}`);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.mcpHttpServiceLastErrorMessage = message;
+			new Notice(`AILSS MCP service failed: ${message}`);
+		}
+	}
+
+	async stopMcpHttpService(): Promise<void> {
+		const child = this.mcpHttpServiceProc;
+		if (!child) return;
+
+		await new Promise<void>((resolve) => {
+			const timeout = setTimeout(() => {
+				try {
+					child.kill("SIGKILL");
+				} catch {
+					// ignore
+				}
+				resolve();
+			}, 2_000);
+
+			child.once("close", () => {
+				clearTimeout(timeout);
+				resolve();
+			});
+
+			try {
+				child.kill();
+			} catch {
+				clearTimeout(timeout);
+				resolve();
+			}
+		});
+	}
+
+	async restartMcpHttpService(): Promise<void> {
+		await this.stopMcpHttpService();
+		if (this.settings.mcpHttpServiceEnabled) {
+			await this.startMcpHttpService();
+		}
+	}
+
+	private async ensureMcpHttpServiceToken(): Promise<void> {
+		if (this.settings.mcpHttpServiceToken.trim()) return;
+		this.settings.mcpHttpServiceToken = generateToken();
+		await this.saveSettings();
 	}
 
 	async reindexVault(): Promise<void> {
@@ -448,6 +691,36 @@ export default class AilssObsidianPlugin extends Plugin {
 		return [candidate];
 	}
 
+	private resolveMcpHttpArgs(): string[] {
+		const base = this.resolveMcpArgs();
+		const first = base[0];
+		if (typeof first === "string" && first.trim()) {
+			const resolvedFirst = this.resolvePathFromPluginDir(first);
+			const candidate = replaceBasename(resolvedFirst, "stdio.js", "http.js");
+			if (candidate && fs.existsSync(candidate)) {
+				return [candidate, ...base.slice(1)];
+			}
+		}
+
+		const pluginDir = this.getPluginDirRealpathOrNull();
+		if (!pluginDir) return [];
+
+		const candidate = path.resolve(pluginDir, "../mcp/dist/http.js");
+		if (!fs.existsSync(candidate)) return [];
+
+		return [candidate];
+	}
+
+	private resolvePathFromPluginDir(maybePath: string): string {
+		const trimmed = maybePath.trim();
+		if (!trimmed) return trimmed;
+		if (path.isAbsolute(trimmed)) return trimmed;
+
+		const pluginDir = this.getPluginDirRealpathOrNull();
+		if (!pluginDir) return path.resolve(trimmed);
+		return path.resolve(pluginDir, trimmed);
+	}
+
 	private resolveIndexerArgs(): string[] {
 		if (this.settings.indexerArgs.length > 0) return this.settings.indexerArgs;
 
@@ -772,6 +1045,13 @@ function clampTopK(input: number): number {
 	const n = Math.floor(Number.isFinite(input) ? input : DEFAULT_SETTINGS.topK);
 	if (n < 1) return 1;
 	if (n > 50) return 50;
+	return n;
+}
+
+function clampPort(input: number): number {
+	const n = Math.floor(Number.isFinite(input) ? input : DEFAULT_SETTINGS.mcpHttpServicePort);
+	if (n < 1) return DEFAULT_SETTINGS.mcpHttpServicePort;
+	if (n > 65535) return DEFAULT_SETTINGS.mcpHttpServicePort;
 	return n;
 }
 
@@ -1136,6 +1416,16 @@ function appendLimited(existing: string, chunk: string, limit: number): string {
 	const next = existing + chunk;
 	if (next.length <= limit) return next;
 	return next.slice(next.length - limit);
+}
+
+function generateToken(): string {
+	return randomBytes(24).toString("hex");
+}
+
+function replaceBasename(filePath: string, fromBase: string, toBase: string): string | null {
+	const parsed = path.parse(filePath);
+	if (parsed.base !== fromBase) return null;
+	return path.join(parsed.dir, toBase);
 }
 
 function formatIndexerLog(input: {

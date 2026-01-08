@@ -8,8 +8,9 @@ Current MVP:
 - Modal UI to query the AILSS index
 - Results list that opens the selected note
 - Command to reindex the vault (writes `<Vault>/.ailss/index.sqlite`)
+- Optional localhost MCP service for Codex (streamable HTTP; URL + token)
 
-The plugin is **desktop-only** right now because it spawns a local MCP server process (stdio).
+The plugin is **desktop-only** right now because it spawns local Node processes (indexer + MCP server/service).
 
 ## Setup (local dev)
 
@@ -49,6 +50,8 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
     - Example for monorepo dev:
         - command: `node`
         - args: `/absolute/path/to/Ailss-project/packages/mcp/dist/stdio.js`
+- **MCP service (Codex, localhost)**: optional localhost service (`http://127.0.0.1:<port>/mcp`)
+    - Enable the service, generate a token, and use “Copy config block” to paste into `~/.codex/config.toml`
 - **Indexer command/args**: enables `AILSS: Reindex vault` and auto indexing
     - Example for monorepo dev:
         - command: `node`
