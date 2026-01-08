@@ -13,6 +13,8 @@ import { registerFindNotesByTypedLinkTool } from "./tools/findNotesByTypedLink.j
 import { registerEditNoteTool } from "./tools/editNote.js";
 import { registerGetNoteTool } from "./tools/getNote.js";
 import { registerGetNoteMetaTool } from "./tools/getNoteMeta.js";
+import { registerGetVaultGraphTool } from "./tools/getVaultGraph.js";
+import { registerGetVaultTreeTool } from "./tools/getVaultTree.js";
 import { registerNewNoteTool } from "./tools/newNote.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
 import { registerReindexPathsTool } from "./tools/reindexPaths.js";
@@ -78,6 +80,8 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   registerSearchNotesTool(server, deps);
   registerFindNotesByTypedLinkTool(server, deps);
   registerSearchVaultTool(server, deps);
+  registerGetVaultTreeTool(server, deps);
+  registerGetVaultGraphTool(server, deps);
 
   if (runtime.enableWriteTools) {
     registerNewNoteTool(server, deps);
