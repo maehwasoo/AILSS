@@ -149,9 +149,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		return [
 			"[mcp_servers.ailss]",
 			`url = ${JSON.stringify(url)}`,
-			"",
-			"[mcp_servers.ailss.http_headers]",
-			`Authorization = ${JSON.stringify(`Bearer ${token}`)}`,
+			`http_headers = { Authorization = ${JSON.stringify(`Bearer ${token}`)} }`,
 			"",
 		].join("\n");
 	}
