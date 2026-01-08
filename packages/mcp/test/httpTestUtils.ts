@@ -1,0 +1,399 @@
+import { expect } from "vitest";
+
+import { promises as fs } from "node:fs";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
+
+import type { AilssMcpRuntime } from "../src/createAilssMcpServer.js";
+import { createAilssMcpRuntimeFromEnv } from "../src/createAilssMcpServer.js";
+import { startAilssMcpHttpServer } from "../src/httpServer.js";
+
+const MCP_PROTOCOL_VERSION = "2025-03-26" as const;
+
+type EnvKey =
+  | "OPENAI_API_KEY"
+  | "OPENAI_EMBEDDING_MODEL"
+  | "AILSS_DB_PATH"
+  | "AILSS_VAULT_PATH"
+  | "AILSS_ENABLE_WRITE_TOOLS";
+
+export type EnvOverrides = Partial<Record<EnvKey, string | undefined>>;
+
+export async function withTempDir<T>(prefix: string, fn: (dir: string) => Promise<T>): Promise<T> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  try {
+    return await fn(dir);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+}
+
+export async function withEnv<T>(overrides: EnvOverrides, fn: () => Promise<T>): Promise<T> {
+  const keys = Object.keys(overrides) as EnvKey[];
+  const saved: Partial<Record<EnvKey, string | undefined>> = {};
+  for (const key of keys) {
+    saved[key] = process.env[key];
+  }
+
+  for (const key of keys) {
+    if (!(key in overrides)) continue;
+    const value = overrides[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const key of keys) {
+      const value = saved[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+export type McpHttpServerTestOptions = {
+  dbPath?: string;
+  vaultPath?: string;
+  enableWriteTools?: boolean;
+  token?: string;
+  maxSessions?: number;
+  idleTtlMs?: number;
+  beforeStart?: (runtime: AilssMcpRuntime) => void | Promise<void>;
+};
+
+function envForMcpRuntime(
+  options: Pick<McpHttpServerTestOptions, "dbPath" | "vaultPath" | "enableWriteTools">,
+) {
+  if (options.dbPath && options.vaultPath) {
+    throw new Error("Test misconfiguration: provide only one of dbPath or vaultPath");
+  }
+  if (!options.dbPath && !options.vaultPath) {
+    throw new Error("Test misconfiguration: provide dbPath or vaultPath");
+  }
+
+  // NOTE: `loadEnv()` loads `.env` without overriding already-set variables.
+  // To ensure tests don't accidentally pick up user-local settings, set empty
+  // strings (not deletes) for "unset" values.
+  const overrides: EnvOverrides = {
+    OPENAI_API_KEY: "test",
+    OPENAI_EMBEDDING_MODEL: "text-embedding-3-large",
+    AILSS_DB_PATH: "",
+    AILSS_VAULT_PATH: "",
+    AILSS_ENABLE_WRITE_TOOLS: "",
+  };
+
+  if (options.dbPath) {
+    overrides.AILSS_DB_PATH = options.dbPath;
+    overrides.AILSS_VAULT_PATH = "";
+  }
+
+  if (options.vaultPath) {
+    overrides.AILSS_DB_PATH = "";
+    overrides.AILSS_VAULT_PATH = options.vaultPath;
+  }
+
+  overrides.AILSS_ENABLE_WRITE_TOOLS = options.enableWriteTools ? "1" : "";
+
+  return overrides;
+}
+
+export async function withMcpHttpServer<T>(
+  options: McpHttpServerTestOptions,
+  fn: (ctx: { url: string; token: string; runtime: AilssMcpRuntime }) => Promise<T>,
+): Promise<T> {
+  const token = options.token ?? "test-token";
+  const maxSessions = options.maxSessions ?? 5;
+  const idleTtlMs = options.idleTtlMs ?? 60_000;
+
+  return await withEnv(envForMcpRuntime(options), async () => {
+    const runtime = await createAilssMcpRuntimeFromEnv();
+    await options.beforeStart?.(runtime);
+
+    const { close, url } = await startAilssMcpHttpServer({
+      runtime,
+      config: { host: "127.0.0.1", port: 0, path: "/mcp", token },
+      maxSessions,
+      idleTtlMs,
+    });
+
+    try {
+      return await fn({ url, token, runtime });
+    } finally {
+      await close();
+      runtime.deps.db.close();
+    }
+  });
+}
+
+export function parseFirstSseData(body: string): unknown {
+  const dataLine = body
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.startsWith("data: "));
+  expect(dataLine).toBeTruthy();
+  return JSON.parse((dataLine as string).slice("data: ".length)) as unknown;
+}
+
+export function assertRecord(
+  value: unknown,
+  label: string,
+): asserts value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`Expected ${label} to be an object`);
+  }
+}
+
+export function assertArray(value: unknown, label: string): asserts value is unknown[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`Expected ${label} to be an array`);
+  }
+}
+
+export function assertString(value: unknown, label: string): asserts value is string {
+  if (typeof value !== "string") {
+    throw new Error(`Expected ${label} to be a string`);
+  }
+}
+
+export function getStructuredContent(payload: unknown): Record<string, unknown> {
+  assertRecord(payload, "JSON-RPC payload");
+  const result = payload["result"];
+  assertRecord(result, "JSON-RPC result");
+  const structured = result["structuredContent"];
+  assertRecord(structured, "structuredContent");
+  return structured;
+}
+
+export async function mcpInitialize(
+  url: string,
+  token: string,
+  clientName: string,
+): Promise<string> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: clientName, version: "0" },
+      },
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  const sessionId = res.headers.get("mcp-session-id");
+  expect(sessionId).toBeTruthy();
+  await res.text();
+  return sessionId as string;
+}
+
+export async function mcpInitializeExpectUnauthorized(url: string, token: string): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "client", version: "0" },
+      },
+    }),
+  });
+
+  expect(res.status).toBe(401);
+  expect(res.headers.get("mcp-session-id")).toBeFalsy();
+  expect(await res.text()).toBe("unauthorized");
+}
+
+export async function mcpDeleteSession(
+  url: string,
+  token: string,
+  sessionId: string,
+): Promise<void> {
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Mcp-Session-Id": sessionId,
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+    },
+  });
+
+  expect(res.status).toBe(200);
+  await res.text();
+}
+
+export async function mcpToolsCall(
+  url: string,
+  token: string,
+  sessionId: string,
+  name: string,
+  args: unknown,
+): Promise<unknown> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+      "Mcp-Session-Id": sessionId,
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name, arguments: args },
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  return parseFirstSseData(await res.text());
+}
+
+export async function mcpToolsList(url: string, token: string, sessionId: string): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+      "Mcp-Session-Id": sessionId,
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  const payload = parseFirstSseData(await res.text());
+
+  assertRecord(payload, "tools/list payload");
+  expect(payload).toHaveProperty("result.tools");
+  const result = payload["result"];
+  assertRecord(result, "tools/list result");
+  const tools = result["tools"];
+  expect(Array.isArray(tools)).toBe(true);
+}
+
+export async function mcpToolsListExpectSessionNotFound(
+  url: string,
+  token: string,
+  sessionId: string,
+): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+      "Mcp-Session-Id": sessionId,
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+
+  expect(res.status).toBe(404);
+  const payload = (await res.json()) as { error?: { code?: number; message?: string } };
+  expect(payload.error?.code).toBe(-32001);
+}
+
+export async function mcpToolsListExpectBadRequest(url: string, token: string): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+
+  expect(res.status).toBe(400);
+  const payload = (await res.json()) as { error?: { code?: number; message?: string } };
+  expect(payload.error?.code).toBe(-32000);
+}
+
+export async function mcpToolsListWithDuplicateSessionIdHeaderExpectBadRequest(
+  url: string,
+  token: string,
+  sessionIdA: string,
+  sessionIdB: string,
+): Promise<void> {
+  const u = new URL(url);
+
+  const res = await new Promise<{ status: number; body: string }>((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname,
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json, text/event-stream",
+          "Content-Type": "application/json",
+          "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+          "Mcp-Session-Id": [sessionIdA, sessionIdB],
+        },
+      },
+      (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+        res.on("end", () => {
+          resolve({ status: res.statusCode ?? 0, body });
+        });
+      },
+    );
+
+    req.on("error", (error) => reject(error));
+    req.end(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/list",
+        params: {},
+      }),
+    );
+  });
+
+  expect(res.status).toBe(400);
+  const payload = JSON.parse(res.body) as { error?: { code?: number; message?: string } };
+  expect(payload.error?.code).toBe(-32000);
+}
