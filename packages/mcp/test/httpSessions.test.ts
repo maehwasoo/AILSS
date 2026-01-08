@@ -999,6 +999,22 @@ describe("MCP HTTP server (multi-session)", () => {
       const toPaths = edges[0]["to_paths"];
       assertArray(toPaths, "edges[0].to_paths");
       expect(toPaths.map((t) => (t as Record<string, unknown>)["path"])).toContain("B.md");
+
+      const noteGraph = await mcpToolsCall(url, token, sessionId, "get_note_graph", {
+        path: "A.md",
+        max_hops: 1,
+        max_nodes: 10,
+        max_edges: 10,
+        max_resolutions_per_target: 5,
+      });
+
+      const noteStructured = getStructuredContent(noteGraph);
+      const noteNodes = noteStructured["nodes"];
+      assertArray(noteNodes, "get_note_graph.nodes");
+      expect(noteNodes.map((n) => (n as Record<string, unknown>)["path"]).sort()).toEqual([
+        "A.md",
+        "B.md",
+      ]);
     } finally {
       await close();
       runtime.deps.db.close();
