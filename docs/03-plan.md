@@ -29,8 +29,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - UI: semantic search modal that opens a selected note
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
-    - Current: **single active MCP session** (a new Codex `initialize` may replace the previous session)
-    - TODO: implement **true multi-session** support so multiple Codex processes can connect concurrently (see 10.5)
+    - Supports multiple concurrent MCP sessions (multiple Codex processes)
 
 ## 1) Design the index schema
 
@@ -266,6 +265,13 @@ Goal:
 
 - Allow **multiple Codex CLI processes** to connect to the same Obsidian-hosted AILSS service concurrently.
 - Each Codex process gets its own `Mcp-Session-Id` and can call tools without disconnecting other sessions.
+
+Status (implemented):
+
+- Implemented in `packages/mcp/src/http.ts` using a session manager that creates one server + transport per `initialize`.
+- Defaults:
+  - `AILSS_MCP_HTTP_MAX_SESSIONS=5`
+  - `AILSS_MCP_HTTP_IDLE_TTL_MS=3600000` (1 hour)
 
 Why this needs explicit design:
 
