@@ -41,6 +41,7 @@ Read tools:
 - `search_vault`
 - `get_vault_tree`
 - `get_vault_graph`
+- `get_note_graph` (alias of `get_vault_graph` for a single note path)
 
 Write tools (only when enabled in the plugin; always require `apply=true`):
 

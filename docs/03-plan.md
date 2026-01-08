@@ -109,10 +109,11 @@ Implemented:
 - `get_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_note_meta`: read from the index DB by path → return normalized frontmatter + typed links (does not read vault files)
 - `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
-- `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target); target is normalized from `[[wikilinks]]`
+- `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target string); target is normalized from `[[wikilinks]]`
 - `search_vault`: keyword/regex search over vault files (filesystem-backed; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
 - `get_vault_graph`: typed-link graph from the index DB (metadata only; does not read note bodies)
+- `get_note_graph`: alias of get_vault_graph for a single note path
 
 Notes on queryability (current):
 
