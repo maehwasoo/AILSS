@@ -40,11 +40,14 @@ describe("indexVault (wrapper)", () => {
           create: async (params: unknown) => {
             const p = params as { model?: string; input?: unknown; encoding_format?: string };
             const inputs = Array.isArray(p.input) ? (p.input as string[]) : [String(p.input ?? "")];
-            calls.push({
+            const call = {
               model: String(p.model ?? ""),
               input: inputs,
-              encoding_format: p.encoding_format,
-            });
+              ...(typeof p.encoding_format === "string"
+                ? { encoding_format: p.encoding_format }
+                : {}),
+            } satisfies { model: string; input: string[]; encoding_format?: string };
+            calls.push(call);
 
             return { data: inputs.map(() => ({ embedding: [0.1, 0.2, 0.3] })) };
           },
