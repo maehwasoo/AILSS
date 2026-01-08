@@ -37,6 +37,95 @@ type GraphEdge = {
   to_paths: Array<{ path: string; matched_by: "path" | "title" }>;
 };
 
+const vaultGraphArgsSchema = z.object({
+  seed_paths: z
+    .array(z.string().min(1))
+    .optional()
+    .describe("Seed note paths (vault-relative) to start graph expansion from"),
+  path_prefix: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Alternative to seed_paths: build a subgraph for notes under this path prefix"),
+  max_hops: z
+    .number()
+    .int()
+    .min(0)
+    .max(5)
+    .default(1)
+    .describe("Expansion depth when seed_paths is used (0–5)"),
+  max_nodes: z
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .default(100)
+    .describe("Maximum nodes to return (1–500)"),
+  max_edges: z
+    .number()
+    .int()
+    .min(1)
+    .max(5000)
+    .default(500)
+    .describe("Maximum edges to return (1–5000)"),
+  rels: z
+    .array(z.string().min(1))
+    .optional()
+    .describe("If provided, include only typed links whose rel is in this list"),
+  max_resolutions_per_target: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(5)
+    .describe("Maximum note paths to resolve per typed-link target"),
+});
+
+const vaultGraphOutputSchema = z.object({
+  mode: z.union([z.literal("seed_paths"), z.literal("path_prefix")]),
+  seeds: z.array(z.string()),
+  path_prefix: z.string().nullable(),
+  max_hops: z.number().int(),
+  max_nodes: z.number().int(),
+  max_edges: z.number().int(),
+  truncated: z.boolean(),
+  nodes: z.array(
+    z.object({
+      path: z.string(),
+      note_id: z.string().nullable(),
+      created: z.string().nullable(),
+      title: z.string().nullable(),
+      summary: z.string().nullable(),
+      entity: z.string().nullable(),
+      layer: z.string().nullable(),
+      status: z.string().nullable(),
+      updated: z.string().nullable(),
+      viewed: z.number().nullable(),
+      tags: z.array(z.string()),
+      keywords: z.array(z.string()),
+      frontmatter: z.record(z.any()),
+    }),
+  ),
+  edges: z.array(
+    z.object({
+      from_path: z.string(),
+      rel: z.string(),
+      to_target: z.string(),
+      to_wikilink: z.string(),
+      position: z.number().int(),
+      to_paths: z.array(
+        z.object({
+          path: z.string(),
+          matched_by: z.union([z.literal("path"), z.literal("title")]),
+        }),
+      ),
+    }),
+  ),
+});
+
+type VaultGraphArgs = z.infer<typeof vaultGraphArgsSchema>;
+type VaultGraphPayload = z.infer<typeof vaultGraphOutputSchema>;
+
 function toGraphNode(meta: ReturnType<typeof getNoteMeta> | null, path: string): GraphNode {
   return {
     path,
@@ -61,6 +150,150 @@ function toResolvedPathItems(
   return rows.map((r) => ({ path: r.path, matched_by: r.matchedBy }));
 }
 
+async function computeVaultGraph(
+  deps: McpToolDeps,
+  args: VaultGraphArgs,
+): Promise<VaultGraphPayload> {
+  const relFilter = args.rels ? new Set(args.rels) : null;
+
+  const seedsFromPrefix = (prefix: string): string[] =>
+    searchNotes(deps.db, { pathPrefix: prefix, limit: args.max_nodes }).map((r) => r.path);
+
+  const mode = args.seed_paths?.length ? "seed_paths" : args.path_prefix ? "path_prefix" : null;
+  if (!mode) {
+    throw new Error('Provide either seed_paths (non-empty) or path_prefix (e.g. "Projects/").');
+  }
+
+  const seeds =
+    mode === "seed_paths" ? (args.seed_paths ?? []) : seedsFromPrefix(args.path_prefix ?? "");
+  const prefix = mode === "path_prefix" ? (args.path_prefix ?? "").trim() : null;
+
+  const visited = new Set<string>();
+  const queue: Array<{ path: string; hop: number }> = [];
+
+  for (const seed of seeds) {
+    const p = seed.trim();
+    if (!p) continue;
+    if (visited.has(p)) continue;
+    visited.add(p);
+    queue.push({ path: p, hop: 0 });
+    if (visited.size >= args.max_nodes) break;
+  }
+
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  let truncated = false;
+
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (!node) break;
+
+    const meta = getNoteMeta(deps.db, node.path);
+    nodes.push(toGraphNode(meta, node.path));
+
+    const shouldExpand = mode === "seed_paths" ? node.hop < args.max_hops : false; // prefix mode: no expansion outside the set
+    if (!shouldExpand) continue;
+    if (!meta) continue;
+
+    for (const link of meta.typedLinks) {
+      if (edges.length >= args.max_edges) {
+        truncated = true;
+        break;
+      }
+      if (relFilter && !relFilter.has(link.rel)) continue;
+
+      const resolved = resolveNotePathsByWikilinkTarget(
+        deps.db,
+        link.toTarget,
+        args.max_resolutions_per_target,
+      );
+
+      edges.push({
+        from_path: node.path,
+        rel: link.rel,
+        to_target: link.toTarget,
+        to_wikilink: link.toWikilink,
+        position: link.position,
+        to_paths: toResolvedPathItems(resolved),
+      });
+
+      for (const resolvedItem of resolved) {
+        if (visited.size >= args.max_nodes) break;
+        if (visited.has(resolvedItem.path)) continue;
+        visited.add(resolvedItem.path);
+        queue.push({ path: resolvedItem.path, hop: node.hop + 1 });
+      }
+    }
+  }
+
+  if (mode === "path_prefix" && prefix) {
+    const wanted = seedsFromPrefix(prefix);
+    const wantedSet = new Set(wanted);
+
+    // Prefix mode: rewrite to a strict subgraph of the wanted set.
+    const prefixNodes: GraphNode[] = [];
+    for (const p of wanted) {
+      prefixNodes.push(toGraphNode(getNoteMeta(deps.db, p), p));
+    }
+
+    const prefixEdges: GraphEdge[] = [];
+    for (const p of wanted) {
+      if (prefixEdges.length >= args.max_edges) {
+        truncated = true;
+        break;
+      }
+      const meta = getNoteMeta(deps.db, p);
+      if (!meta) continue;
+      for (const link of meta.typedLinks) {
+        if (prefixEdges.length >= args.max_edges) {
+          truncated = true;
+          break;
+        }
+        if (relFilter && !relFilter.has(link.rel)) continue;
+        const resolved = resolveNotePathsByWikilinkTarget(
+          deps.db,
+          link.toTarget,
+          args.max_resolutions_per_target,
+        ).filter((r) => wantedSet.has(r.path));
+
+        if (resolved.length === 0) continue;
+        prefixEdges.push({
+          from_path: p,
+          rel: link.rel,
+          to_target: link.toTarget,
+          to_wikilink: link.toWikilink,
+          position: link.position,
+          to_paths: toResolvedPathItems(resolved),
+        });
+      }
+    }
+
+    return {
+      mode,
+      seeds: wanted,
+      path_prefix: prefix,
+      max_hops: args.max_hops,
+      max_nodes: args.max_nodes,
+      max_edges: args.max_edges,
+      truncated,
+      nodes: prefixNodes,
+      edges: prefixEdges,
+    };
+  }
+
+  return {
+    mode,
+    seeds,
+    path_prefix: prefix,
+    max_hops: args.max_hops,
+    max_nodes: args.max_nodes,
+    max_edges: args.max_edges,
+    truncated,
+    nodes,
+    edges,
+  };
+}
+
 export function registerGetVaultGraphTool(server: McpServer, deps: McpToolDeps): void {
   server.registerTool(
     "get_vault_graph",
@@ -68,235 +301,48 @@ export function registerGetVaultGraphTool(server: McpServer, deps: McpToolDeps):
       title: "Get vault graph",
       description:
         "Returns a typed-link graph from the index DB (nodes: note metadata/frontmatter; edges: typed links). Does not read note body contents. Requires the vault to be indexed.",
-      inputSchema: {
-        seed_paths: z
-          .array(z.string().min(1))
-          .optional()
-          .describe("Seed note paths (vault-relative) to start graph expansion from"),
-        path_prefix: z
-          .string()
-          .min(1)
-          .optional()
-          .describe("Alternative to seed_paths: build a subgraph for notes under this path prefix"),
-        max_hops: z
-          .number()
-          .int()
-          .min(0)
-          .max(5)
-          .default(1)
-          .describe("Expansion depth when seed_paths is used (0–5)"),
-        max_nodes: z
-          .number()
-          .int()
-          .min(1)
-          .max(500)
-          .default(100)
-          .describe("Maximum nodes to return (1–500)"),
-        max_edges: z
-          .number()
-          .int()
-          .min(1)
-          .max(5000)
-          .default(500)
-          .describe("Maximum edges to return (1–5000)"),
-        rels: z
-          .array(z.string().min(1))
-          .optional()
-          .describe("If provided, include only typed links whose rel is in this list"),
-        max_resolutions_per_target: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .default(5)
-          .describe("Maximum note paths to resolve per typed-link target"),
-      },
-      outputSchema: z.object({
-        mode: z.union([z.literal("seed_paths"), z.literal("path_prefix")]),
-        seeds: z.array(z.string()),
-        path_prefix: z.string().nullable(),
-        max_hops: z.number().int(),
-        max_nodes: z.number().int(),
-        max_edges: z.number().int(),
-        truncated: z.boolean(),
-        nodes: z.array(
-          z.object({
-            path: z.string(),
-            note_id: z.string().nullable(),
-            created: z.string().nullable(),
-            title: z.string().nullable(),
-            summary: z.string().nullable(),
-            entity: z.string().nullable(),
-            layer: z.string().nullable(),
-            status: z.string().nullable(),
-            updated: z.string().nullable(),
-            viewed: z.number().nullable(),
-            tags: z.array(z.string()),
-            keywords: z.array(z.string()),
-            frontmatter: z.record(z.any()),
-          }),
-        ),
-        edges: z.array(
-          z.object({
-            from_path: z.string(),
-            rel: z.string(),
-            to_target: z.string(),
-            to_wikilink: z.string(),
-            position: z.number().int(),
-            to_paths: z.array(
-              z.object({
-                path: z.string(),
-                matched_by: z.union([z.literal("path"), z.literal("title")]),
-              }),
-            ),
-          }),
-        ),
-      }),
+      inputSchema: vaultGraphArgsSchema.shape,
+      outputSchema: vaultGraphOutputSchema,
     },
     async (args) => {
-      const relFilter = args.rels ? new Set(args.rels) : null;
+      const payload = await computeVaultGraph(deps, args);
 
-      const seedsFromPrefix = (prefix: string): string[] =>
-        searchNotes(deps.db, { pathPrefix: prefix, limit: args.max_nodes }).map((r) => r.path);
+      return {
+        structuredContent: payload,
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      };
+    },
+  );
+}
 
-      const mode = args.seed_paths?.length ? "seed_paths" : args.path_prefix ? "path_prefix" : null;
-      if (!mode) {
-        throw new Error('Provide either seed_paths (non-empty) or path_prefix (e.g. "Projects/").');
-      }
+const noteGraphArgsSchema = z.object({
+  path: z.string().min(1).describe("Vault-relative note path to start graph expansion from"),
+  max_hops: vaultGraphArgsSchema.shape.max_hops,
+  max_nodes: vaultGraphArgsSchema.shape.max_nodes,
+  max_edges: vaultGraphArgsSchema.shape.max_edges,
+  rels: vaultGraphArgsSchema.shape.rels,
+  max_resolutions_per_target: vaultGraphArgsSchema.shape.max_resolutions_per_target,
+});
 
-      const seeds =
-        mode === "seed_paths" ? (args.seed_paths ?? []) : seedsFromPrefix(args.path_prefix ?? "");
-      const prefix = mode === "path_prefix" ? (args.path_prefix ?? "").trim() : null;
-
-      const visited = new Set<string>();
-      const queue: Array<{ path: string; hop: number }> = [];
-
-      for (const seed of seeds) {
-        const p = seed.trim();
-        if (!p) continue;
-        if (visited.has(p)) continue;
-        visited.add(p);
-        queue.push({ path: p, hop: 0 });
-        if (visited.size >= args.max_nodes) break;
-      }
-
-      const nodes: GraphNode[] = [];
-      const edges: GraphEdge[] = [];
-      let truncated = false;
-
-      while (queue.length > 0) {
-        const node = queue.shift();
-        if (!node) break;
-
-        const meta = getNoteMeta(deps.db, node.path);
-        nodes.push(toGraphNode(meta, node.path));
-
-        const shouldExpand = mode === "seed_paths" ? node.hop < args.max_hops : false; // prefix mode: no expansion outside the set
-        if (!shouldExpand) continue;
-        if (!meta) continue;
-
-        for (const link of meta.typedLinks) {
-          if (edges.length >= args.max_edges) {
-            truncated = true;
-            break;
-          }
-          if (relFilter && !relFilter.has(link.rel)) continue;
-
-          const resolved = resolveNotePathsByWikilinkTarget(
-            deps.db,
-            link.toTarget,
-            args.max_resolutions_per_target,
-          );
-
-          edges.push({
-            from_path: node.path,
-            rel: link.rel,
-            to_target: link.toTarget,
-            to_wikilink: link.toWikilink,
-            position: link.position,
-            to_paths: toResolvedPathItems(resolved),
-          });
-
-          for (const resolvedItem of resolved) {
-            if (visited.size >= args.max_nodes) break;
-            if (visited.has(resolvedItem.path)) continue;
-            visited.add(resolvedItem.path);
-            queue.push({ path: resolvedItem.path, hop: node.hop + 1 });
-          }
-        }
-      }
-
-      if (mode === "path_prefix" && prefix) {
-        const wanted = seedsFromPrefix(prefix);
-        const wantedSet = new Set(wanted);
-
-        // Prefix mode: rewrite to a strict subgraph of the wanted set.
-        const prefixNodes: GraphNode[] = [];
-        for (const p of wanted) {
-          prefixNodes.push(toGraphNode(getNoteMeta(deps.db, p), p));
-        }
-
-        const prefixEdges: GraphEdge[] = [];
-        for (const p of wanted) {
-          if (prefixEdges.length >= args.max_edges) {
-            truncated = true;
-            break;
-          }
-          const meta = getNoteMeta(deps.db, p);
-          if (!meta) continue;
-          for (const link of meta.typedLinks) {
-            if (prefixEdges.length >= args.max_edges) {
-              truncated = true;
-              break;
-            }
-            if (relFilter && !relFilter.has(link.rel)) continue;
-            const resolved = resolveNotePathsByWikilinkTarget(
-              deps.db,
-              link.toTarget,
-              args.max_resolutions_per_target,
-            ).filter((r) => wantedSet.has(r.path));
-
-            if (resolved.length === 0) continue;
-            prefixEdges.push({
-              from_path: p,
-              rel: link.rel,
-              to_target: link.toTarget,
-              to_wikilink: link.toWikilink,
-              position: link.position,
-              to_paths: toResolvedPathItems(resolved),
-            });
-          }
-        }
-
-        const payload = {
-          mode,
-          seeds: wanted,
-          path_prefix: prefix,
-          max_hops: args.max_hops,
-          max_nodes: args.max_nodes,
-          max_edges: args.max_edges,
-          truncated,
-          nodes: prefixNodes,
-          edges: prefixEdges,
-        };
-
-        return {
-          structuredContent: payload,
-          content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-        };
-      }
-
-      const payload = {
-        mode,
-        seeds,
-        path_prefix: prefix,
+export function registerGetNoteGraphTool(server: McpServer, deps: McpToolDeps): void {
+  server.registerTool(
+    "get_note_graph",
+    {
+      title: "Get note graph",
+      description:
+        "Alias of get_vault_graph for a single starting note path. Returns a typed-link graph from the index DB (metadata only).",
+      inputSchema: noteGraphArgsSchema.shape,
+      outputSchema: vaultGraphOutputSchema,
+    },
+    async (args) => {
+      const payload = await computeVaultGraph(deps, {
+        seed_paths: [args.path],
         max_hops: args.max_hops,
         max_nodes: args.max_nodes,
         max_edges: args.max_edges,
-        truncated,
-        nodes,
-        edges,
-      };
+        rels: args.rels,
+        max_resolutions_per_target: args.max_resolutions_per_target,
+      });
 
       return {
         structuredContent: payload,
