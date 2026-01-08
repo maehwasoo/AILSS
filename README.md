@@ -2,7 +2,7 @@
 
 **AILSS** = **Actionable Integrated Linked Semantic System**
 
-- Structure knowledge + memory, and work efficiently with AI. (지식과 메모리를 구조화하고, AI와 함께 효율적으로 작업)
+- Structure knowledge + memory, and work efficiently with AI.
 - Your Obsidian **vault is the SSOT** (Single Source of Truth) and the root of decisions.
 
 AILSS connects LLM tooling to an Obsidian vault by building a local index DB and exposing retrieval + (optional) write tools over **MCP** (Model Context Protocol).
@@ -52,5 +52,10 @@ Write tools (only when enabled in the plugin; always require `apply=true`):
 
 ## Docs
 
-- Overview + plan: `docs/README.md`
-- Codex integration details: `docs/ops/codex-cli.md`
+Start here:
+
+- `docs/README.md` (documentation index)
+- `docs/00-context.md` → `docs/01-overview.md` → `docs/02-significance.md` → `docs/03-plan.md`
+- `docs/ops/codex-cli.md` (Codex CLI + MCP config + troubleshooting)
+- `docs/ops/local-dev.md` (local dev runbook)
+- `docs/ops/agents-snippet.md` (AGENTS.md prompt snippet for using AILSS MCP tools)

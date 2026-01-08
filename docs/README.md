@@ -28,6 +28,7 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 
 - Local development: [ops/local-dev.md](./ops/local-dev.md)
 - Codex CLI integration: [ops/codex-cli.md](./ops/codex-cli.md)
+- AGENTS.md prompt snippet (AILSS MCP usage): [ops/agents-snippet.md](./ops/agents-snippet.md)
 
 ## ADRs
 
