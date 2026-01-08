@@ -11,7 +11,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
-import { buildAilssFrontmatter, renderMarkdownWithFrontmatter } from "../lib/ailssNoteTemplate.js";
+import {
+  buildAilssFrontmatter,
+  defaultTagsForRelPath,
+  renderMarkdownWithFrontmatter,
+} from "../lib/ailssNoteTemplate.js";
 import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
 import { resolveVaultPathSafely, writeVaultFileText } from "../lib/vaultFs.js";
 
@@ -99,6 +103,7 @@ export function registerNewNoteTool(server: McpServer, deps: McpToolDeps): void 
           : titleFromPath);
       const frontmatter = buildAilssFrontmatter({
         title: resolvedTitle,
+        tags: defaultTagsForRelPath(args.path),
         preserve: parsed.frontmatter,
         overrides: { ...(args.frontmatter ?? {}), title: resolvedTitle },
       });

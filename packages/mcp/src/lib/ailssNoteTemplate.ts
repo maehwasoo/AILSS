@@ -6,6 +6,20 @@ import { AILSS_TYPED_LINK_KEYS } from "@ailss/core";
 
 export type AilssFrontmatter = Record<string, unknown>;
 
+function normalizeVaultRelPathForMatching(input: string): string {
+  return input.split("\\").join("/").replace(/^\/+/, "");
+}
+
+export function isInboxRelPath(vaultRelPath: string): boolean {
+  const normalized = normalizeVaultRelPathForMatching(vaultRelPath).trim();
+  if (!normalized) return false;
+  return normalized === "100. Inbox" || normalized.startsWith("100. Inbox/");
+}
+
+export function defaultTagsForRelPath(vaultRelPath: string): string[] {
+  return isInboxRelPath(vaultRelPath) ? ["inbox"] : [];
+}
+
 export function nowIsoSeconds(): string {
   // ISO without milliseconds/timezone (matches core db metadata style)
   return new Date().toISOString().slice(0, 19);
@@ -14,6 +28,15 @@ export function nowIsoSeconds(): string {
 export function idFromIsoSeconds(isoSeconds: string): string {
   // YYYY-MM-DDTHH:mm:ss -> YYYYMMDDHHmmss
   return isoSeconds.replace(/[-:T]/g, "").slice(0, 14);
+}
+
+function coerceNonEmptyString(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
 }
 
 function isJsonSafeUnquotedYamlString(value: string): boolean {
@@ -52,17 +75,17 @@ export function buildAilssFrontmatter(options: {
   preserve?: AilssFrontmatter;
 }): AilssFrontmatter {
   const now = options.now ?? nowIsoSeconds();
-  const id = idFromIsoSeconds(now);
+  const defaultId = idFromIsoSeconds(now);
 
   const base: AilssFrontmatter = {
-    id,
+    id: defaultId,
     created: now,
     title: options.title,
     summary: null,
     aliases: [],
     entity: null,
     layer: "conceptual",
-    tags: options.tags ?? ["inbox"],
+    tags: options.tags ?? [],
     keywords: [],
     status: "draft",
     updated: now,
@@ -101,6 +124,11 @@ export function buildAilssFrontmatter(options: {
   for (const rel of AILSS_TYPED_LINK_KEYS) {
     if (!hasOwn(merged, rel)) (merged as Record<string, unknown>)[rel] = [];
   }
+
+  // Ensure core identity fields stay in the expected types even when preserving
+  // existing frontmatter (YAML parsers may infer numbers for unquoted scalars).
+  const coercedId = coerceNonEmptyString((merged as Record<string, unknown>).id);
+  (merged as Record<string, unknown>).id = coercedId ?? defaultId;
 
   return merged;
 }

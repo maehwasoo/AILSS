@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { McpToolDeps } from "../mcpDeps.js";
 import {
   buildAilssFrontmatter,
+  defaultTagsForRelPath,
   nowIsoSeconds,
   renderMarkdownWithFrontmatter,
 } from "../lib/ailssNoteTemplate.js";
@@ -134,7 +135,7 @@ export function registerCaptureNoteTool(server: McpServer, deps: McpToolDeps): v
       const frontmatter = buildAilssFrontmatter({
         title: args.title.trim(),
         now,
-        tags: ["inbox"],
+        tags: defaultTagsForRelPath(relPath),
         ...(args.frontmatter ? { overrides: args.frontmatter } : {}),
       });
       const markdown = renderMarkdownWithFrontmatter({ frontmatter, body: args.body });
