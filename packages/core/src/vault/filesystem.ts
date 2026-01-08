@@ -22,6 +22,17 @@ const DEFAULT_IGNORE_DIRS = new Set([
   "node_modules",
 ]);
 
+export function isDefaultIgnoredVaultRelPath(relPath: string): boolean {
+  const normalized = relPath.split("\\").join("/").trim();
+  const segments = normalized.split(path.posix.sep);
+
+  for (const dir of segments.slice(0, -1)) {
+    if (DEFAULT_IGNORE_DIRS.has(dir)) return true;
+  }
+
+  return false;
+}
+
 export async function listMarkdownFiles(vaultPath: string): Promise<string[]> {
   const results: string[] = [];
 
