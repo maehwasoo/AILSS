@@ -11,20 +11,22 @@ export function registerFindNotesByTypedLinkTool(server: McpServer, deps: McpToo
   server.registerTool(
     "find_notes_by_typed_link",
     {
-      title: "Find notes by typed link",
+      title: "Find typed-link backrefs",
       description:
-        "Find typed-link backrefs in the index DB (which notes point to a typed-link target). Optionally filter by relation (`rel`) and/or `target` (raw text or a `[[wikilink]]`; display/heading are stripped).",
+        "DB query for typed-link backrefs: returns which notes have a frontmatter typed link that points to a target. Filter by `rel` (e.g. depends_on) and/or `target` (string or [[wikilink]]; normalized). This is not a path-based graph expansion; for graph-shaped results starting from a note path, use get_note_graph/get_vault_graph.",
       inputSchema: {
         rel: z
           .string()
           .min(1)
           .optional()
-          .describe("Typed link relation key (e.g. part_of, depends_on)"),
+          .describe("Typed link relation key (e.g. part_of, depends_on). Omit to match any rel."),
         target: z
           .string()
           .min(1)
           .optional()
-          .describe("Target to search for (raw text or [[wikilink]]; normalized before query)"),
+          .describe(
+            "Target string to search for (raw text or [[wikilink]]; normalized before query). Example: target='[[Vite]]' matches depends_on: [[Vite]].",
+          ),
         limit: z
           .number()
           .int()
