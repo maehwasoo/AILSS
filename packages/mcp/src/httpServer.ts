@@ -156,7 +156,15 @@ function isInitializeRequestMessage(body: unknown): boolean {
 }
 
 function getSingleHeaderValue(req: IncomingMessage, name: string): string | null | "multiple" {
-  const v = req.headers[name.toLowerCase()];
+  const key = name.toLowerCase();
+
+  const distinct = req.headersDistinct?.[key];
+  if (Array.isArray(distinct)) {
+    if (distinct.length === 1) return distinct[0] ?? null;
+    if (distinct.length > 1) return "multiple";
+  }
+
+  const v = req.headers[key];
   if (typeof v === "string") return v;
   if (Array.isArray(v)) return "multiple";
   return null;
