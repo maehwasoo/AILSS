@@ -116,6 +116,21 @@ function parseFirstSseData(body: string): unknown {
   return JSON.parse((dataLine as string).slice("data: ".length)) as unknown;
 }
 
+function assertRecord(value: unknown, label: string): asserts value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`Expected ${label} to be an object`);
+  }
+}
+
+function getStructuredContent(payload: unknown): Record<string, unknown> {
+  assertRecord(payload, "JSON-RPC payload");
+  const result = payload["result"];
+  assertRecord(result, "JSON-RPC result");
+  const structured = result["structuredContent"];
+  assertRecord(structured, "structuredContent");
+  return structured;
+}
+
 async function mcpToolsListExpectBadRequest(url: string, token: string): Promise<void> {
   const res = await fetch(url, {
     method: "POST",
@@ -621,6 +636,72 @@ describe("MCP HTTP server (multi-session)", () => {
 
       expect(attempt2Index).toBeLessThan(exit1Index);
       expect(enter2Index).toBeGreaterThan(exit1Index);
+    } finally {
+      await close();
+      runtime.deps.db.close();
+
+      process.env.OPENAI_API_KEY = saved.OPENAI_API_KEY;
+      process.env.OPENAI_EMBEDDING_MODEL = saved.OPENAI_EMBEDDING_MODEL;
+      if (saved.AILSS_DB_PATH === undefined) delete process.env.AILSS_DB_PATH;
+      else process.env.AILSS_DB_PATH = saved.AILSS_DB_PATH;
+      if (saved.AILSS_VAULT_PATH === undefined) delete process.env.AILSS_VAULT_PATH;
+      else process.env.AILSS_VAULT_PATH = saved.AILSS_VAULT_PATH;
+      if (saved.AILSS_ENABLE_WRITE_TOOLS === undefined) delete process.env.AILSS_ENABLE_WRITE_TOOLS;
+      else process.env.AILSS_ENABLE_WRITE_TOOLS = saved.AILSS_ENABLE_WRITE_TOOLS;
+    }
+  });
+
+  it("creates a new note via new_note (dry-run + apply)", async () => {
+    const dir = await mkTempDir();
+    const vaultPath = dir;
+
+    const saved = {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
+      AILSS_DB_PATH: process.env.AILSS_DB_PATH,
+      AILSS_VAULT_PATH: process.env.AILSS_VAULT_PATH,
+      AILSS_ENABLE_WRITE_TOOLS: process.env.AILSS_ENABLE_WRITE_TOOLS,
+    };
+
+    process.env.OPENAI_API_KEY = "test";
+    process.env.OPENAI_EMBEDDING_MODEL = "text-embedding-3-large";
+    delete process.env.AILSS_DB_PATH;
+    process.env.AILSS_VAULT_PATH = vaultPath;
+    process.env.AILSS_ENABLE_WRITE_TOOLS = "1";
+
+    const runtime = await createAilssMcpRuntimeFromEnv();
+    const token = "test-token";
+
+    const { close, url } = await startAilssMcpHttpServer({
+      runtime,
+      config: { host: "127.0.0.1", port: 0, path: "/mcp", token },
+      maxSessions: 5,
+      idleTtlMs: 60_000,
+    });
+
+    try {
+      const sessionId = await mcpInitialize(url, token, "client-a");
+
+      const relPath = "C.md";
+      const absPath = path.join(vaultPath, relPath);
+
+      const dryRun = await mcpToolsCall(url, token, sessionId, "new_note", {
+        path: relPath,
+        text: "hello\n",
+        apply: false,
+      });
+      expect(getStructuredContent(dryRun)["applied"]).toBe(false);
+      await expect(fs.stat(absPath)).rejects.toThrow(/ENOENT/);
+
+      const applied = await mcpToolsCall(url, token, sessionId, "new_note", {
+        path: relPath,
+        text: "hello\n",
+        apply: true,
+        reindex_after_apply: false,
+      });
+      expect(getStructuredContent(applied)["applied"]).toBe(true);
+      expect(getStructuredContent(applied)["created"]).toBe(true);
+      expect(await fs.readFile(absPath, "utf8")).toBe("hello\n");
     } finally {
       await close();
       runtime.deps.db.close();
