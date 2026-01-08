@@ -322,7 +322,7 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-       
+
       console.error(`[ailss-mcp-http] request error: ${message}`);
       sendText(res, 500, "internal error");
     }
