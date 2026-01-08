@@ -12,14 +12,28 @@ We are moving toward a setup where **Obsidian hosts the AILSS MCP server over lo
 - Codex never needs vault filesystem permissions (`writable_roots`).
 - The Obsidian plugin becomes the trusted boundary for:
   - DB WAL sidecar writes in `<vault>/.ailss/`
-  - applying note edits via the Vault API
+  - applying note edits via explicit MCP write tools (gated; requires `apply=true`)
 
 See:
 
 - Plan: `docs/03-plan.md` (section “Codex integration via plugin-hosted MCP service (localhost)”)
 - ADR: `docs/adr/0007-obsidian-plugin-hosts-mcp-over-localhost.md`
 
-Until the plugin-hosted service is implemented, the legacy stdio setup below is still relevant.
+If you have not enabled the plugin-hosted service yet, the legacy stdio setup below is still relevant.
+
+## Codex setup (plugin-hosted HTTP service)
+
+1. In Obsidian: Settings → Community plugins → **AILSS Obsidian** → enable the “MCP service (Codex, localhost)” and copy the Codex config block.
+
+2. Paste it into `~/.codex/config.toml`. A minimal example looks like:
+
+```toml
+[mcp_servers.ailss]
+url = "http://127.0.0.1:31415/mcp"
+
+[mcp_servers.ailss.http_headers]
+Authorization = "Bearer <token>"
+```
 
 ## Why this happens
 
