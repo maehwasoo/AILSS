@@ -2,6 +2,7 @@ import { Modal, Notice, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "../main.js";
 import type { AilssIndexerStatusSnapshot } from "../main.js";
+import { formatAilssTimestampForUi } from "../utils/dateTime.js";
 
 export class AilssIndexerStatusModal extends Modal {
 	private unsubscribe: (() => void) | null = null;
@@ -84,12 +85,12 @@ export class AilssIndexerStatusModal extends Modal {
 		}
 
 		if (this.metaTextEl) {
+			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
+			const lastFinishedAt = formatAilssTimestampForUi(snapshot.lastFinishedAt);
 			const metaParts = [
-				snapshot.lastSuccessAt
-					? `Last success: ${snapshot.lastSuccessAt}`
-					: "Last success: (none)",
-				snapshot.lastFinishedAt
-					? `Last attempt: ${snapshot.lastFinishedAt}${snapshot.lastExitCode === null ? "" : ` (exit ${snapshot.lastExitCode})`}`
+				lastSuccessAt ? `Last success: ${lastSuccessAt}` : "Last success: (none)",
+				lastFinishedAt
+					? `Last attempt: ${lastFinishedAt}${snapshot.lastExitCode === null ? "" : ` (exit ${snapshot.lastExitCode})`}`
 					: "Last attempt: (none)",
 			];
 			this.metaTextEl.setText(metaParts.join("\n"));

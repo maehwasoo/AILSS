@@ -15,6 +15,7 @@ import { ConfirmModal } from "./ui/confirmModal.js";
 import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
 import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
 import { clampDebounceMs, clampPort, clampTopK } from "./utils/clamp.js";
+import { formatAilssTimestampForUi } from "./utils/dateTime.js";
 import {
 	appendLimited,
 	fileExists,
@@ -153,7 +154,8 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		if (this.mcpHttpServiceLastStoppedAt) {
-			return `Status: Stopped (last: ${this.mcpHttpServiceLastStoppedAt})`;
+			const lastStoppedAt = formatAilssTimestampForUi(this.mcpHttpServiceLastStoppedAt);
+			return `Status: Stopped (last: ${lastStoppedAt ?? this.mcpHttpServiceLastStoppedAt})`;
 		}
 
 		return "Status: Stopped";
@@ -903,6 +905,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		el.removeClass("is-error");
 
 		if (snapshot.running) {
+			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
 			const total = snapshot.progress.filesTotal;
 			const done = snapshot.progress.filesProcessed;
 			const suffix = total ? ` ${Math.min(done, total)}/${total}` : "";
@@ -915,7 +918,7 @@ export default class AilssObsidianPlugin extends Plugin {
 					snapshot.progress.currentFile
 						? `Current: ${snapshot.progress.currentFile}`
 						: "",
-					snapshot.lastSuccessAt ? `Last success: ${snapshot.lastSuccessAt}` : "",
+					lastSuccessAt ? `Last success: ${lastSuccessAt}` : "",
 				]
 					.filter(Boolean)
 					.join("\n"),
@@ -924,14 +927,16 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		if (snapshot.lastErrorMessage) {
+			const lastFinishedAt = formatAilssTimestampForUi(snapshot.lastFinishedAt);
+			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
 			el.textContent = "AILSS: Index error";
 			el.addClass("is-error");
 			el.setAttribute(
 				"title",
 				[
 					"AILSS indexing error",
-					snapshot.lastFinishedAt ? `Last attempt: ${snapshot.lastFinishedAt}` : "",
-					snapshot.lastSuccessAt ? `Last success: ${snapshot.lastSuccessAt}` : "",
+					lastFinishedAt ? `Last attempt: ${lastFinishedAt}` : "",
+					lastSuccessAt ? `Last success: ${lastSuccessAt}` : "",
 					snapshot.lastErrorMessage,
 				]
 					.filter(Boolean)
@@ -941,8 +946,9 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		if (snapshot.lastSuccessAt) {
+			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
 			el.textContent = "AILSS: Ready";
-			el.setAttribute("title", `Last success: ${snapshot.lastSuccessAt}`);
+			el.setAttribute("title", `Last success: ${lastSuccessAt ?? snapshot.lastSuccessAt}`);
 			return;
 		}
 

@@ -1,6 +1,7 @@
 import { Modal, Notice, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "../main.js";
+import { formatAilssTimestampForUi } from "../utils/dateTime.js";
 
 export class AilssIndexerLogModal extends Modal {
 	constructor(
@@ -18,8 +19,9 @@ export class AilssIndexerLogModal extends Modal {
 		contentEl.createEl("h2", { text: "AILSS indexer log" });
 
 		const snapshot = this.plugin.getLastIndexerLogSnapshot();
-		const metaText = snapshot.finishedAt
-			? `Last run: ${snapshot.finishedAt}${snapshot.exitCode === null ? "" : ` (exit ${snapshot.exitCode})`}`
+		const finishedAt = formatAilssTimestampForUi(snapshot.finishedAt);
+		const metaText = finishedAt
+			? `Last run: ${finishedAt}${snapshot.exitCode === null ? "" : ` (exit ${snapshot.exitCode})`}`
 			: "No indexer run recorded yet.";
 		contentEl.createDiv({ text: metaText });
 
