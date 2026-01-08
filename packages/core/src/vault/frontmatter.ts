@@ -40,9 +40,22 @@ export type NormalizedAilssNoteMeta = {
 };
 
 function coerceString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  // YAML parsers (e.g. gray-matter/js-yaml) may infer types for unquoted scalars.
+  // - `id: 20260108123456` becomes a number
+  // - `created: 2026-01-08T12:34:56` becomes a Date
+  // The AILSS vault convention treats these fields as strings, so coerce them here.
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    // Keep the existing convention: ISO to seconds, no ms/timezone suffix.
+    return value.toISOString().slice(0, 19);
+  }
+
+  return null;
 }
 
 function coerceNumber(value: unknown): number | null {
