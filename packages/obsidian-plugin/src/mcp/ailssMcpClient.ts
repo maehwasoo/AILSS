@@ -46,8 +46,8 @@ export class AilssMcpClient {
 		await this.connect();
 
 		const result = await this.client.callTool({
-			name: "semantic_search",
-			arguments: { query, top_k: topK },
+			name: "get_context",
+			arguments: { query, top_k: topK, max_chars_per_note: 2000 },
 		});
 
 		const payload = readFirstTextContent(result.content);

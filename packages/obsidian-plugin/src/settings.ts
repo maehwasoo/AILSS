@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "./main.js";
+import { type PromptKind } from "./utils/promptTemplates.js";
 
 export interface AilssObsidianSettings {
 	openaiApiKey: string;
@@ -47,6 +48,50 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "AILSS Obsidian" });
+
+		containerEl.createEl("h3", { text: "Prompt installer (vault root)" });
+
+		let selectedKind: PromptKind = "AGENTS";
+		let overwrite = false;
+
+		new Setting(containerEl)
+			.setName("Prompt file")
+			.setDesc("Select which prompt file to write at the vault root.")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("AGENTS", "AGENTS.md");
+				dropdown.addOption("CLAUDE", "CLAUDE.md");
+				dropdown.addOption("GEMINI", "GEMINI.md");
+				dropdown.setValue(selectedKind);
+				dropdown.onChange((value) => {
+					selectedKind = value as PromptKind;
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Overwrite existing")
+			.setDesc("If enabled, overwrites an existing prompt file at the vault root.")
+			.addToggle((toggle) => {
+				toggle.setValue(overwrite);
+				toggle.onChange((value) => {
+					overwrite = value;
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Install prompt")
+			.setDesc(
+				"Writes a prompt file at the vault root. These files are meant to steer assistants to use AILSS MCP tools and follow your vault rules.",
+			)
+			.addButton((button) => {
+				button.setButtonText("Install");
+				button.setCta();
+				button.onClick(() => {
+					void this.plugin.installVaultRootPrompt({
+						kind: selectedKind,
+						overwrite,
+					});
+				});
+			});
 
 		new Setting(containerEl)
 			.setName("OpenAI API key")
@@ -260,6 +305,14 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			});
 
 		containerEl.createEl("h3", { text: "Index maintenance" });
+
+		new Setting(containerEl)
+			.setName("Reindex now")
+			.setDesc("Runs the indexer immediately (costs money if embeddings are needed).")
+			.addButton((button) => {
+				button.setButtonText("Reindex vault");
+				button.onClick(() => void this.plugin.reindexVault());
+			});
 
 		new Setting(containerEl)
 			.setName("Reset index DB")

@@ -30,6 +30,7 @@ import {
 	spawnAndCapture,
 	toStringEnvRecord,
 } from "./utils/spawn.js";
+import { type PromptKind, promptFilename, promptTemplate } from "./utils/promptTemplates.js";
 import { normalizeVaultRelPath, shouldIndexVaultRelPath } from "./utils/vault.js";
 
 export type AilssIndexerStatusSnapshot = {
@@ -202,6 +203,22 @@ export default class AilssObsidianPlugin extends Plugin {
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.restartMcpHttpService();
 		}
+	}
+
+	async installVaultRootPrompt(options: { kind: PromptKind; overwrite: boolean }): Promise<void> {
+		const fileName = promptFilename(options.kind);
+		const adapter = this.app.vault.adapter;
+
+		const exists = await adapter.exists(fileName);
+		if (exists && !options.overwrite) {
+			new Notice(
+				`${fileName} already exists at the vault root. Enable overwrite to replace it.`,
+			);
+			return;
+		}
+
+		await adapter.write(fileName, promptTemplate(options.kind));
+		new Notice(`Installed ${fileName} at the vault root.`);
 	}
 
 	async startMcpHttpService(): Promise<void> {
