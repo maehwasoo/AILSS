@@ -4,9 +4,11 @@ import path from "node:path";
 
 import type { AilssDb } from "../db/db.js";
 import {
-  deleteChunksByPath,
+  deleteChunksByIds,
   deleteFileByPath,
   getFileSha256,
+  listChunkEmbeddingsByPath,
+  listChunkIdsByPath,
   insertChunkWithEmbedding,
   listFilePaths,
   replaceNoteKeywords,
@@ -14,12 +16,14 @@ import {
   replaceTypedLinks,
   upsertFile,
   upsertNote,
+  updateChunkMetadata,
 } from "../db/db.js";
 import { normalizeAilssNoteMeta } from "../vault/frontmatter.js";
 import {
   chunkMarkdownByHeadings,
   extractWikilinkTypedLinksFromMarkdownBody,
   parseMarkdownNote,
+  type MarkdownChunk,
 } from "../vault/markdown.js";
 import {
   isDefaultIgnoredVaultRelPath,
@@ -65,6 +69,36 @@ function logLine(logger: IndexVaultLogger | undefined, line: string): void {
 
 function writeText(logger: IndexVaultLogger | undefined, text: string): void {
   logger?.write?.(text);
+}
+
+type PlannedChunk = {
+  chunkId: string;
+  content: string;
+  contentSha256: string;
+  heading: string | null;
+  headingPathJson: string;
+};
+
+function computeStableChunkIds(fileRelPath: string, chunks: MarkdownChunk[]): PlannedChunk[] {
+  // Stable IDs across edits
+  // - based on chunk content hash, not global ordinal
+  // - include an occurrence index to disambiguate duplicates within the same file
+  const occurrenceByContent = new Map<string, number>();
+
+  return chunks.map((chunk) => {
+    const contentKey = chunk.contentSha256;
+    const occurrence = occurrenceByContent.get(contentKey) ?? 0;
+    occurrenceByContent.set(contentKey, occurrence + 1);
+
+    const chunkId = sha256Text(`${fileRelPath}\n${contentKey}\n${occurrence}`);
+    return {
+      chunkId,
+      content: chunk.content,
+      contentSha256: chunk.contentSha256,
+      heading: chunk.heading,
+      headingPathJson: JSON.stringify(chunk.headingPath),
+    };
+  });
 }
 
 export async function indexVault(options: IndexVaultOptions): Promise<IndexVaultSummary> {
@@ -176,10 +210,42 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
       continue;
     }
 
-    deleteChunksByPath(options.db, file.relPath);
+    const plannedChunks = computeStableChunkIds(file.relPath, chunks);
 
-    for (let i = 0; i < chunks.length; i += batchSize) {
-      const batch = chunks.slice(i, i + batchSize);
+    const existingChunkIds = new Set(listChunkIdsByPath(options.db, file.relPath));
+    const nextChunkIds = new Set(plannedChunks.map((c) => c.chunkId));
+
+    const toDelete: string[] = [];
+    for (const chunkId of existingChunkIds) {
+      if (!nextChunkIds.has(chunkId)) toDelete.push(chunkId);
+    }
+
+    // Embedding cache by content hash
+    // - allows per-chunk reuse even when chunk IDs change (e.g. heading rename)
+    const embeddingByContentSha = new Map<string, number[]>();
+    for (const item of listChunkEmbeddingsByPath(options.db, file.relPath)) {
+      if (!embeddingByContentSha.has(item.contentSha256)) {
+        embeddingByContentSha.set(item.contentSha256, item.embedding);
+      }
+    }
+
+    // Plan which new chunk contents need embedding calls (deduped)
+    const toEmbed: Array<{ contentSha256: string; content: string }> = [];
+    const seenToEmbed = new Set<string>();
+    for (const planned of plannedChunks) {
+      if (existingChunkIds.has(planned.chunkId)) continue;
+      if (embeddingByContentSha.has(planned.contentSha256)) continue;
+      if (seenToEmbed.has(planned.contentSha256)) continue;
+      seenToEmbed.add(planned.contentSha256);
+      toEmbed.push({ contentSha256: planned.contentSha256, content: planned.content });
+    }
+
+    if (toDelete.length > 0) {
+      deleteChunksByIds(options.db, toDelete);
+    }
+
+    for (let i = 0; i < toEmbed.length; i += batchSize) {
+      const batch = toEmbed.slice(i, i + batchSize);
       const embeddings = await options.embedTexts(batch.map((c) => c.content));
 
       for (const [j, chunk] of batch.entries()) {
@@ -189,32 +255,53 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
             `Embedding response returned too few embeddings. batchSize=${batch.length}, got=${embeddings.length}`,
           );
         }
-
-        const chunkOrdinal = i + j;
-        const chunkId = sha256Text(
-          `${file.relPath}\n${chunkOrdinal}\n${JSON.stringify(chunk.headingPath)}\n${chunk.contentSha256}`,
-        );
-
-        insertChunkWithEmbedding(options.db, {
-          chunkId,
-          path: file.relPath,
-          heading: chunk.heading,
-          headingPathJson: JSON.stringify(chunk.headingPath),
-          content: chunk.content,
-          contentSha256: chunk.contentSha256,
-          embedding,
-        });
-        indexedChunks += 1;
+        embeddingByContentSha.set(chunk.contentSha256, embedding);
       }
 
       writeText(
         options.logger,
-        `[chunks] ${Math.min(i + batch.length, chunks.length)}/${chunks.length}\r`,
+        `[chunks] ${Math.min(i + batch.length, toEmbed.length)}/${toEmbed.length}\r`,
       );
     }
 
     writeText(options.logger, "\n");
-    logLine(options.logger, `[done] chunks=${chunks.length}`);
+
+    // Update existing chunk metadata without touching embeddings
+    for (const planned of plannedChunks) {
+      if (!existingChunkIds.has(planned.chunkId)) continue;
+      updateChunkMetadata(options.db, {
+        chunkId: planned.chunkId,
+        path: file.relPath,
+        heading: planned.heading,
+        headingPathJson: planned.headingPathJson,
+        content: planned.content,
+        contentSha256: planned.contentSha256,
+      });
+    }
+
+    // Insert new chunks with embeddings (reused or freshly embedded)
+    for (const planned of plannedChunks) {
+      if (existingChunkIds.has(planned.chunkId)) continue;
+      const embedding = embeddingByContentSha.get(planned.contentSha256);
+      if (!embedding) {
+        throw new Error(
+          `Missing embedding for chunk insertion. path=${file.relPath}, contentSha256=${planned.contentSha256}`,
+        );
+      }
+
+      insertChunkWithEmbedding(options.db, {
+        chunkId: planned.chunkId,
+        path: file.relPath,
+        heading: planned.heading,
+        headingPathJson: planned.headingPathJson,
+        content: planned.content,
+        contentSha256: planned.contentSha256,
+        embedding,
+      });
+    }
+
+    indexedChunks += plannedChunks.length;
+    logLine(options.logger, `[done] chunks=${plannedChunks.length}`);
   }
 
   if (existingRelPaths) {
