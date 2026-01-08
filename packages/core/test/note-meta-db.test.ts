@@ -64,7 +64,7 @@ describe("notes + typed_links queries", () => {
         summary: null,
         entity: "concept",
         layer: "conceptual",
-        status: "published",
+        status: "active",
         updated: null,
         viewed: 1,
         frontmatterJson: JSON.stringify({ title: "Concept B" }),
