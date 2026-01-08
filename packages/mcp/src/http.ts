@@ -8,13 +8,27 @@ import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
-import { createAilssMcpServer } from "./createAilssMcpServer.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+import {
+  createAilssMcpRuntimeFromEnv,
+  createAilssMcpServerFromRuntime,
+  type AilssMcpRuntime,
+} from "./createAilssMcpServer.js";
 
 type HttpConfig = {
   host: string;
   port: number;
   path: string;
   token: string;
+};
+
+type McpSession = {
+  sessionId: string;
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+  createdAtMs: number;
+  lastSeenAtMs: number;
 };
 
 function requireLocalhostHost(host: string): void {
@@ -110,15 +124,116 @@ function sendText(res: ServerResponse, code: number, message: string): void {
   res.end(message);
 }
 
+function sendJsonRpcError(
+  res: ServerResponse,
+  code: number,
+  mcpErrorCode: number,
+  message: string,
+): void {
+  res.statusCode = code;
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.end(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      error: { code: mcpErrorCode, message },
+      id: null,
+    }),
+  );
+}
+
+function isInitializeRequestMessage(body: unknown): boolean {
+  if (!body) return false;
+  if (Array.isArray(body)) return body.some(isInitializeRequestMessage);
+  if (typeof body !== "object") return false;
+
+  const method = (body as { method?: unknown }).method;
+  return method === "initialize";
+}
+
+function getSingleHeaderValue(req: IncomingMessage, name: string): string | null | "multiple" {
+  const v = req.headers[name.toLowerCase()];
+  if (typeof v === "string") return v;
+  if (Array.isArray(v)) return "multiple";
+  return null;
+}
+
+function parseMaxSessionsFromEnv(): number {
+  const raw = (process.env.AILSS_MCP_HTTP_MAX_SESSIONS ?? "5").trim();
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return 5;
+  return n;
+}
+
+function parseIdleTtlMsFromEnv(): number {
+  const raw = (process.env.AILSS_MCP_HTTP_IDLE_TTL_MS ?? "3600000").trim();
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) return 3_600_000;
+  return n;
+}
+
+function evictOldestSessions(sessions: Map<string, McpSession>, maxSessions: number): void {
+  while (sessions.size > maxSessions) {
+    let oldest: McpSession | null = null;
+    for (const s of sessions.values()) {
+      if (!oldest) oldest = s;
+      else if (s.lastSeenAtMs < oldest.lastSeenAtMs) oldest = s;
+    }
+
+    if (!oldest) return;
+    sessions.delete(oldest.sessionId);
+    oldest.transport.close().catch(() => {});
+    oldest.server.close().catch(() => {});
+  }
+}
+
+function closeIdleSessions(sessions: Map<string, McpSession>, idleTtlMs: number): void {
+  if (idleTtlMs <= 0) return;
+  const now = Date.now();
+
+  for (const [sessionId, session] of sessions.entries()) {
+    if (now - session.lastSeenAtMs <= idleTtlMs) continue;
+    sessions.delete(sessionId);
+    session.transport.close().catch(() => {});
+    session.server.close().catch(() => {});
+  }
+}
+
+async function createSession(
+  runtime: AilssMcpRuntime,
+  sessions: Map<string, McpSession>,
+  maxSessions: number,
+): Promise<{ server: McpServer; transport: StreamableHTTPServerTransport }> {
+  const { server } = createAilssMcpServerFromRuntime(runtime);
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+    onsessioninitialized: (sessionId) => {
+      const now = Date.now();
+      sessions.set(sessionId, {
+        sessionId,
+        server,
+        transport,
+        createdAtMs: now,
+        lastSeenAtMs: now,
+      });
+      evictOldestSessions(sessions, maxSessions);
+    },
+    onsessionclosed: (sessionId) => {
+      sessions.delete(sessionId);
+    },
+  });
+
+  await server.connect(transport);
+  return { server, transport };
+}
+
 async function main(): Promise<void> {
   const config = parseHttpConfigFromEnv();
 
-  const { server: mcpServer } = await createAilssMcpServer();
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
-  });
+  const runtime = await createAilssMcpRuntimeFromEnv();
 
-  await mcpServer.connect(transport);
+  const sessions = new Map<string, McpSession>();
+  const maxSessions = parseMaxSessionsFromEnv();
+  const idleTtlMs = parseIdleTtlMsFromEnv();
 
   const httpServer = http.createServer(async (req, res) => {
     try {
@@ -140,6 +255,8 @@ async function main(): Promise<void> {
         return;
       }
 
+      closeIdleSessions(sessions, idleTtlMs);
+
       let parsedBody: unknown = undefined;
       if (req.method === "POST") {
         try {
@@ -151,7 +268,51 @@ async function main(): Promise<void> {
         }
       }
 
-      await transport.handleRequest(req as IncomingMessage & { auth?: AuthInfo }, res, parsedBody);
+      if (req.method === "POST" && isInitializeRequestMessage(parsedBody)) {
+        const { server, transport } = await createSession(runtime, sessions, maxSessions);
+
+        await transport.handleRequest(
+          req as IncomingMessage & { auth?: AuthInfo },
+          res,
+          parsedBody,
+        );
+
+        if (transport.sessionId === undefined) {
+          // Initialization rejected (invalid headers/body). Avoid leaking a never-initialized server.
+          await transport.close();
+          await server.close();
+        }
+
+        return;
+      }
+
+      const sessionIdHeader = getSingleHeaderValue(req, "mcp-session-id");
+      if (sessionIdHeader === "multiple") {
+        sendJsonRpcError(
+          res,
+          400,
+          -32000,
+          "Bad Request: Mcp-Session-Id header must be a single value",
+        );
+        return;
+      }
+      if (!sessionIdHeader) {
+        sendJsonRpcError(res, 400, -32000, "Bad Request: Mcp-Session-Id header is required");
+        return;
+      }
+
+      const session = sessions.get(sessionIdHeader);
+      if (!session) {
+        sendJsonRpcError(res, 404, -32001, "Session not found");
+        return;
+      }
+
+      session.lastSeenAtMs = Date.now();
+      await session.transport.handleRequest(
+        req as IncomingMessage & { auth?: AuthInfo },
+        res,
+        parsedBody,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[ailss-mcp-http] request error: ${message}`);

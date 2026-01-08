@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { loadEnv, openAilssDb, resolveDefaultDbPath } from "@ailss/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { AsyncMutex } from "./lib/asyncMutex.js";
 import { embeddingDimForModel } from "./lib/openaiEmbeddings.js";
 import { PROMETHEUS_AGENT_INSTRUCTIONS, registerPrometheusPrompt } from "./prometheus.js";
 import type { McpToolDeps } from "./mcpDeps.js";
@@ -15,10 +16,12 @@ import { registerReindexPathsTool } from "./tools/reindexPaths.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
 import { registerSemanticSearchTool } from "./tools/semanticSearch.js";
 
-export async function createAilssMcpServer(): Promise<{
-  server: McpServer;
+export type AilssMcpRuntime = {
   deps: McpToolDeps;
-}> {
+  enableWriteTools: boolean;
+};
+
+export async function createAilssMcpRuntimeFromEnv(): Promise<AilssMcpRuntime> {
   const env = loadEnv();
 
   const embeddingModel = env.openaiEmbeddingModel;
@@ -38,20 +41,31 @@ export async function createAilssMcpServer(): Promise<{
   const db = openAilssDb({ dbPath, embeddingModel, embeddingDim });
   const openai = new OpenAI({ apiKey: openaiApiKey });
 
+  return {
+    deps: {
+      db,
+      dbPath,
+      vaultPath,
+      openai,
+      embeddingModel,
+      writeLock: new AsyncMutex(),
+    },
+    enableWriteTools: env.enableWriteTools,
+  };
+}
+
+export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
+  server: McpServer;
+  deps: McpToolDeps;
+} {
+  const deps = runtime.deps;
+
   const server = new McpServer(
     { name: "ailss-mcp", version: "0.1.0" },
     { instructions: PROMETHEUS_AGENT_INSTRUCTIONS },
   );
 
   registerPrometheusPrompt(server);
-
-  const deps: McpToolDeps = {
-    db,
-    dbPath,
-    vaultPath,
-    openai,
-    embeddingModel,
-  };
 
   registerSemanticSearchTool(server, deps);
   registerActivateContextTool(server, deps);
@@ -60,10 +74,18 @@ export async function createAilssMcpServer(): Promise<{
   registerSearchNotesTool(server, deps);
   registerFindNotesByTypedLinkTool(server, deps);
 
-  if (env.enableWriteTools) {
+  if (runtime.enableWriteTools) {
     registerEditNoteTool(server, deps);
     registerReindexPathsTool(server, deps);
   }
 
   return { server, deps };
+}
+
+export async function createAilssMcpServer(): Promise<{
+  server: McpServer;
+  deps: McpToolDeps;
+}> {
+  const runtime = await createAilssMcpRuntimeFromEnv();
+  return createAilssMcpServerFromRuntime(runtime);
 }
