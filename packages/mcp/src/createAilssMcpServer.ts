@@ -11,6 +11,7 @@ import { registerFindNotesByTypedLinkTool } from "./tools/findNotesByTypedLink.j
 import { registerEditNoteTool } from "./tools/editNote.js";
 import { registerGetNoteTool } from "./tools/getNote.js";
 import { registerGetNoteMetaTool } from "./tools/getNoteMeta.js";
+import { registerReindexPathsTool } from "./tools/reindexPaths.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
 import { registerSemanticSearchTool } from "./tools/semanticSearch.js";
 
@@ -61,6 +62,7 @@ export async function createAilssMcpServer(): Promise<{
 
   if (env.enableWriteTools) {
     registerEditNoteTool(server, deps);
+    registerReindexPathsTool(server, deps);
   }
 
   return { server, deps };
