@@ -54,8 +54,8 @@ Required:
 
 - `OPENAI_API_KEY` (for query embeddings)
 - DB path configuration:
-  - Recommended: `AILSS_VAULT_PATH` (derives the default DB path, and enables reading files for `get_note`)
-  - Advanced: `AILSS_DB_PATH` (DB-backed tools only; `get_note` still requires `AILSS_VAULT_PATH`)
+  - Recommended: `AILSS_VAULT_PATH` (derives the default DB path, and enables reading files for `read_note`)
+  - Advanced: `AILSS_DB_PATH` (DB-backed tools only; `read_note` still requires `AILSS_VAULT_PATH`)
 
 Notes:
 
@@ -72,7 +72,7 @@ Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be us
 
 Notes:
 
-- The inspector will launch the STDIO server command you provide and let you call tools like `activate_context` and `semantic_search`.
+- The inspector will launch the STDIO server command you provide and let you call tools like `get_context` and `get_typed_links`.
 - For write tools (e.g. `edit_note`), prefer `apply=false` first and only confirm/apply when you are sure the target path and patch ops are correct.
 
 Example:

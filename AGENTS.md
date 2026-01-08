@@ -91,6 +91,9 @@ This repo recommends Conventional Commits.
 - No guessing: if uncertain, verify via files/tools; resolve impactful ambiguity with 1–3 clarifying questions
 - Scope discipline: do exactly what the user asked (no extra features/styling changes)
 - Root-cause fixes: prefer fixing the root cause over workarounds
+- Refactoring guideline (not a hard rule):
+  - Treat “~300–600 lines per file” as a **smell**, not a limit. Refactor when cohesion drops (multiple responsibilities), cognitive load rises (hard to explain), or changes require touching many unrelated sections.
+  - Prefer smaller refactors that preserve behavior and are covered by tests; avoid “mega-refactors” mixed with feature work unless explicitly requested.
 - Documentation is guidance, not a gate: do not get "locked" into existing docs/notes—when docs conflict with code/tests or the user’s intent, treat the implementation as source of truth and update docs to match.
 - Documentation alignment (required): after completing a job, update the minimal set of docs needed to match the current implementation and avoid drift.
   - If you add a new doc under `docs/`, link it from `docs/README.md` so it stays discoverable
