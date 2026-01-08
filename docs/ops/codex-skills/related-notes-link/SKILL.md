@@ -39,21 +39,25 @@ In short: you may omit the `FILE=` keyword, but you must provide a target file p
 ## 2. Procedure
 
 ### 2.1 Analyze the target note
-1) Read `FILE` and split frontmatter and body.
-2) Extract keyword candidates from:
+
+1. Read `FILE` and split frontmatter and body.
+2. Extract keyword candidates from:
    - `title`, `aliases`, `tags`, `keywords`
    - H1/H2/H3 headings
    - Repeated noun phrases and emphasized (**bold**) phrases in the body
-3) Exclude overly generic words and keep ~5–15 keywords.
+3. Exclude overly generic words and keep ~5–15 keywords.
 
 ### 2.2 Search the vault
-1) Combine 2–4 keywords and run a string search over the whole vault.
+
+1. Combine 2–4 keywords and run a string search over the whole vault.
    - When possible, use a command like `rg "<keyword>" "/Users/kyoungho/Obsidian/AILSS"`.
-2) Add notes whose path/filename contains keywords as candidates as well.
-3) Exclude the current note itself and exact duplicates.
+2. Add notes whose path/filename contains keywords as candidates as well.
+3. Exclude the current note itself and exact duplicates.
 
 ### 2.3 Score candidates and select TOP_K
+
 Score each candidate using signals like:
+
 - Title or frontmatter matches directly
 - The notes mention each other in their bodies
 - They share folder hierarchy or are grouped under an upper hub note
@@ -62,7 +66,9 @@ Score each candidate using signals like:
 Keep only the top `TOP_K`.
 
 ### 2.4 Recommend typed-link relationships
+
 For each candidate, recommend 1 appropriate key from:
+
 - `part_of`: when folder structure or topics look like parent-child
 - `instance_of`: when the target is an instance of a broader type
 - `depends_on`: when technical/conceptual dependency is clear
@@ -77,12 +83,14 @@ For each recommendation, explain “why this relationship” in 1–3 lines.
 ## 3. MODE behavior
 
 ### 3.1 apply (default)
-1) Merge candidates into the relevant array(s) in the target note’s frontmatter.
-2) Deduplicate and sort lexicographically.
-3) Save only the changed frontmatter (default: do not touch the body).
-4) If saving fails: request approval; if it still fails, switch to suggest mode and output a patch.
+
+1. Merge candidates into the relevant array(s) in the target note’s frontmatter.
+2. Deduplicate and sort lexicographically.
+3. Save only the changed frontmatter (default: do not touch the body).
+4. If saving fails: request approval; if it still fails, switch to suggest mode and output a patch.
 
 ### 3.2 suggest
+
 - Output only the array values you would add to frontmatter and the evidence; do not edit the file.
 
 ---

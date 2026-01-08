@@ -18,7 +18,7 @@ When starting non-trivial work (multi-step, behavior change, or anything cross-p
 2. Core flow: `docs/00-context.md` → `docs/01-overview.md` → `docs/02-significance.md` → `docs/03-plan.md`
 3. Standards: `docs/standards/coding.md`, `docs/standards/commits.md`, `docs/standards/quality-gates.md`
 4. Architecture/ops: `docs/architecture/*`, `docs/ops/*`, `docs/adr/*`
-5. Vault rule snapshot: `docs/vault-ref/README.md`
+5. Vault rules (knowledge model): `docs/standards/vault/README.md`
 
 ### 1.1 Doc utilization checklist (task → docs)
 
@@ -30,7 +30,7 @@ Use this to “fully utilize” docs without loading unrelated context:
 - DB schema/index/search semantics → `docs/architecture/data-db.md`, `docs/adr/0005-db-migrations-and-embedding-dimensions.md`
 - Package boundaries/entrypoints/deps → `docs/architecture/packages.md`, `docs/adr/0001-monorepo-packages.md`
 - Obsidian plugin process model → `docs/adr/0003-obsidian-plugin-spawns-processes.md`
-- Vault schema/rules (frontmatter/typed links) → `docs/vault-ref/vault-root/README.md`, `docs/vault-ref/vault-root/VAULT-AGENTS.snapshot.md`
+- Vault schema/rules (frontmatter/typed links) → `docs/standards/vault/README.md`
 
 ---
 
@@ -104,7 +104,7 @@ This repo recommends Conventional Commits.
   - Scope/principles/context changes: `docs/00-context.md` and/or `docs/02-significance.md`
   - Dev/ops changes (install/build/env/runtime) and operational runbooks/logs: `docs/ops/local-dev.md` (or add a new file under `docs/ops/` and link it from `docs/README.md`)
   - New architectural decision or tradeoff: add/update an ADR in `docs/adr/` (use the template in `docs/adr/README.md`)
-  - Vault rule changes: refresh `docs/vault-ref/vault-root/{README.md,VAULT-AGENTS.snapshot.md}` snapshots (keep them as close to verbatim as possible)
+  - Vault rule changes: update `docs/standards/vault/README.md` and keep prompts/templates/validators aligned
 - Commit message drafting (required): after completing a job, draft Conventional Commit message(s) that match `commitlint.config.cjs` (type + allowed scope); if the change spans multiple scopes, include a suggested commit breakdown (scope → files) and one message per commit
 - Destructive actions (delete/reset/rollback) require prior notice
 

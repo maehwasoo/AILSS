@@ -9,12 +9,9 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 - [02. Significance & principles](./02-significance.md)
 - [03. Implementation plan](./03-plan.md)
 
-## Reference
-
-- Vault rules snapshot (reference only): [vault-ref/README.md](./vault-ref/README.md)
-
 ## Standards
 
+- Vault rules (knowledge model): [standards/vault/README.md](./standards/vault/README.md)
 - Commit conventions: [standards/commits.md](./standards/commits.md)
 - Coding conventions: [standards/coding.md](./standards/coding.md)
 - Quality gates: [standards/quality-gates.md](./standards/quality-gates.md)
@@ -27,8 +24,10 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 ## Ops
 
 - Local development: [ops/local-dev.md](./ops/local-dev.md)
+- Testing: [ops/testing.md](./ops/testing.md)
 - Codex CLI integration: [ops/codex-cli.md](./ops/codex-cli.md)
 - AGENTS.md prompt snippet (AILSS MCP usage): [ops/agents-snippet.md](./ops/agents-snippet.md)
+- Codex skill snapshots (reference): [ops/codex-skills/README.md](./ops/codex-skills/README.md)
 
 ## ADRs
 

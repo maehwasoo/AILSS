@@ -19,7 +19,7 @@ We follow Conventional Commits and standardize on:
 Examples:
 
 - `feat(monorepo): scaffold core/db + indexer + mcp stdio`
-- `feat(docs): add vault-ref snapshot layout`
+- `feat(docs): document vault rules (frontmatter + typed links)`
 
 ## `type` rules
 

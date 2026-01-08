@@ -5,7 +5,7 @@ This page provides a ready-to-paste snippet for a user/workspace `AGENTS.md` so 
 ## Paste into your `AGENTS.md`
 
 ```md
-## AILSS MCP workflow (Obsidian vault = SSOT)
+## AILSS MCP workflow (vault notes = SSOT)
 
 When the `ailss` MCP server is available:
 
@@ -36,5 +36,6 @@ When the `ailss` MCP server is available:
 
 ## Notes
 
+- Canonical vault rules (frontmatter, typed links, vault writing conventions) live in this repo: `docs/standards/vault/README.md`.
 - This repo’s MCP write tools are gated in the Obsidian plugin and still require `apply=true`.
 - For tool/transport details, see `docs/ops/codex-cli.md`.

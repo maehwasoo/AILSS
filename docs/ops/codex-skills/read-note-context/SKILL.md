@@ -37,17 +37,20 @@ In short: you may omit the `FILE=` keyword, but you still need at least one abso
 ## 2. Procedure
 
 ### 2.1 File validation
-1) Confirm each `FILE` is a `.md` file.
-2) Confirm each path is under the vault root.
+
+1. Confirm each `FILE` is a `.md` file.
+2. Confirm each path is under the vault root.
    - If not, warn and ask whether to continue reading.
 
 ### 2.2 Read file
-1) Split frontmatter and body.
-2) Summarize frontmatter while preserving key-value fields.
-3) Compress the body to key points only.
+
+1. Split frontmatter and body.
+2. Summarize frontmatter while preserving key-value fields.
+3. Compress the body to key points only.
    - Prioritize extracting: purpose, problem, key claims, decisions, TODOs, and references.
 
 ### 2.3 Output by EXTRACT mode
+
 - `frontmatter`:
   - Summarize only frontmatter fields in a table-like format.
 - `summary` (default):

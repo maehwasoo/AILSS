@@ -98,8 +98,7 @@ Notes:
 
 Reference docs (source of truth):
 
-- Vault rules snapshot: `docs/vault-ref/vault-root/README.md`
-- Vault working rules: `docs/vault-ref/vault-root/AGENTS.md`
+- Vault rules (frontmatter schema + typed links + assistant workflow): `docs/standards/vault/README.md`
 
 MCP tools (read-only):
 

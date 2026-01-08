@@ -15,14 +15,16 @@ Apply this skill when the user asks things like “enhance the frontmatter”, �
 ## 0. Preconditions
 
 ### Fixed vault path
+
 - The target vault root is fixed to this single path:  
   `/Users/kyoungho/Obsidian/AILSS`
 
 ### File system write permission
+
 - Codex must be able to write under the vault path above.
 - If permission is missing:
-  1) submit an approval request, and
-  2) if it still fails, instruct the user to retry after exposing the vault path like this:  
+  1. submit an approval request, and
+  2. if it still fails, instruct the user to retry after exposing the vault path like this:  
      `codex --add-dir "/Users/kyoungho/Obsidian/AILSS"`
 
 ---
@@ -47,17 +49,20 @@ In short: you may omit the `FILE=` keyword, but **the target file path itself is
 ## 2. Procedure
 
 ### 2.1 Read and validate file
-1) Confirm `FILE` is a `.md` file.
-2) Confirm the path is under the vault root. If not, warn and ask whether to continue.
-3) Read the file and split YAML frontmatter and body.
+
+1. Confirm `FILE` is a `.md` file.
+2. Confirm the path is under the vault root. If not, warn and ask whether to continue.
+3. Read the file and split YAML frontmatter and body.
 
 ### 2.2 Parse and recover frontmatter
-1) If there is no frontmatter, prepare to create one.
-2) If frontmatter exists but YAML parsing fails:
+
+1. If there is no frontmatter, prepare to create one.
+2. If frontmatter exists but YAML parsing fails:
    - First fix and recover common issues: indentation, colons, list syntax.
    - If recovery is impossible, report the error location and reason, then stop.
 
 ### 2.3 Align to the AILSS schema
+
 Align fields based on the default schema below.
 
 ```yaml
@@ -83,6 +88,7 @@ see_also: []
 ```
 
 #### Field completion rules
+
 - `id`, `created`:
   - If present, keep as-is.
   - If missing, fill with the current local time.
@@ -108,6 +114,7 @@ see_also: []
   - Avoid over-linking: keep roughly 0–5 items per relation key, and sort lexicographically.
 
 ### 2.4 Generate changes
+
 - Summarize the difference between existing and new frontmatter as a diff.
 - By default do not change the body, but it is acceptable to add an H1 when missing and the title does not match.
 
@@ -116,11 +123,13 @@ see_also: []
 ## 3. MODE behavior
 
 ### 3.1 apply (default)
-1) Generate the new file content including updated frontmatter.
-2) Overwrite and save the original file.
-3) If saving fails: request approval; if it still fails, switch to suggest mode and output a patch.
+
+1. Generate the new file content including updated frontmatter.
+2. Overwrite and save the original file.
+3. If saving fails: request approval; if it still fails, switch to suggest mode and output a patch.
 
 ### 3.2 suggest
+
 - Do not edit the file; output only an applicable patch (diff) and the reasons.
 
 ---
@@ -128,6 +137,7 @@ see_also: []
 ## 4. Final report
 
 Report briefly:
+
 - List of modified fields and key reasons
 - One-line rationale for the chosen entity and layer
 - Added typed-link candidates and the evidence

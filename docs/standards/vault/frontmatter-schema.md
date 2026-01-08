@@ -1,0 +1,236 @@
+# Frontmatter schema
+
+## Related docs
+
+- Typed links: `./typed-links.md`
+- Vault structure: `./vault-structure.md`
+- Assistant workflow: `./assistant-workflow.md`
+- Index: `./README.md`
+
+## Frontmatter schema
+
+All notes should keep the following YAML frontmatter template as the baseline.
+
+```
+---
+id: {{date:YYYYMMDDHHmmss}}
+created: {{date:YYYY-MM-DDTHH:mm:ss}}
+title: {{title}}
+summary:
+aliases:
+# concept | document | project | artifact | person | organization | place | event | task | method | tool | idea | principle | heuristic | pattern | definition | question | software | dataset | pipeline | procedure | dashboard | checklist | workflow | decide | review | plan | implement | approve | reject | observe | measure | test | verify | learn | research | summarize | publish | meet | audit | deploy | rollback | refactor | design | delete | update | create | schedule | migrate | reference | hub
+entity:
+# strategic | conceptual | logical | physical | operational
+# why / what / structure / implementation / operations
+layer: conceptual
+tags: [] # Only use the inbox tag for notes under 100. Inbox/ (example: ['inbox'])
+keywords: []
+# draft | in-review | published | archived
+status: draft
+updated: {{date:YYYY-MM-DDTHH:mm:ss}}
+source: []
+instance_of: [] # taxonomy / classification
+part_of: [] # composition / “part of”
+uses: [] # tools/services used by this note
+depends_on: [] # dependencies required by this note/topic
+implements: [] # specs/standards/procedures implemented by this note/topic
+see_also: [] # related notes (non-directional, for navigation)
+cites: [] # note sources as links to other notes
+authored_by: [] # authorship / attribution
+supersedes: [] # replacement (this note supersedes others)
+same_as: [] # equivalence / duplicates
+---
+```
+
+### Field guidelines
+
+- Frontmatter is the minimum metadata set needed to keep the knowledge graph consistent.
+- The `entity` field should use an allowed type (concept, document, project, guide, tool, etc.).
+- The `layer` field should be one of: strategic, conceptual, logical, physical, operational.
+- The `status` field should be one of: draft, in-review, published, archived.
+- Relationship keys should use the typed-link keys (see `./typed-links.md`).
+- If you are unsure, it is acceptable to leave `layer` empty temporarily (or keep `conceptual`) and refine during review.
+- Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
+
+### `source` (external sources)
+
+Use `source` to record **non-vault** sources that support the note (URLs, papers, tickets, specs, etc.).
+
+- Type: **string array** (keep it present even when empty: `source: []`).
+- Use when the “source” is not another vault note (for vault notes, prefer `cites` typed links instead).
+- Prefer stable identifiers (URLs/DOIs) over long quotes; put quotes in the body and keep references in `source`.
+
+## Layers: definition and classification
+
+- **strategic (why)**: vision, principles, roadmap, and higher-level decision context.
+- **conceptual (what)**: concepts, definitions, principles, patterns (tool-independent, general knowledge).
+- **logical (how to structure)**: domain models, data flows, protocols (implementation-independent structure).
+- **physical (how it is implemented)**: concrete code/config/repos/versions/files.
+- **operational (running/observing)**: deployments, runbooks, monitoring, incidents, execution logs.
+
+> **One-line test**
+>
+> - If changing the strategy would change everything else → strategic
+> - If the essence stays the same even when tools change → conceptual
+> - If only structure/rules are defined and implementation is TBD → logical
+> - If specific files/repos/versions/config are the core → physical
+> - If time, events, procedures, and results are central → operational
+
+**Entity → layer mapping (suggestions)**
+
+- `concept/definition/pattern/principle/heuristic` → usually conceptual
+- `method` → conceptual or logical (depends on content)
+- `api-spec/model` → logical (or physical if it is a concrete schema file)
+- `software/tool/dataset/artifact` → physical
+- `guide/runbook/dashboard` → operational (when centered on procedure/operations)
+- `decision/incident/log/event` → operational
+- `project` → strategic (goals/roadmap) or logical (structure docs)
+- If you are unsure, default to conceptual and adjust later.
+
+## Entity classification tables
+
+The `entity` candidates are grouped into: interface, action, and object.
+
+### Interface entities
+
+| entity        | Default layer   | Alternate layers (case-by-case) | Reason (one line)                                                                                     |
+| ------------- | --------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **interface** | **logical**     | physical                        | The surface/contract (spec) is the structure; concrete IDL/files are physical.                        |
+| **pipeline**  | **logical**     | physical, operational           | The designed stages/flow are the structure; CI YAML is physical, execution/monitoring is operational. |
+| **procedure** | **operational** | —                               | A procedure/runbook is an operational activity by nature.                                             |
+| **dashboard** | **operational** | physical                        | Dashboards are about observing/operating; dashboard JSON/config is physical.                          |
+| **checklist** | **operational** | conceptual                      | Execution checklists are operational; tool-independent checklist principles can be conceptual.        |
+| **workflow**  | **logical**     | operational                     | The workflow definition is structure; a concrete running instance is operational.                     |
+
+### Action entities
+
+| action        | Default layer   | Alternate layers (case-by-case) | Reason (one line)                                                                               |
+| ------------- | --------------- | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **decide**    | **strategic**   | operational                     | High-level decisions/principles are strategic; gate approvals as events are operational.        |
+| **review**    | **operational** | strategic, logical              | Reviews are time/action-centered; roadmap/architecture reviews can be strategic/logical.        |
+| **plan**      | **strategic**   | operational                     | Roadmaps/OKRs are strategic; sprint scheduling is operational.                                  |
+| **implement** | **physical**    | operational                     | Code/config changes are physical; tracking the execution is operational.                        |
+| **approve**   | **operational** | strategic                       | Approvals are events (operational); approval principles/policies are strategic.                 |
+| **reject**    | **operational** | —                               | Rejecting is an event.                                                                          |
+| **observe**   | **operational** | —                               | Observation/monitoring is operational.                                                          |
+| **measure**   | **operational** | conceptual                      | Measuring is operational; metric definitions can be conceptual.                                 |
+| **test**      | **operational** | physical, logical               | Test execution/results are operational; test code/specs are physical/logical.                   |
+| **verify**    | **operational** | —                               | Verification is an operational gate.                                                            |
+| **learn**     | **conceptual**  | operational                     | General lessons are conceptual; a retrospective event is operational.                           |
+| **research**  | **conceptual**  | strategic                       | Tool-independent exploration is conceptual; direction-setting research can be strategic.        |
+| **summarize** | **conceptual**  | operational                     | Summaries as knowledge are conceptual; release-note writing tied to an event is operational.    |
+| **publish**   | **operational** | physical                        | Publishing is an operational action; generating/uploading an artifact can be physical.          |
+| **meet**      | **operational** | —                               | Meetings are time-based events.                                                                 |
+| **audit**     | **operational** | strategic                       | Auditing is operational; creating policies/standards is strategic.                              |
+| **deploy**    | **operational** | physical                        | Deploy execution/logs are operational; manifests/scripts are physical.                          |
+| **rollback**  | **operational** | physical                        | Rollback execution/results are operational; rollback scripts/snapshots are physical.            |
+| **refactor**  | **physical**    | logical                         | Code/config refactors are physical; refactoring rules/structure principles can be logical.      |
+| **design**    | **logical**     | strategic, physical             | Architecture/model design is logical; principles are strategic; file artifacts are physical.    |
+| **delete**    | **physical**    | operational                     | Deleting files/data is physical; the operational window/process is operational.                 |
+| **update**    | **physical**    | operational                     | Updating code/config/schema is physical; change-management events are operational.              |
+| **create**    | **physical**    | operational                     | Creating artifacts/resources is physical; tracking the work is operational.                     |
+| **schedule**  | **operational** | strategic                       | Scheduling is operational; long-term roadmaps can be strategic.                                 |
+| **migrate**   | **operational** | physical                        | Migration execution/procedure is operational; scripts/mappings are physical.                    |
+| **analyze**   | **conceptual**  | operational                     | Analysis that produces general insight is conceptual; incident/log analysis can be operational. |
+
+### Object entities
+
+| object           | Default layer   | Alternate layers (case-by-case) | Reason (one line)                                                                               |
+| ---------------- | --------------- | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **concept**      | **conceptual**  | —                               | General concepts/definitions are conceptual.                                                    |
+| **document**     | **physical**    | conceptual                      | A document is a concrete artifact; pure definitions can be conceptual.                          |
+| **project**      | **strategic**   | logical                         | Goals/scope are strategic; structure docs can be logical.                                       |
+| **artifact**     | **physical**    | —                               | Build outputs and artifacts are physical.                                                       |
+| **person**       | **logical**     | operational                     | A person as a domain entity is logical; scheduling/action logs are operational.                 |
+| **organization** | **logical**     | strategic                       | Organizations as entities are logical; governance/policy context can be strategic.              |
+| **place**        | **logical**     | operational                     | Places as entities are logical; event context can be operational.                               |
+| **event**        | **operational** | logical                         | Events are time-based (operational); event-type definitions can be logical.                     |
+| **task**         | **operational** | logical                         | Tasks/backlog items are operational; task type/state models can be logical.                     |
+| **method**       | **conceptual**  | logical                         | General methods are conceptual; protocol/step structures can be logical.                        |
+| **tool**         | **physical**    | conceptual                      | Concrete software/services are physical; tool-independent guidance can be conceptual.           |
+| **idea**         | **conceptual**  | —                               | Ideas are conceptual.                                                                           |
+| **principle**    | **conceptual**  | strategic                       | Principles are conceptual; in a high-level decision context they can be strategic.              |
+| **heuristic**    | **conceptual**  | —                               | Heuristics/tips are conceptual.                                                                 |
+| **pattern**      | **conceptual**  | logical                         | Patterns are conceptual; when projected into system structure they can be logical.              |
+| **definition**   | **conceptual**  | —                               | Definitions are conceptual.                                                                     |
+| **question**     | **conceptual**  | —                               | Questions are conceptual units of inquiry.                                                      |
+| **software**     | **physical**    | —                               | Concrete software/package/version is physical.                                                  |
+| **dataset**      | **physical**    | —                               | Concrete data/schema/version is physical.                                                       |
+| **reference**    | **conceptual**  | physical                        | References are conceptual; specific reference files can be physical.                            |
+| **hub**          | **physical**    | logical                         | A hub note/file is a concrete navigation artifact; structure definition can be logical.         |
+| **guide**        | **operational** | conceptual                      | Procedure-heavy guidance is operational; pure principles can be conceptual.                     |
+| **log**          | **operational** | physical, logical               | Facts recorded during operations are operational; schema/structure can be physical/logical.     |
+| **structure**    | logical         | physical, conceptual            | Structure/boundary rules are logical; when tied to implementation they can be physical.         |
+| **architecture** | logical         | strategic, physical             | Architecture is logical structure; principles can be strategic; file artifacts can be physical. |
+
+## Quick classification tips
+
+- If you see files/repos/versions/config → physical
+- If time/events (deploy/meeting/incident) are central → operational
+- If the content is tool-independent concepts/definitions/principles → conceptual
+- If it is domain entities/flows/boundary rules → logical
+- If it is vision/roadmap/high-level decisions → strategic
+
+## Example frontmatter templates
+
+### Concept note
+
+```
+---
+id: {{date:YYYYMMDDHHmmss}}
+created: {{date:YYYY-MM-DDTHH:mm:ss}}
+title: 도메인 주도 설계(Domain-Driven Design)
+summary: Summary of core concepts and patterns
+aliases: [DDD]
+entity: concept
+layer: conceptual
+tags: ['architecture']
+keywords: []
+status: draft
+updated: {{date:YYYY-MM-DDTHH:mm:ss}}
+source: []
+instance_of: ['[[concept]]']
+see_also: ['[[유비쿼터스 언어(Ubiquitous Language)]]']
+---
+```
+
+### Project note
+
+```
+---
+id: {{date:YYYYMMDDHHmmss}}
+created: {{date:YYYY-MM-DDTHH:mm:ss}}
+title: WorldAce v2 로드맵(WorldAce v2 Roadmap)
+summary: Summary of quarterly goals and milestones
+aliases: []
+entity: project
+layer: strategic
+tags: []
+keywords: []
+status: in-review
+updated: {{date:YYYY-MM-DDTHH:mm:ss}}
+source: []
+part_of: ['[[WorldAce]]']
+depends_on: ['[[Vite]]', '[[Cloudflare]]']
+---
+```
+
+### Procedure note
+
+```
+---
+id: {{date:YYYYMMDDHHmmss}}
+created: {{date:YYYY-MM-DDTHH:mm:ss}}
+title: 배포 절차(Deployment Procedure)
+summary: Deployment steps (staging → production) and verification criteria
+aliases: []
+entity: procedure
+layer: operational
+tags: []
+keywords: []
+status: published
+updated: {{date:YYYY-MM-DDTHH:mm:ss}}
+source: []
+implements: ['[[CI 파이프라인(CI Pipeline)]]']
+---
+```

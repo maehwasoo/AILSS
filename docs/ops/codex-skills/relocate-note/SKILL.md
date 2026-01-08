@@ -16,13 +16,16 @@ Apply this skill when the user asks things like “where should this note go?”
 ## 0. Preconditions
 
 ### Fixed vault path
+
 - The target vault root is fixed to a single path:  
   `/Users/kyoungho/Obsidian/AILSS`
 
 ### Filesystem-based
+
 - Vault-tree analysis, note reading, and moving are performed via the filesystem only.
 
 ### Write permission
+
 - In apply mode, moving requires write permission under the vault path above.
 - If permission is missing: submit an approval request; if it still fails, instruct restarting with:  
   `codex --add-dir "/Users/kyoungho/Obsidian/AILSS"`
@@ -55,9 +58,9 @@ In short: you may omit the `FILE=` keyword, but you must provide a target file p
 
 This skill reuses the two skills below as prerequisite steps.
 
-1) `ailss-frontmatter-improve`  
+1. `ailss-frontmatter-improve`
    - Enhance target note frontmatter to match the AILSS schema and normalize entity/layer/tags.
-2) `ailss-related-notes-link`  
+2. `ailss-related-notes-link`
    - Find notes related to the target, generate typed-link candidates, and apply them in apply mode.
 
 In other words: “enhance identity → gather related evidence → decide placement → move”.
@@ -67,22 +70,26 @@ In other words: “enhance identity → gather related evidence → decide place
 ## 3. Placement decision procedure
 
 ### 3.1 Read the target note
-1) Read `FILE` and split frontmatter and body.
-2) Run `ailss-frontmatter-improve` in apply mode first to refresh metadata.
-3) From the updated frontmatter, collect:
+
+1. Read `FILE` and split frontmatter and body.
+2. Run `ailss-frontmatter-improve` in apply mode first to refresh metadata.
+3. From the updated frontmatter, collect:
    - `title`, `summary`
    - `entity`, `layer`
    - `tags`
    - typed links (`part_of`, `instance_of`, `depends_on`, `uses`, `implements`, `see_also`)
 
 ### 3.2 Build a vault tree map
+
 From the vault root, scan only to about depth 2 to build a map of “top-level folders and major hub notes”.
 
 Recommended commands:
+
 - `ls "/Users/kyoungho/Obsidian/AILSS"`
 - `find "/Users/kyoungho/Obsidian/AILSS" -maxdepth 2 -type d`
 
 At minimum, confirm the following top-level folders exist:
+
 - `0. System`
 - `1. Main`
 - `10. Projects`
@@ -93,9 +100,11 @@ At minimum, confirm the following top-level folders exist:
 - `101. Need to Review`
 
 ### 3.3 First-pass target folder candidates (rule-based)
+
 Choose the initial candidate(s) based on frontmatter `entity` and `layer`.
 
 #### Default rules
+
 - If `entity` is in the family of `concept`, `definition`, `pattern`, `principle`, `heuristic`, `idea`, `method`:
   - If `layer` is `conceptual` or `logical`: prefer `30. Resources`
   - If `layer` is `operational`: prefer `20. Areas` or an operational folder under a related project
@@ -111,23 +120,28 @@ Choose the initial candidate(s) based on frontmatter `entity` and `layer`.
   - **Prefer moving to `101. Need to Review`**, or keep in Inbox if the user wants
 
 #### TARGET_HINT handling
+
 - If `TARGET_HINT` exists, it overrides the rule-based candidates.
 - If the hint does not match a top-level folder name, warn and normalize to the closest folder.
 
 ### 3.4 Second-pass evidence (related notes)
+
 Run `ailss-related-notes-link` to obtain related notes (TOP_K) and relationship keys.
 
 Use this related evidence to adjust the first-pass candidate:
+
 - If related notes cluster under a specific project folder → move under that project
 - If related notes point to a specific Areas hub → move under that Area
 - If related evidence is unclear → keep the first-pass candidate
 
 ### 3.5 Confirm the final target path
-1) Confirm a single final target folder.
-2) Keep the filename aligned with the existing title; if it conflicts in the folder, add a numeric suffix.
-3) After moving, if `part_of` should point to a new hub note, include that as part of the plan.
+
+1. Confirm a single final target folder.
+2. Keep the filename aligned with the existing title; if it conflicts in the folder, add a numeric suffix.
+3. After moving, if `part_of` should point to a new hub note, include that as part of the plan.
 
 Output the final target in this format first:
+
 - Target folder: `...`
 - Target file path: `...`
 - Reason: summary of rule-based reasoning + related-note evidence
@@ -138,13 +152,15 @@ Output the final target in this format first:
 ## 4. MODE behavior
 
 ### 4.1 apply (default)
-1) Show the confirmed target path; if `CONFIRM=true`, ask for final confirmation.
-2) After confirmation, move the file via `mv`.
-3) After moving:
+
+1. Show the confirmed target path; if `CONFIRM=true`, ask for final confirmation.
+2. After confirmation, move the file via `mv`.
+3. After moving:
    - If needed, run `ailss-frontmatter-improve` once more in apply mode to reconcile path/part_of consistency.
-4) If moving fails: request approval; if it still fails, switch to suggest mode and output manual move instructions.
+4. If moving fails: request approval; if it still fails, switch to suggest mode and output manual move instructions.
 
 ### 4.2 suggest
+
 - Do not move the file; output only the target path, reasons, and the applicable patch.
 
 ---

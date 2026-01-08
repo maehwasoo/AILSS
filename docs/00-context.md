@@ -16,7 +16,7 @@ The items below are recorded based on the **user-provided description** (they ar
 - At the vault root there are `README.md` (frontmatter schema/layer/typed links definitions) and `AGENTS.md` (working rules).
 - Under `0. System/Scripts` there are already automation scripts based on the Obsidian Local REST API (e.g., frontmatter insertion, batch apply).
 
-This repo keeps a snapshot of the vault rule documents under `docs/vault-ref/` for reference.
+The vault’s note-modeling rules (frontmatter schema, layers, typed links, etc.) are documented in this repo under `docs/standards/vault/README.md`.
 
 ## What this repo is for
 
