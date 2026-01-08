@@ -12,8 +12,9 @@ This folder stores a snapshot of the Obsidian AILSS vault’s **rule documents (
 Copy the vault root files into the paths below (prefer keeping them verbatim):
 
 - `docs/vault-ref/vault-root/README.md`
+- `docs/vault-ref/vault-root/VAULT-AGENTS.snapshot.md` (snapshot of the vault `AGENTS.md`, stored under a non-`AGENTS.md` name so it is not treated as repo instructions)
 
-> This repo should not contain the full Obsidian vault. The default is to snapshot only the README rule document.
+> This repo should not contain the full Obsidian vault. The default is to snapshot only these rule documents.
 
 ## Optional: Codex skill snapshots
 
