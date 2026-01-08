@@ -22,6 +22,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Supports explicit DB reset (`--reset-db`) when switching embedding models
   - Validates DB embedding identity (model/dimension) and fails fast on mismatch
   - Full-vault runs prune DB entries for deleted files
+  - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
   - Read tools: `semantic_search`, `activate_context`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost)
@@ -120,6 +121,7 @@ Notes on queryability (current):
 - `search_notes` supports only a fixed set of frontmatter-derived filters: `note_id`, `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters.
 - Typed links are queryable via `find_notes_by_typed_link` by `rel` + `target` (target normalized from `[[wikilinks]]`).
 - Other frontmatter keys are stored (normalized JSON) and visible via `get_note_meta`, but are not directly filterable yet.
+- Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:
 
