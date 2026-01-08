@@ -127,10 +127,13 @@ TODO (to expand structured queries):
 - Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`, `source`).
 - Add date/range filters for `created` / `updated` (requires consistent formatting across the vault).
 
-Planned MCP tools (explicit write):
+Write tools (explicit apply):
 
 - `edit_note`: apply line-based patch ops to an existing `.md` note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
-  - Supports `apply=false` dry-run and an optional `expected_sha256` guard; returns `needs_reindex` after applying
+  - Supports `apply=false` dry-run and an optional `expected_sha256` guard
+  - By default reindexes the edited path (set `reindex_after_apply=false` to skip)
+- `reindex_paths`: reindex specific vault paths into the DB (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run to preview the target set without writing
 - `capture_note`: create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
   - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
 - `improve_frontmatter` (TODO): improve/normalize a note’s frontmatter to match vault rules (schema + typed links), returning patch ops and `needs_reindex`

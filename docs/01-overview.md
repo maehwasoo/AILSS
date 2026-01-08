@@ -64,7 +64,8 @@ Read-first tools (planned):
 Explicit write tools (apply):
 
 - `capture_note`: write a new note (default: `<vault>/100. Inbox/`) with correct frontmatter
-- `edit_note`: apply patch ops to an existing note (line-based); returns `needs_reindex` after applying
+- `edit_note`: apply patch ops to an existing note (line-based); by default reindexes the path and returns a reindex summary
+- `reindex_paths`: reindex specific vault paths into the DB (useful after manual edits)
 
 Write tools are gated and not exposed by default:
 
