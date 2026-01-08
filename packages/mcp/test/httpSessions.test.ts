@@ -79,6 +79,33 @@ async function mcpToolsList(url: string, token: string, sessionId: string): Prom
   expect(Array.isArray(payload.result.tools)).toBe(true);
 }
 
+async function mcpToolsListExpectSessionNotFound(
+  url: string,
+  token: string,
+  sessionId: string,
+): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+      "Mcp-Session-Id": sessionId,
+      "Mcp-Protocol-Version": "2025-03-26",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+
+  expect(res.status).toBe(404);
+  const payload = (await res.json()) as { error?: { code?: number; message?: string } };
+  expect(payload.error?.code).toBe(-32001);
+}
+
 describe("MCP HTTP server (multi-session)", () => {
   it("supports multiple initialized sessions concurrently", async () => {
     const dir = await mkTempDir();
@@ -115,6 +142,55 @@ describe("MCP HTTP server (multi-session)", () => {
 
       await mcpToolsList(url, token, a);
       await mcpToolsList(url, token, b);
+    } finally {
+      await close();
+      runtime.deps.db.close();
+
+      process.env.OPENAI_API_KEY = saved.OPENAI_API_KEY;
+      process.env.OPENAI_EMBEDDING_MODEL = saved.OPENAI_EMBEDDING_MODEL;
+      process.env.AILSS_DB_PATH = saved.AILSS_DB_PATH;
+      if (saved.AILSS_VAULT_PATH === undefined) delete process.env.AILSS_VAULT_PATH;
+      else process.env.AILSS_VAULT_PATH = saved.AILSS_VAULT_PATH;
+      if (saved.AILSS_ENABLE_WRITE_TOOLS === undefined) delete process.env.AILSS_ENABLE_WRITE_TOOLS;
+      else process.env.AILSS_ENABLE_WRITE_TOOLS = saved.AILSS_ENABLE_WRITE_TOOLS;
+    }
+  });
+
+  it("evicts old sessions when maxSessions is exceeded", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+
+    const saved = {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
+      AILSS_DB_PATH: process.env.AILSS_DB_PATH,
+      AILSS_VAULT_PATH: process.env.AILSS_VAULT_PATH,
+      AILSS_ENABLE_WRITE_TOOLS: process.env.AILSS_ENABLE_WRITE_TOOLS,
+    };
+
+    process.env.OPENAI_API_KEY = "test";
+    process.env.OPENAI_EMBEDDING_MODEL = "text-embedding-3-large";
+    process.env.AILSS_DB_PATH = dbPath;
+    delete process.env.AILSS_VAULT_PATH;
+    delete process.env.AILSS_ENABLE_WRITE_TOOLS;
+
+    const runtime = await createAilssMcpRuntimeFromEnv();
+    const token = "test-token";
+
+    const { close, url } = await startAilssMcpHttpServer({
+      runtime,
+      config: { host: "127.0.0.1", port: 0, path: "/mcp", token },
+      maxSessions: 1,
+      idleTtlMs: 60_000,
+    });
+
+    try {
+      const a = await mcpInitialize(url, token, "client-a");
+      const b = await mcpInitialize(url, token, "client-b");
+      expect(a).not.toBe(b);
+
+      await mcpToolsList(url, token, b);
+      await mcpToolsListExpectSessionNotFound(url, token, a);
     } finally {
       await close();
       runtime.deps.db.close();
