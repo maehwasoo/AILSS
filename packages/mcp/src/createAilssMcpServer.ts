@@ -8,13 +8,16 @@ import { embeddingDimForModel } from "./lib/openaiEmbeddings.js";
 import { PROMETHEUS_AGENT_INSTRUCTIONS, registerPrometheusPrompt } from "./prometheus.js";
 import type { McpToolDeps } from "./mcpDeps.js";
 import { registerActivateContextTool } from "./tools/activateContext.js";
+import { registerCaptureNoteTool } from "./tools/captureNote.js";
 import { registerFindNotesByTypedLinkTool } from "./tools/findNotesByTypedLink.js";
 import { registerEditNoteTool } from "./tools/editNote.js";
 import { registerGetNoteTool } from "./tools/getNote.js";
 import { registerGetNoteMetaTool } from "./tools/getNoteMeta.js";
 import { registerNewNoteTool } from "./tools/newNote.js";
+import { registerRelocateNoteTool } from "./tools/relocateNote.js";
 import { registerReindexPathsTool } from "./tools/reindexPaths.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
+import { registerSearchVaultTool } from "./tools/searchVault.js";
 import { registerSemanticSearchTool } from "./tools/semanticSearch.js";
 
 export type AilssMcpRuntime = {
@@ -74,10 +77,13 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   registerGetNoteMetaTool(server, deps);
   registerSearchNotesTool(server, deps);
   registerFindNotesByTypedLinkTool(server, deps);
+  registerSearchVaultTool(server, deps);
 
   if (runtime.enableWriteTools) {
     registerNewNoteTool(server, deps);
+    registerCaptureNoteTool(server, deps);
     registerEditNoteTool(server, deps);
+    registerRelocateNoteTool(server, deps);
     registerReindexPathsTool(server, deps);
   }
 
