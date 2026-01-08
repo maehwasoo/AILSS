@@ -530,17 +530,17 @@ describe("MCP HTTP server (multi-session)", () => {
     const underlyingLock = runtime.deps.writeLock;
     expect(underlyingLock).toBeTruthy();
 
-    let entered1Resolve: (() => void) | null = null;
+    let entered1Resolve: (() => void) | undefined;
     const entered1 = new Promise<void>((resolve) => {
       entered1Resolve = resolve;
     });
 
-    let attempted2Resolve: (() => void) | null = null;
+    let attempted2Resolve: (() => void) | undefined;
     const attempted2 = new Promise<void>((resolve) => {
       attempted2Resolve = resolve;
     });
 
-    let releaseHoldResolve: (() => void) | null = null;
+    let releaseHoldResolve: (() => void) | undefined;
     const releaseHold = new Promise<void>((resolve) => {
       releaseHoldResolve = resolve;
     });
