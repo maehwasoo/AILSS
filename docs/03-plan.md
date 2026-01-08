@@ -104,12 +104,12 @@ MCP tools (read-only):
 
 Implemented:
 
-- `semantic_search`: query → return related notes/chunks (vector similarity over indexed chunks)
-- `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops
-- `get_note`: read a vault note by path (requires `AILSS_VAULT_PATH`)
-- `get_note_meta`: return normalized frontmatter + typed links from the index DB
-- `search_notes`: filter notes by frontmatter-derived fields (e.g. `note_id`, `entity`, `layer`, `status`) plus tags/keywords
-- `find_notes_by_typed_link`: find notes that point to a typed-link target (typed-link “backrefs”)
+- `semantic_search`: embed a query → return the closest indexed chunks (snippets + distance)
+- `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns previews when `AILSS_VAULT_PATH` is set, plus link evidence)
+- `get_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
+- `get_note_meta`: read from the index DB by path → return normalized frontmatter + typed links (does not read vault files)
+- `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
+- `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target); target is normalized from `[[wikilinks]]`
 
 Notes on queryability (current):
 
@@ -120,7 +120,6 @@ Notes on queryability (current):
 Planned:
 
 - `validate_frontmatter`: validate frontmatter against the vault schema/rules
-- `search_vault`: keyword/regex search over vault files (useful when embeddings are not enough)
 - `suggest_typed_links`: suggest typed-link candidates with evidence
 
 TODO (to expand structured queries):
@@ -130,20 +129,23 @@ TODO (to expand structured queries):
 
 Write tools (explicit apply):
 
-- `new_note`: create a new note by writing full text (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
-  - Supports `apply=false` dry-run and an optional `overwrite` flag (default: create-only)
+- `new_note`: create a new note with full frontmatter (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run, an optional `overwrite` flag (default: create-only), and optional reindex
+  - By default reindexes the created path (set `reindex_after_apply=false` to skip)
+- `capture_note`: create a new note in `<vault>/100. Inbox/` (default) with full frontmatter (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run (preview) and never overwrites existing notes by default
   - By default reindexes the created path (set `reindex_after_apply=false` to skip)
 - `edit_note`: apply line-based patch ops to an existing `.md` note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
-  - Supports `apply=false` dry-run and an optional `expected_sha256` guard
-  - By default reindexes the edited path (set `reindex_after_apply=false` to skip)
+  - Supports `apply=false` dry-run (preview); line numbers are 1-based; append via `insert_lines` at `lineCount+1`
+  - Optional `expected_sha256` guard; by default reindexes the edited path (set `reindex_after_apply=false` to skip)
+- `relocate_note`: move/rename a note within the vault (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run, optional overwrite, and optional reindex
+  - Does not update inbound references (future enhancement)
 - `reindex_paths`: reindex specific vault paths into the DB (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
-  - Supports `apply=false` dry-run to preview the target set without writing
-- `capture_note` (TODO): create a new note with correct frontmatter in `<vault>/100. Inbox/` (default), returning the created path
-  - Prefer a `dry_run`/preview option and never overwrite existing notes by default.
+  - Supports `apply=false` dry-run; uses embeddings (may incur OpenAI costs)
 - `improve_frontmatter` (TODO): improve/normalize a note’s frontmatter to match vault rules (schema + typed links), returning patch ops and `needs_reindex`
   - Must support preview/dry-run and refuse unsafe changes by default
-- `relocate_note` (TODO): move/rename a note into a better vault folder path (and optionally update references), returning the final path and `needs_reindex`
-  - Must support preview/dry-run and require explicit confirmation of source/target paths
+  - Future: auto-suggest safe target paths; update references when explicitly enabled
 
 Safety contract (for all MCP tools that touch the vault):
 
@@ -247,10 +249,11 @@ Phase 2 — Obsidian plugin “AILSS service” lifecycle
 Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 - Expose explicit write tools over the localhost MCP server when enabled:
-  - `new_note` (create note by writing full text; default create-only)
+  - `new_note` (create note with full frontmatter; default create-only)
   - `edit_note` (apply line-based patch ops; default apply=false)
-  - `capture_note` (TODO: create new note in `<vault>/100. Inbox/` by default)
-  - future: `improve_frontmatter`, `relocate_note`
+  - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
+  - `relocate_note` (move/rename a note)
+  - future: `improve_frontmatter`
 - Ensure write tools trigger a path-scoped reindex after apply (or queue an index update).
 
 Phase 4 — Codex setup UX

@@ -29,12 +29,13 @@ Example tools:
 
 Read-first tools (implemented in this repo):
 
-- `semantic_search`: query → return related notes/chunks
-- `activate_context`: query → seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns note previews + evidence)
-- `get_note`: by path → return note content/metadata
-- `get_note_meta`: return normalized frontmatter + typed links from the index DB
-- `search_notes`: filter notes by frontmatter-derived fields (e.g. `note_id`, `entity`, `layer`, `status`) plus tags/keywords
-- `find_notes_by_typed_link`: find notes that point to a typed-link target (e.g. `part_of` → `WorldAce`, or `links_to` → `Some Note`)
+- `semantic_search`: embed a query → return the closest indexed chunks (snippets + distance)
+- `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns previews when `AILSS_VAULT_PATH` is set, plus link evidence)
+- `get_note`: read a vault note by path → return raw note text (may be truncated)
+- `get_note_meta`: read from the index DB by path → return normalized frontmatter + typed links (does not read vault files)
+- `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
+- `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target); target is normalized from `[[wikilinks]]`
+- `search_vault`: keyword/regex search over vault files (filesystem-backed)
 
 Server guidance:
 
@@ -58,19 +59,20 @@ Frontmatter query support (current):
 Read-first tools (planned):
 
 - `validate_frontmatter`: check frontmatter against the vault schema/rules
-- `search_vault`: keyword/regex search over vault files
 - `suggest_typed_links`: suggest typed-link candidates
 - `find_broken_links`: detect broken links
 
 Explicit write tools (apply, implemented):
 
-- `new_note`: create a new note by writing full text (default: no overwrite)
-- `edit_note`: apply patch ops to an existing note (line-based); by default reindexes the path and returns a reindex summary
-- `reindex_paths`: reindex specific vault paths into the DB (useful after manual edits)
+- `new_note`: create a new note with full frontmatter (default: no overwrite; supports dry-run)
+- `capture_note`: capture a new inbox note with full frontmatter (default folder: `100. Inbox`; supports dry-run)
+- `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
+- `relocate_note`: move/rename a note within the vault (supports dry-run)
+- `reindex_paths`: reindex specific vault paths into the DB (embeddings + metadata; supports dry-run; may incur embedding costs)
 
 Write tools (planned):
 
-- `capture_note`: write a new note (default: `<vault>/100. Inbox/`) with correct frontmatter
+TBD
 
 Write tools are gated and not exposed by default:
 
