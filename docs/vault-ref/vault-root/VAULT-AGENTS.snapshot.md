@@ -52,8 +52,6 @@ keywords: []
 # draft | in-review | published | archived
 status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
-viewed: 0
-source: []
 instance_of: [] # 종류의 한 사례
 part_of: [] # 부분
 uses: []
@@ -71,7 +69,7 @@ see_also: []
 - `status`는 draft, in-review, published, archived 중에서 현재 상태를 표시해요.
 - 관계 키(keys)는 `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `see_also`, `cites`, `authored_by`, `supersedes`, `same_as` 등을 사용해요.
 - 확신이 없으면 `layer`를 일시적으로 비워 두거나 `conceptual`로 두고 리뷰에서 조정해도 괜찮아요.
-- `tags`, `aliases`, `keywords`, `source`, `viewed` 값은 필요할 때만 채워요.
+- `tags`, `aliases`, `keywords` 값은 필요할 때만 채워요.
 
 ## 2. 레이어 정의와 판별 기준
 
@@ -201,7 +199,7 @@ see_also: []
 
 1. 대상 노트 S의 정체성 파악(identity): `title`, `entity`, `layer`, `summary`를 먼저 확정해요.
 2. 후보 엔티티 수집(candidates): 본문과 위키링크, 파일 경로, 기존 프론트매터에서 명사구를 추출해요.
-3. 의미 검색(semantic search): `search_vault_smart`로 아래 쿼리를 실행해 관계 후보를 모아요
+3. 의미 검색(semantic search): `get_context`로 아래 쿼리를 실행해 관계 후보를 모아요
    - "S is a kind of ?" → `instance_of` 후보
    - "S is part of ?" → `part_of` 후보
    - "S depends on ?" → `depends_on` 후보
@@ -210,7 +208,7 @@ see_also: []
    - "S cites ?" → `cites` 후보
    - "S is same as ?" 또는 동의어 검색 → `same_as` 후보
    - "S supersedes ?" → `supersedes` 후보
-4. 문자열 재확인(string search): `search_vault`로 실제 문서와 줄 번호를 확인해요.
+4. 문자열 재확인(string check): `read_note`로 실제 문서를 읽고 필요한 구문을 직접 확인해요. (편집 시 줄 번호는 읽은 텍스트에서 계산해요.)
 5. 정규화(normalization): 대상 링크의 표제는 한국어 제목과 영문 병기를 유지해요. 예: `[[클라우드플레어(Cloudflare)]]`.
 6. 선택과 제한(selection): 각 카테고리별로 신뢰도 높은 항목 위주로 1~5개 정도를 기록해 과다 연결을 피해요.
 7. 정렬과 중복 제거(ordering, dedup): 사전식 정렬을 권장하고 중복·동의어는 `same_as`로 귀결해요.
@@ -355,46 +353,45 @@ supersedes: []
 - 각주(footnote): 본문에 `[^키]`로 표기하고, 문서 하단에 `[^키]: 설명`으로 정의해요. 키는 의미 있는 짧은 영문·숫자를 사용해요.
 - 링크 점검: 작업 전후 `rg "\[\[" -n`으로 깨진 링크를 확인해요.
 
-## 12. Obsidian MCP 도구 사용(강한 지침)
+## 12. AILSS MCP 도구 사용(강한 지침)
 
 - 의무(Required): 요약(summarize), 분류(classify), 리뷰(review), 링크 점검 전 반드시 Obsidian MCP(옵시디언 MCP)로 볼트 메타를 조회해요.
 - 원칙:
   - 읽기 우선(read-only)로 사용해요. 쓰기 작업은 별도 승인 후 진행해요.
-  - 선행 질의: `search_vault`(전역 검색), `get_active_file`(현재 문서), `list_vault_files`(파일 목록)
-  - 후속 질의: `get_vault_file`(본문/프론트매터 조회), `search_vault_smart`(의미 검색)
+  - 선행 질의: `get_context`(관련 노트 의미 검색), `get_vault_tree`(폴더/파일 구조)
+  - 후속 질의: `read_note`(정확한 본문/프론트매터 확인), `get_typed_links`(타입 링크 그래프)
 - 권장 흐름(flow):
-  1. `search_vault`로 후보 문서를 수집해요.
-  2. `get_vault_file`로 프론트매터와 본문을 확인해요.
-  3. 타입 링크 후보를 의미론적으로 수집해요 `search_vault_smart` 기반 템플릿 쿼리 활용
-     - "S is a kind of ?", "S is part of ?", "S depends on ?", "S uses ?", "S implements ?", "S cites ?"
-  4. 문자열 검색으로 후보를 교차 검증해요 `search_vault` 줄 번호 확인
-  5. 4장 커버리지 체크리스트로 누락을 보완하고 프론트매터에 반영해요
-  6. 링크·자산 경로 점검을 수행해요
+  1. `get_context`로 후보 노트를 수집해요. (질의는 완전 문장 추천)
+  2. `read_note`로 프론트매터와 본문을 확인해요.
+  3. `get_typed_links`로 인/아웃 바운드 타입 링크를 확장해 누락 관계를 점검해요.
+  4. 4장 커버리지 체크리스트로 누락을 보완하고 프론트매터에 반영해요.
+  5. 편집은 `edit_note`로 하고, 파일 이동/리네임은 `relocate_note`로 해요. (둘 다 apply=true 승인 필요)
 - 실패 대응: MCP 호출 실패 시 오류와 사유를 기록하고, 임시로 `rg`/`find`로 대체해요.
 
 ### 12.1 Obsidian MCP 도구 요약
 
-- `search_vault`: 전역 문자열 검색(global text search)으로 기본 탐색에 사용하고, 키워드 두 개 이상과 `limit`를 함께 지정해 결과 범위를 신속히 줄여요.
-- `search_vault_simple`: 패턴 반복 여부를 확인할 때 쓰고, 링크 점검이나 일괄 교정 직전에 실행해 누락된 구문을 모아요.
-- `search_vault_smart`: 의미론적 검색(semantic search)으로 유사 맥락을 찾을 때 항상 병행 사용하고, 질문을 완전 문장 형태로 적어 재현성을 높여요.
-- `list_vault_files`: 폴더 단위 변경이나 아카이브 작업 전 파일 분포를 확인해 우선순위를 조정해요.
-- `get_active_file`: 현재 편집 중 문서의 프론트매터와 본문을 빠르게 확인해 실수 편집을 줄여요.
-- `get_vault_file`: 특정 문서를 전체 맥락으로 검토해야 할 때 호출하고, 길이가 길면 필요한 섹션을 나눠 재호출해요.
-- `get_server_info`: 연결 이상이 감지되면 즉시 호출해 인증 또는 상태 문제를 확인하고 보고해요.
+- `get_context`: 의미 검색(semantic retrieval)으로 관련 노트를 찾고 짧은 프리뷰를 받아요.
+- `read_note`: 특정 노트를 정확히 읽고(본문 포함) 필요한 구문을 직접 확인해요.
+- `get_typed_links`: 특정 노트의 타입 링크를 0~2홉 확장해 관계 누락을 점검해요. (메타데이터만)
+- `get_vault_tree`: 폴더/파일 트리를 받아 구조를 파악해요.
+- `frontmatter_validate`: 볼트 전체 프론트매터 키 존재 여부 + id/created 일치 여부를 점검해요.
+- `capture_note`: 새 노트를 생성해요. (apply=true 승인 필요)
+- `edit_note`: 라인 기반 패치로 노트를 편집해요. (apply=true 승인 필요)
+- `relocate_note`: 파일 이동/리네임을 해요. (apply=true 승인 필요)
 
 ### 12.2 의미론적 검색(semantic search) 지침
 
-- **강한 지침(strong directive)**: 모든 조사·편집 의사결정은 `search_vault_smart` 실행으로 시작해요.
-- 기본 규칙: 구조 검색(`search_vault`)과 의미 검색(`search_vault_smart`)을 항상 짝지어 실행해 문자 증거와 문맥 증거를 동시에 확보해요.
+- **강한 지침(strong directive)**: 모든 조사·편집 의사결정은 `get_context` 실행으로 시작해요.
+- 기본 규칙: 의미 검색(`get_context`)으로 후보를 모으고, `read_note`로 문자 증거를 확보해요.
 - 실행 흐름:
-  1. 조사 목적을 한 문장으로 적고 동일 문장을 `search_vault_smart` 질의에 붙여 추후 재사용해요.
-  2. `search_vault_smart` 상위 결과 두 개 이상을 우선 읽고, 동일 주제라도 서로 다른 폴더의 문서를 비교해 편향을 줄여요.
-  3. 의미 검색에서 발견한 후보를 `search_vault`로 재확인해 정확한 위치와 줄 번호를 확보하고, 로그에 두 조회 결과를 함께 남겨요.
-- 결정 전 검증: 의미 검색과 문자열 검색 결과가 모순되면 `get_vault_file` 또는 Fetch로 원문을 확인한 뒤 판단 이유를 기록해요.
+  1. 조사 목적을 한 문장으로 적고 동일 문장을 `get_context` 질의에 붙여 추후 재사용해요.
+  2. 상위 결과 두 개 이상을 우선 읽고, 동일 주제라도 서로 다른 폴더의 노트를 비교해 편향을 줄여요.
+  3. 의미 검색에서 발견한 후보를 `read_note`로 재확인해 정확한 위치와 줄 번호를 확보하고, 로그에 두 조회 결과를 함께 남겨요.
+- 결정 전 검증: 의미 검색 결과가 애매하거나 모순되면 `read_note`로 원문을 확인한 뒤 판단 이유를 기록해요.
 
 ## 13. 점검 체크리스트
 
-- 작업 전: 관련 노트·자산 목록 확보(`search_vault`, `rg "assets/" -n`)
+- 작업 전: 관련 노트·자산 목록 확보(`get_context`, `rg "assets/" -n`)
 - 프론트매터: 필수 키(id, created, title, entity, layer, status) 확인
 - 타입 링크: 4.4 체크리스트 항목(instance_of, part_of, depends_on, uses, implements, cites, same_as, supersedes) 전부 검토
 - 커버리지 로그: 의미 검색과 문자열 검색 결과를 함께 기록
@@ -419,9 +416,9 @@ aliases: [DDD]
 entity: concept
 layer: conceptual
 tags: ['architecture']
+keywords: []
 status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
-source: ['책/블로그/논문 등']
 instance_of: ['[[concept]]']
 see_also: ['[[유비쿼터스 언어(Ubiquitous Language)]]']
 ---
@@ -435,8 +432,11 @@ id: {{date:YYYYMMDDHHmmss}}
 created: {{date:YYYY-MM-DDTHH:mm:ss}}
 title: WorldAce v2 로드맵(WorldAce v2 Roadmap)
 summary: 분기 목표와 마일스톤 요약
+aliases: []
 entity: project
 layer: strategic
+tags: []
+keywords: []
 status: in-review
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 part_of: ['[[WorldAce]]']
@@ -452,8 +452,11 @@ id: {{date:YYYYMMDDHHmmss}}
 created: {{date:YYYY-MM-DDTHH:mm:ss}}
 title: 배포 절차(Deployment Procedure)
 summary: 스테이징→프로덕션 배포 단계와 검증 기준
+aliases: []
 entity: procedure
 layer: operational
+tags: []
+keywords: []
 status: published
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 implements: ['[[CI 파이프라인(CI Pipeline)]]']

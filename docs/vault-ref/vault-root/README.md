@@ -21,8 +21,6 @@ keywords: []
 # draft | in-review | published | archived
 status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
-viewed: 0
-source: []
 instance_of: [] # 종류의 한 사례
 part_of: [] # 부분
 uses: []

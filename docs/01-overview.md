@@ -29,21 +29,16 @@ Example tools:
 
 Read-first tools (implemented in this repo):
 
-- `semantic_search`: embed a query → return the closest indexed chunks (snippets + distance)
-- `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns previews when `AILSS_VAULT_PATH` is set, plus link evidence)
-- `get_note`: read a vault note by path → return raw note text (may be truncated)
-- `get_note_meta`: read from the index DB by path → return normalized frontmatter + typed links (does not read vault files)
-- `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
-- `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target string); target is normalized from `[[wikilinks]]`
-- `search_vault`: keyword/regex search over vault files (filesystem-backed)
+- `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
+- `get_typed_links`: expand typed links for a specified note path (incoming + outgoing), up to 2 hops (DB-backed; metadata only)
+- `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
-- `get_vault_graph`: typed-link graph from the index DB (metadata only; does not read note bodies)
-- `get_note_graph`: alias of get_vault_graph for a single note path
+- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
 
 Server guidance:
 
 - The MCP server exposes initialize-time instructions branded as **Prometheus Agent** (clients may use this to steer tool usage).
-- The server also provides a prompt template `prometheus-agent` that instructs: “call `activate_context` first, then answer.”
+- The server also provides a prompt template `prometheus-agent` that instructs: “call `get_context` first, then answer.”
 
 Transport / client integration:
 
@@ -55,23 +50,20 @@ Transport / client integration:
 
 Frontmatter query support (current):
 
-- Queryable via `search_notes`: `note_id` (from frontmatter `id`), `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters
-- Queryable via `find_notes_by_typed_link`: typed-link backrefs by `rel` + `target` (targets are normalized from `[[wikilinks]]`)
-- Not yet queryable (stored and returned via `get_note_meta` only): arbitrary frontmatter keys like `created`, `updated`, `aliases`, `source`
+- AILSS stores normalized frontmatter in SQLite for retrieval and graph building.
+- The MCP surface focuses on `get_context` (semantic retrieval) and `get_typed_links` (typed-link navigation) rather than exposing arbitrary frontmatter filtering.
 
 Read-first tools (planned):
 
-- `validate_frontmatter`: check frontmatter against the vault schema/rules
+- (implemented) `frontmatter_validate`: check frontmatter required keys + `id`/`created` consistency
 - `suggest_typed_links`: suggest typed-link candidates
 - `find_broken_links`: detect broken links
 
 Explicit write tools (apply, implemented):
 
-- `new_note`: create a new note with full frontmatter (default: no overwrite; supports dry-run)
 - `capture_note`: capture a new inbox note with full frontmatter (default folder: `100. Inbox`; supports dry-run)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
 - `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
-- `reindex_paths`: reindex specific vault paths into the DB (embeddings + metadata; supports dry-run; may incur embedding costs)
 
 Write tools (planned):
 
@@ -94,4 +86,4 @@ Responsibilities:
 
 - Indexing = file read + DB write
 - Recommendation = DB read
-- Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `new_note`).
+- Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `capture_note`/`edit_note`).

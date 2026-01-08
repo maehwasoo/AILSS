@@ -24,7 +24,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read tools: `semantic_search`, `activate_context`, `get_note`, `get_note_meta`, `search_notes`, `find_notes_by_typed_link`
+  - Read tools: `get_context`, `get_typed_links`, `read_note`, `get_vault_tree`, `frontmatter_validate`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: semantic search modal that opens a selected note
@@ -47,9 +47,9 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 ## 3) MCP server MVP
 
-- Provide `semantic_search` (topK) + `get_note`
-- Provide metadata + relation queries over indexed frontmatter (`get_note_meta`, `search_notes`, `find_notes_by_typed_link`)
-- Include explanations in results (chunk path/heading/snippet)
+- Provide `get_context` (semantic retrieval) + `read_note` (exact note text)
+- Provide `get_typed_links` for typed-link navigation from a note path (incoming + outgoing, up to 2 hops)
+- Include enough evidence in results (note path + snippet + optional preview)
 
 ## 4) Obsidian plugin MVP (UI)
 
@@ -105,22 +105,16 @@ MCP tools (read-only):
 
 Implemented:
 
-- `semantic_search`: embed a query → return the closest indexed chunks (snippets + distance)
-- `activate_context`: seed semantic_search top1 note → expand typed-link neighbors up to 2 hops (returns previews when `AILSS_VAULT_PATH` is set, plus link evidence)
-- `get_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
-- `get_note_meta`: read from the index DB by path → return normalized frontmatter + typed links (does not read vault files)
-- `search_notes`: structured DB search over frontmatter-derived fields (`note_id`, `entity`, `layer`, `status`) plus tags/keywords and path/title matching
-- `find_notes_by_typed_link`: typed-link “backrefs” (which notes point to a target string); target is normalized from `[[wikilinks]]`
-- `search_vault`: keyword/regex search over vault files (filesystem-backed; requires `AILSS_VAULT_PATH`)
+- `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
+- `get_typed_links`: expand typed links for a specified note path (incoming + outgoing), up to 2 hops (DB-backed; metadata only)
+- `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
-- `get_vault_graph`: typed-link graph from the index DB (metadata only; does not read note bodies)
-- `get_note_graph`: alias of get_vault_graph for a single note path
+- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
 
 Notes on queryability (current):
 
-- `search_notes` supports only a fixed set of frontmatter-derived filters: `note_id`, `entity`, `layer`, `status`, `tags`, `keywords`, plus basic path/title filters.
-- Typed links are queryable via `find_notes_by_typed_link` by `rel` + `target` (target normalized from `[[wikilinks]]`).
-- Other frontmatter keys are stored (normalized JSON) and visible via `get_note_meta`, but are not directly filterable yet.
+- AILSS stores normalized frontmatter + typed links in SQLite (used for graph expansion and retrieval).
+- The MCP surface focuses on `get_context` (semantic retrieval) and `get_typed_links` (typed-link navigation) rather than exposing arbitrary frontmatter filtering.
 - Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:
@@ -130,14 +124,11 @@ Planned:
 
 TODO (to expand structured queries):
 
-- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`, `source`).
+- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`).
 - Add date/range filters for `created` / `updated` (requires consistent formatting across the vault).
 
 Write tools (explicit apply):
 
-- `new_note`: create a new note with full frontmatter (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
-  - Supports `apply=false` dry-run, an optional `overwrite` flag (default: create-only), and optional reindex
-  - By default reindexes the created path (set `reindex_after_apply=false` to skip)
 - `capture_note`: create a new note in `<vault>/100. Inbox/` (default) with full frontmatter (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run (preview) and never overwrites existing notes by default
   - By default reindexes the created path (set `reindex_after_apply=false` to skip)
@@ -148,8 +139,6 @@ Write tools (explicit apply):
   - Supports `apply=false` dry-run, optional overwrite, and optional reindex
   - Updates frontmatter `updated` when a frontmatter block is present
   - Does not update inbound references (future enhancement)
-- `reindex_paths`: reindex specific vault paths into the DB (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
-  - Supports `apply=false` dry-run; uses embeddings (may incur OpenAI costs)
 - `improve_frontmatter` (TODO): improve/normalize a note’s frontmatter to match vault rules (schema + typed links), returning patch ops and `needs_reindex`
   - Must support preview/dry-run and refuse unsafe changes by default
   - Future: auto-suggest safe target paths; update references when explicitly enabled
@@ -207,7 +196,7 @@ Non-goals:
 
 - Obsidian plugin starts and supervises a local Node process (“AILSS service”) that:
   - opens `<vault>/.ailss/index.sqlite` in WAL mode
-  - reads vault files (for tools like `get_note`)
+  - reads vault files (for tools like `read_note`)
   - exposes MCP over **streamable HTTP** (SSE + HTTP POST) bound to `127.0.0.1`
   - exposes read-first tools and (when enabled) explicit write tools
 - Codex connects to that service using a remote MCP configuration (`url = http://127.0.0.1:<port>/<path>`).
@@ -256,7 +245,6 @@ Phase 2 — Obsidian plugin “AILSS service” lifecycle
 Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 - Expose explicit write tools over the localhost MCP server when enabled:
-  - `new_note` (create note with full frontmatter; default create-only)
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
   - `relocate_note` (move/rename a note; updates frontmatter `updated` when present)
@@ -270,7 +258,7 @@ Phase 4 — Codex setup UX
 
 ### 10.4 Acceptance criteria
 
-- With Obsidian running and the service enabled, Codex can call `activate_context` successfully without any `writable_roots` configuration for the vault.
+- With Obsidian running and the service enabled, Codex can call `get_context` successfully without any `writable_roots` configuration for the vault.
 - With write tools enabled, Codex can call `edit_note` with `apply=true`, and the index DB is updated for that path.
 
 ### 10.5 Multi-session support (true simultaneous Codex sessions)
@@ -318,7 +306,7 @@ Concurrency / safety contract (must be explicit):
 
 - Reads can run concurrently across sessions (subject to Node single-thread scheduling).
 - Writes must be serialized to avoid races:
-  - Introduce a global async “write queue” (a simple mutex) for `edit_note` and `reindex_paths`.
+  - Introduce a global async “write queue” (a simple mutex) for vault write tools (e.g. `edit_note`, `capture_note`, `relocate_note`).
   - Optional follow-up: file-level locks so edits to different notes can proceed safely in parallel.
 - Keep a hard cap on active sessions (e.g. `maxSessions = 5`) and an idle timeout (e.g. `idleTtlMs = 15m`) to prevent leaks.
 
@@ -326,7 +314,7 @@ Verification criteria (done when):
 
 - Two concurrent Codex processes can both:
   - complete MCP initialize successfully
-  - call `tools/list` and a read tool (e.g. `search_notes`) without disconnecting each other
+  - call `tools/list` and a read tool (e.g. `get_context`) without disconnecting each other
 - Session termination (`DELETE`) removes the session from the map and releases resources.
 
 Fallback approach (acceptable, higher overhead): per-session subprocess

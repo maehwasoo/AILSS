@@ -38,7 +38,6 @@ If user options are present, **apply them with priority**; otherwise infer defau
 - `LAYER=`: layer value
 - `TAGS=`: tag list, comma-separated
 - `KEYWORDS=`: keyword list, comma-separated
-- `SOURCE=`: a source entry to add to the `source` array
 - typed-link candidates like `PART_OF=`, `DEPENDS_ON=`, `USES=`, `IMPLEMENTS=`, `SEE_ALSO=`, etc.
 
 If options are not provided as key=value pairs, infer from the conversation content.
@@ -85,8 +84,6 @@ tags: ['inbox']
 keywords: []
 status: draft
 updated: <YYYY-MM-DDTHH:mm:ss>
-viewed: 0
-source: []
 instance_of: []
 part_of: []
 uses: []
@@ -112,7 +109,7 @@ see_also: []
 - `tags`:
   - Default is `['inbox']`.
   - If `TAGS=` is provided, merge while keeping `inbox`.
-- `keywords`, `source`, typed links:
+- `keywords`, typed links:
   - Apply options if provided.
   - Otherwise keep only high-confidence items, minimized to 0–5.
 

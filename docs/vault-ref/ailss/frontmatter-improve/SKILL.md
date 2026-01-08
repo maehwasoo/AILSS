@@ -73,8 +73,6 @@ tags: []
 keywords: []
 status: draft
 updated: <YYYY-MM-DDTHH:mm:ss>
-viewed: 0
-source: []
 instance_of: []
 part_of: []
 uses: []
@@ -94,7 +92,7 @@ see_also: []
   - Otherwise, use the H1 title if present; if not, use the filename.
 - `summary`:
   - Compress the body into 3–5 sentences and fill it.
-- `aliases`, `keywords`, `source`:
+- `aliases`, `keywords`:
   - If a value exists, keep it; if it is not an array, normalize to an array.
   - Add only high-confidence candidates, in the range 0–5 items.
 - `entity`, `layer`:

@@ -71,12 +71,12 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 
 ## Query support (current)
 
-- `search_notes` supports only a fixed set of filters backed by indexed columns/tables:
+- Metadata filtering supports only a fixed set of filters backed by indexed columns/tables:
   - `notes.note_id`, `notes.entity`, `notes.layer`, `notes.status`
   - `note_tags.tag`, `note_keywords.keyword`
   - basic path/title filters
-- `find_notes_by_typed_link` supports typed-link “backrefs” by `rel` + `to_target`.
-- `get_note_meta` returns the full normalized frontmatter JSON, but arbitrary filtering over `frontmatter_json` is not implemented yet.
+- Typed-link “backrefs” are supported by `rel` + `to_target`.
+- The full normalized frontmatter JSON is stored, but arbitrary filtering over `frontmatter_json` is not implemented yet.
 
 ## Indexing flow
 
@@ -86,17 +86,20 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 3. Upsert `files`
 4. Parse Markdown into `frontmatter` + `body`, normalize frontmatter fields + typed links, extract body `[[wikilinks]]` as `links_to`, and upsert:
    - `notes`, `note_tags`, `note_keywords`, `typed_links`
-5. Clear prior `chunks` / `chunk_rowids` / `chunk_embeddings` rows for that file
-6. Chunk the Markdown body by headings (with `maxChars`)
-7. Generate embeddings via the OpenAI embeddings API (batched calls)
-8. Insert `chunks`, `chunk_embeddings`, and `chunk_rowids`
+5. Chunk the Markdown body by headings (with `maxChars`) and compute stable chunk IDs per file
+6. Compare existing chunks for that file to the next chunk set:
+   - Delete chunks that no longer exist (including vec0 rows)
+   - Update metadata for chunks that still exist (heading path, content, sha, timestamps)
+7. Generate embeddings via the OpenAI embeddings API only for chunks that need them
+   - Unchanged chunks reuse existing embeddings
+8. Insert new `chunks`, `chunk_embeddings`, and `chunk_rowids` for newly introduced chunks
 
 ## Search flow
 
-- `semantic_search` embeds the query and performs a KNN search via sqlite-vec using `MATCH` + `k = ?`
+- Semantic retrieval embeds the query and performs a KNN search via sqlite-vec using `MATCH` + `k = ?`
 - Due to sqlite-vec constraints, the KNN query needs `k = ?` or `LIMIT`, so matches are separated with a CTE
-- `search_notes` queries `notes` + mapping tables for frontmatter-derived filtering (note_id/entity/layer/status/tags/keywords)
-- `find_notes_by_typed_link` queries `typed_links` for typed-link “backrefs” (relation + target)
+- Metadata filtering queries `notes` + mapping tables for frontmatter-derived filtering (note_id/entity/layer/status/tags/keywords)
+- Typed-link backrefs query `typed_links` (relation + target)
 
 ## Embedding dimension caveat
 
