@@ -4,6 +4,7 @@ import type AilssObsidianPlugin from "./main.js";
 import { type PromptKind } from "./utils/promptTemplates.js";
 
 export interface AilssObsidianSettings {
+	mcpOnlyMode: boolean;
 	openaiApiKey: string;
 	openaiEmbeddingModel: string;
 	topK: number;
@@ -20,6 +21,7 @@ export interface AilssObsidianSettings {
 }
 
 export const DEFAULT_SETTINGS: AilssObsidianSettings = {
+	mcpOnlyMode: false,
 	openaiApiKey: "",
 	openaiEmbeddingModel: "text-embedding-3-large",
 	topK: 10,
@@ -48,6 +50,28 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "AILSS Obsidian" });
+
+		containerEl.createEl("h3", { text: "UI mode" });
+
+		new Setting(containerEl)
+			.setName("MCP-only mode")
+			.setDesc(
+				[
+					"Hides Obsidian semantic search UI/commands and focuses on MCP service + indexing.",
+					"Note: commands and ribbon icons require an Obsidian reload (or disable/enable the plugin) to fully apply.",
+				].join("\n"),
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.mcpOnlyMode);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.mcpOnlyMode = value;
+					await this.plugin.saveSettings();
+					new Notice(
+						"Saved. Reload Obsidian (or disable/enable the plugin) to fully apply MCP-only mode.",
+					);
+					this.display();
+				});
+			});
 
 		containerEl.createEl("h3", { text: "Prompt installer (vault root)" });
 
@@ -135,24 +159,39 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
-			.setName("Top K")
-			.setDesc("How many results to return (1–50).")
-			.addText((text) => {
-				text.setPlaceholder("10");
-				text.setValue(String(this.plugin.settings.topK));
-				text.onChange(async (value) => {
-					const parsed = Number(value);
-					this.plugin.settings.topK = Number.isFinite(parsed)
-						? parsed
-						: DEFAULT_SETTINGS.topK;
-					await this.plugin.saveSettings();
+		if (!this.plugin.settings.mcpOnlyMode) {
+			new Setting(containerEl)
+				.setName("Top K")
+				.setDesc("How many results to return (1–50).")
+				.addText((text) => {
+					text.setPlaceholder("10");
+					text.setValue(String(this.plugin.settings.topK));
+					text.onChange(async (value) => {
+						const parsed = Number(value);
+						this.plugin.settings.topK = Number.isFinite(parsed)
+							? parsed
+							: DEFAULT_SETTINGS.topK;
+						await this.plugin.saveSettings();
+					});
 				});
-			});
+		}
 
-		containerEl.createEl("h3", { text: "MCP server (local)" });
+		const advancedContainer = this.plugin.settings.mcpOnlyMode
+			? (() => {
+					containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
+					const details = containerEl.createEl("details");
+					details.createEl("summary", {
+						text: "Show advanced settings (server/indexer command + args)",
+					});
+					return details.createDiv();
+				})()
+			: containerEl;
 
-		new Setting(containerEl)
+		if (!this.plugin.settings.mcpOnlyMode) {
+			containerEl.createEl("h3", { text: "MCP server (local)" });
+		}
+
+		new Setting(advancedContainer)
 			.setName("Command")
 			.setDesc(
 				"How to launch the AILSS MCP server (stdio). If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
@@ -166,7 +205,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
+		new Setting(advancedContainer)
 			.setName("Arguments (one per line)")
 			.setDesc(
 				'Example: "/absolute/path/to/Ailss-project/packages/mcp/dist/stdio.js" (for command "node").',
@@ -271,9 +310,11 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				button.onClick(() => void this.plugin.restartMcpHttpService());
 			});
 
-		containerEl.createEl("h3", { text: "Indexer (local)" });
+		if (!this.plugin.settings.mcpOnlyMode) {
+			containerEl.createEl("h3", { text: "Indexer (local)" });
+		}
 
-		new Setting(containerEl)
+		new Setting(advancedContainer)
 			.setName("Command")
 			.setDesc(
 				"How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite). If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
@@ -288,7 +329,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
+		new Setting(advancedContainer)
 			.setName("Arguments (one per line)")
 			.setDesc(
 				'Example: "/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js" (for command "node").',

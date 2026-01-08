@@ -46,6 +46,7 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 4. Configure settings inside Obsidian
 
 - **OpenAI API key**: required for query embeddings
+- **MCP-only mode** (optional): hides Obsidian semantic-search UI/commands and focuses on the MCP service + indexing
 - **MCP command/args**: how to run the AILSS MCP server (stdio)
     - Example for monorepo dev:
         - command: `node`
@@ -61,7 +62,7 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 
 ## Commands
 
-- `AILSS: Semantic search`: opens the search modal
+- `AILSS: Semantic search`: opens the search modal (hidden when **MCP-only mode** is enabled)
 - `AILSS: Reindex vault`: runs the indexer to update `<Vault>/.ailss/index.sqlite`
 - `AILSS: Indexing status`: shows indexing progress + last successful indexing time
 
