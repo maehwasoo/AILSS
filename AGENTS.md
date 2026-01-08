@@ -137,3 +137,14 @@ This repo recommends Conventional Commits.
 - Treat line count as a signal, not a rule. Refactor when a file is hard to navigate (mixed concerns, repeated setup/teardown, long helpers) even if it’s <500 lines.
 - Heuristics (non-binding): consider refactoring when a file exceeds ~500 lines, when helpers exceed ~150 lines, or when the same code block appears in 3+ places.
 - Verification requirement: after refactoring, run the closest tests/lint/typecheck available and ensure no public API/CLI behavior changes unless explicitly requested.
+
+---
+
+## 7. AILSS note creation (Codex + MCP)
+
+When the `ailss` MCP server is available and the user asks to create a new vault note:
+
+- Prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
+- Do a dry-run first (`apply=false`), show the proposed path + sha256, then ask for confirmation before `apply=true`.
+- Do not override identity fields (`id`, `created`) unless the user explicitly asks.
+- Keep the body structured: short summary, key points, next actions/open questions, then relevant wikilinks.

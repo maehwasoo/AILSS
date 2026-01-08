@@ -22,6 +22,9 @@ When the `ailss` MCP server is available:
 
 3. Safe edits (explicit apply only)
    - Prefer `apply=false` first to preview changes.
+   - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
+   - For note creation, do `apply=false` → confirm with the user → `apply=true`.
+   - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
    - For line-based edits, fetch the note via `read_note`, then compute exact anchors + line numbers (do not guess).
    - Use `expected_sha256` to avoid overwriting concurrent edits.
    - Only set `apply=true` after confirming the target path + patch ops are correct.
