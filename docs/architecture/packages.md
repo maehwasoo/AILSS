@@ -40,27 +40,28 @@ Entry point:
 
 Responsibilities:
 
-- Provide search/query tools backed by the local DB
-- Provide frontmatter-derived metadata filters and typed-link graph queries
-- Default transport starts with STDIO (for Codex CLI integration)
+- Provide MCP tools backed by the local DB
+- Support STDIO (Codex CLI spawns the server) and streamable HTTP (localhost, `/mcp`)
 
-Entry point:
+Entry points:
 
 - `packages/mcp/src/stdio.ts` (`ailss-mcp`)
+- `packages/mcp/src/http.ts` (`ailss-mcp-http`)
 
 ### `packages/obsidian-plugin`
 
-Planned responsibilities:
+Responsibilities:
 
-- Show recommendations in the UI
-- Apply changes only via explicit user actions
+- Provide an Obsidian UI for semantic search and recommendations
+- Spawn the indexer and MCP server/service locally (desktop-only for now)
+- Apply changes only via explicit user actions (gated)
 
 ## Dependency direction
 
 ```
 core  <-  indexer
 core  <-  mcp
-plugin (separate; wired later)
+plugin (separate; spawns local processes)
 ```
 
 ## Configuration principles
