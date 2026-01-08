@@ -22,6 +22,7 @@ const REQUIRED_KEYS = [
   "keywords",
   "status",
   "updated",
+  "source",
 ] as const;
 
 function relPathFromAbs(vaultPath: string, absPath: string): string {

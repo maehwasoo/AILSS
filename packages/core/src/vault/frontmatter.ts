@@ -122,6 +122,7 @@ export function normalizeAilssNoteMeta(
 ): NormalizedAilssNoteMeta {
   const tags = normalizeStringList(frontmatter.tags);
   const keywords = normalizeStringList(frontmatter.keywords);
+  const source = normalizeStringList(frontmatter.source);
 
   const typedLinks: TypedLink[] = [];
   for (const rel of AILSS_TYPED_LINK_KEYS) {
@@ -142,6 +143,7 @@ export function normalizeAilssNoteMeta(
   const normalizedFrontmatter: Record<string, unknown> = { ...frontmatter };
   normalizedFrontmatter.tags = tags;
   normalizedFrontmatter.keywords = keywords;
+  normalizedFrontmatter.source = source;
   for (const rel of AILSS_TYPED_LINK_KEYS) {
     const values = normalizeStringList(frontmatter[rel]).map(toWikilink);
     normalizedFrontmatter[rel] = values;

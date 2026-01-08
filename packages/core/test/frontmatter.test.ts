@@ -77,4 +77,23 @@ Body
     expect(meta.created).toBe("2026-01-08T12:34:56");
     expect(meta.updated).toBe("2026-01-08T12:34:56");
   });
+
+  it("normalizes source (trim + dedupe) into a stable string list", () => {
+    const input = `---
+title: Hello
+source:
+  - " https://example.com/a "
+  - "https://example.com/a"
+  - "doi:10.1234/xyz "
+  - ""
+---
+
+Body
+`;
+
+    const parsed = parseMarkdownNote(input);
+    const meta = normalizeAilssNoteMeta(parsed.frontmatter);
+
+    expect(meta.frontmatter.source).toEqual(["https://example.com/a", "doi:10.1234/xyz"]);
+  });
 });

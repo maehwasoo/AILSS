@@ -1,5 +1,5 @@
 // AILSS note templating helpers
-// - frontmatter defaults aligned with docs/vault-ref
+// - frontmatter defaults aligned with docs/standards/vault/frontmatter-schema.md
 // - YAML output via JSON-compatible scalars
 
 import { AILSS_TYPED_LINK_KEYS } from "@ailss/core";
@@ -89,6 +89,7 @@ export function buildAilssFrontmatter(options: {
     keywords: [],
     status: "draft",
     updated: now,
+    source: [],
   };
 
   // Typed links: always present as arrays (stable shape for downstream normalization).
@@ -132,7 +133,7 @@ export function buildAilssFrontmatter(options: {
 }
 
 export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
-  // Stable key order: align with docs/vault-ref template + append extra typed-link keys.
+  // Stable key order: align with docs/standards/vault/frontmatter-schema.md template + append extra typed-link keys.
   const orderedKeys = [
     "id",
     "created",
@@ -145,6 +146,7 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "keywords",
     "status",
     "updated",
+    "source",
     "instance_of",
     "part_of",
     "uses",
