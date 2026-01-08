@@ -9,8 +9,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
+import { nowIsoSeconds } from "../lib/ailssNoteTemplate.js";
 import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
-import { resolveVaultPathSafely } from "../lib/vaultFs.js";
+import { resolveVaultPathSafely, writeVaultFileText } from "../lib/vaultFs.js";
 
 async function fileExists(absPath: string): Promise<boolean> {
   try {
@@ -21,6 +22,46 @@ async function fileExists(absPath: string): Promise<boolean> {
     if (code === "ENOENT") return false;
     throw error;
   }
+}
+
+function updateUpdatedInFrontmatterBlock(
+  markdown: string,
+  updatedIsoSeconds: string,
+): {
+  updated: boolean;
+  nextMarkdown: string;
+} {
+  const normalized = markdown.replace(/^\uFEFF/, "");
+  const lines = normalized.split(/\r?\n/);
+  if ((lines[0] ?? "").trim() !== "---") return { updated: false, nextMarkdown: markdown };
+
+  const endIndex = lines.slice(1).findIndex((l) => l.trim() === "---");
+  if (endIndex < 0) return { updated: false, nextMarkdown: markdown };
+
+  const frontmatterStart = 1;
+  const frontmatterEnd = 1 + endIndex;
+  const frontmatterLines = lines.slice(frontmatterStart, frontmatterEnd);
+
+  const updatedLine = `updated: ${JSON.stringify(updatedIsoSeconds)}`;
+  const updatedKeyRegex = /^\s*updated\s*:/;
+
+  const existingIndex = frontmatterLines.findIndex((l) => updatedKeyRegex.test(l));
+  if (existingIndex >= 0) {
+    frontmatterLines[existingIndex] = updatedLine;
+  } else {
+    const afterKeyRegex = /^\s*status\s*:/;
+    const statusIndex = frontmatterLines.findIndex((l) => afterKeyRegex.test(l));
+    if (statusIndex >= 0) {
+      frontmatterLines.splice(statusIndex + 1, 0, updatedLine);
+    } else {
+      frontmatterLines.push(updatedLine);
+    }
+  }
+
+  const rebuilt = ["---", ...frontmatterLines, "---", ...lines.slice(frontmatterEnd + 1)].join(
+    "\n",
+  );
+  return { updated: true, nextMarkdown: rebuilt };
 }
 
 async function renameOrCopy(fromAbs: string, toAbs: string): Promise<void> {
@@ -65,6 +106,8 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
         to_path: z.string(),
         applied: z.boolean(),
         overwritten: z.boolean(),
+        updated_applied: z.boolean(),
+        updated_value: z.string().nullable(),
         needs_reindex: z.boolean(),
         reindexed: z.boolean(),
         reindex_summary: z
@@ -102,6 +145,7 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
       const toDir = path.dirname(toAbs);
 
       const run = async () => {
+        const now = nowIsoSeconds();
         if (!(await fileExists(fromAbs))) {
           throw new Error(`Source note not found: from_path="${args.from_path}".`);
         }
@@ -119,6 +163,8 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
             to_path: args.to_path,
             applied: false,
             overwritten: false,
+            updated_applied: false,
+            updated_value: null,
             needs_reindex: false,
             reindexed: false,
             reindex_summary: null,
@@ -136,6 +182,30 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
         }
 
         await renameOrCopy(fromAbs, toAbs);
+
+        let updatedApplied = false;
+        try {
+          const movedText = await fs.readFile(toAbs, "utf8");
+          const updated = updateUpdatedInFrontmatterBlock(movedText, now);
+          if (updated.updated) {
+            await writeVaultFileText({
+              vaultPath,
+              vaultRelPath: args.to_path,
+              text: updated.nextMarkdown,
+            });
+            updatedApplied = true;
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          try {
+            if (!(await fileExists(fromAbs))) {
+              await renameOrCopy(toAbs, fromAbs);
+            }
+          } catch {
+            // ignore rollback failure (best-effort)
+          }
+          throw new Error(`Failed to update frontmatter.updated for "${args.to_path}": ${message}`);
+        }
 
         let reindexed = false;
         let reindexSummary: {
@@ -165,6 +235,8 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
           to_path: args.to_path,
           applied: true,
           overwritten,
+          updated_applied: updatedApplied,
+          updated_value: updatedApplied ? now : null,
           needs_reindex: Boolean(!reindexed),
           reindexed,
           reindex_summary: reindexSummary,
