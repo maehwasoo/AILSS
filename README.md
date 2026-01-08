@@ -12,7 +12,7 @@ AILSS connects LLM tooling to an Obsidian vault by building a local index DB and
 - **Vault (SSOT)**: your `.md` notes
 - **Indexer**: chunks notes, generates embeddings, writes `<vault>/.ailss/index.sqlite`
 - **MCP service (localhost)**: Obsidian-hosted, token-protected, multi-session MCP over HTTP (`/mcp`)
-- **Codex CLI (or any MCP client)**: connects via URL + token; does not need vault filesystem permissions
+- **Codex CLI (or any MCP client)**: connects via URL + token; does not need vault filesystem permissions when using the plugin-hosted HTTP service
 
 ## Setup (Codex CLI + Obsidian plugin)
 
@@ -32,24 +32,19 @@ http_headers = { Authorization = "Bearer <token>" }
 
 ## MCP tools
 
-Read tools:
+Read tools (current):
 
-- `semantic_search`
-- `activate_context`
-- `get_note`, `get_note_meta`
-- `search_notes`, `find_notes_by_typed_link`
-- `search_vault`
+- `get_context`
+- `get_typed_links`
+- `read_note`
 - `get_vault_tree`
-- `get_vault_graph`
-- `get_note_graph` (alias of `get_vault_graph` for a single note path)
+- `frontmatter_validate`
 
-Write tools (only when enabled in the plugin; always require `apply=true`):
+Write tools (gated; require `AILSS_ENABLE_WRITE_TOOLS=1` and `apply=true`):
 
-- `new_note` (creates a new note with full frontmatter; default: no overwrite)
 - `capture_note` (creates a new inbox note with full frontmatter)
-- `edit_note` (by default reindexes the edited path and returns a reindex summary)
-- `relocate_note` (move/rename a note; updates frontmatter `updated` when present)
-- `reindex_paths`
+- `edit_note` (line-based patch ops; supports dry-run)
+- `relocate_note` (move/rename a note; supports dry-run)
 
 ## Notes / safety
 
