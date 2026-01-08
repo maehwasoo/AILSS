@@ -67,3 +67,4 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 - `AILSS: Indexing status`: shows indexing progress + last successful indexing time
 
 The plugin also adds a status bar item that shows whether indexing is running, and the last successful index time.
+Times shown in the UI are displayed in your system timezone (local time).
