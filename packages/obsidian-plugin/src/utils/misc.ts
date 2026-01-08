@@ -2,8 +2,10 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { formatAilssTimestampForUi } from "./dateTime.js";
+
 export function nowIso(): string {
-	return new Date().toISOString().slice(0, 19);
+	return `${new Date().toISOString().slice(0, 19)}Z`;
 }
 
 export function appendLimited(existing: string, chunk: string, limit: number): string {
@@ -30,8 +32,10 @@ export function formatIndexerLog(input: {
 	stdout: string;
 	stderr: string;
 }): string {
+	const timeIso = nowIso();
+	const timeDisplay = formatAilssTimestampForUi(timeIso) ?? timeIso;
 	const header = [
-		`[time] ${nowIso()}`,
+		`[time] ${timeDisplay}`,
 		`[command] ${input.command} ${input.args.join(" ")}`,
 		`[exit] ${input.code ?? "null"}${input.signal ? ` (signal ${input.signal})` : ""}`,
 	]
