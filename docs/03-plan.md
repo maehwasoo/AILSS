@@ -29,6 +29,8 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - UI: semantic search modal that opens a selected note
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
+    - Current: **single active MCP session** (a new Codex `initialize` may replace the previous session)
+    - TODO: implement **true multi-session** support so multiple Codex processes can connect concurrently (see 10.5)
 
 ## 1) Design the index schema
 
@@ -257,3 +259,58 @@ Phase 4 — Codex setup UX
 
 - With Obsidian running and the service enabled, Codex can call `activate_context` successfully without any `writable_roots` configuration for the vault.
 - With write tools enabled, Codex can call `edit_note` with `apply=true`, and the index DB is updated for that path.
+
+### 10.5 Multi-session support (true simultaneous Codex sessions)
+
+Goal:
+
+- Allow **multiple Codex CLI processes** to connect to the same Obsidian-hosted AILSS service concurrently.
+- Each Codex process gets its own `Mcp-Session-Id` and can call tools without disconnecting other sessions.
+
+Why this needs explicit design:
+
+- The SDK `StreamableHTTPServerTransport` is **stateful**: one transport instance supports **one initialized session**.
+- The transport maps JSON-RPC `id` → response stream internally; sharing a single transport across clients risks **ID collisions** (many clients start IDs at `1`).
+
+Implementation approach (preferred): in-process session manager
+
+- Add an HTTP “session manager” to the MCP HTTP entrypoint (`packages/mcp/src/http.ts`):
+  - Maintain `Map<string, Session>` keyed by `mcp-session-id`.
+  - On `POST initialize`:
+    - Create a **new** `StreamableHTTPServerTransport({ sessionIdGenerator, onsessioninitialized, onsessionclosed })`.
+    - Create a **new** `McpServer` instance, register tools/prompts, and connect it to that transport.
+    - Let the transport generate the session ID; then register `{ transport, server }` in the session map.
+  - On all other requests (POST/GET/DELETE):
+    - Route by `mcp-session-id` header to the matching transport.
+    - Unknown session → 404 “Session not found” (consistent with SDK behavior).
+  - Session close:
+    - On `onsessionclosed`, remove the session from the map and close the server/transport.
+
+Shared resource strategy (required for correctness + performance):
+
+- Create shared dependencies once per service process (DB + OpenAI client) and reuse across sessions.
+  - Refactor `packages/mcp/src/createAilssMcpServer.ts` into:
+    - `createAilssMcpDeps()` → opens DB once, creates OpenAI client once
+    - `createAilssMcpServer(deps)` → registers tools/prompts on a new `McpServer`
+  - This avoids opening multiple SQLite connections to the same WAL DB and avoids repeated sqlite-vec extension loads.
+
+Concurrency / safety contract (must be explicit):
+
+- Reads can run concurrently across sessions (subject to Node single-thread scheduling).
+- Writes must be serialized to avoid races:
+  - Introduce a global async “write queue” (a simple mutex) for `edit_note` and `reindex_paths`.
+  - Optional follow-up: file-level locks so edits to different notes can proceed safely in parallel.
+- Keep a hard cap on active sessions (e.g. `maxSessions = 5`) and an idle timeout (e.g. `idleTtlMs = 15m`) to prevent leaks.
+
+Verification criteria (done when):
+
+- Two concurrent Codex processes can both:
+  - complete MCP initialize successfully
+  - call `tools/list` and a read tool (e.g. `search_notes`) without disconnecting each other
+- Session termination (`DELETE`) removes the session from the map and releases resources.
+
+Fallback approach (acceptable, higher overhead): per-session subprocess
+
+- Spawn a dedicated `ailss-mcp-http` process per Codex session (one port per session, or a reverse proxy that pins one upstream per client).
+- Pros: strongest isolation, simplest correctness story.
+- Cons: more processes, more ports, more restart surface.
