@@ -13,10 +13,16 @@ export function registerSemanticSearchTool(server: McpServer, deps: McpToolDeps)
     {
       title: "Semantic search",
       description:
-        "Vector similarity search over indexed chunks (SQLite + sqlite-vec). Uses OpenAI embeddings for the query.",
+        "Semantic (vector) search over indexed content chunks using sqlite-vec. Embeds `query` with OpenAI and returns the closest matching chunks (lower `distance` = more similar).",
       inputSchema: {
-        query: z.string().min(1).describe("Search query text"),
-        top_k: z.number().int().min(1).max(50).default(10).describe("Number of results to return"),
+        query: z.string().min(1).describe("Text to embed and search for"),
+        top_k: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .default(10)
+          .describe("Number of results to return (1–50)"),
       },
       outputSchema: z.object({
         query: z.string(),

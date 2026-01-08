@@ -14,13 +14,13 @@ export function registerReindexPathsTool(server: McpServer, deps: McpToolDeps): 
     {
       title: "Reindex paths",
       description:
-        "Reindexes specific vault-relative Markdown paths into the AILSS SQLite DB (embeddings + metadata). Requires AILSS_VAULT_PATH. Writes only when apply=true.",
+        "Reindexes specific Markdown paths into the AILSS SQLite DB (embeddings + metadata). Requires AILSS_VAULT_PATH and uses OpenAI embeddings (may incur costs). No DB write occurs unless apply=true.",
       inputSchema: {
         paths: z
           .array(z.string().min(1))
           .min(1)
-          .describe("Vault-relative markdown paths to index (e.g. ['Projects/Plan.md'])"),
-        apply: z.boolean().default(false).describe("Apply DB writes; false = dry-run"),
+          .describe("Vault-relative Markdown paths to index (e.g. ['Projects/Plan.md'])"),
+        apply: z.boolean().default(false).describe("Apply DB writes; false = dry-run (no changes)"),
       },
       outputSchema: z.object({
         applied: z.boolean(),

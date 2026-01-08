@@ -13,17 +13,31 @@ export function registerSearchNotesTool(server: McpServer, deps: McpToolDeps): v
     {
       title: "Search notes (metadata)",
       description:
-        "Filters indexed notes by frontmatter-derived fields (note_id/entity/layer/status) plus tags/keywords and path/title filters. Does not use embeddings.",
+        "Structured search over indexed notes using DB columns (no embeddings). Supports exact matches on `note_id`/`entity`/`layer`/`status`, tag/keyword filters, and basic path/title matching.",
       inputSchema: {
-        path_prefix: z.string().min(1).optional().describe("Filter by vault-relative path prefix"),
-        title_query: z.string().min(1).optional().describe("Substring match against title"),
+        path_prefix: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Prefix match against vault-relative path"),
+        title_query: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Substring match against title (SQL LIKE)"),
         note_id: z.string().min(1).optional().describe("Exact note id match (frontmatter-derived)"),
         entity: z.string().min(1).optional().describe("Exact entity match (frontmatter-derived)"),
         layer: z.string().min(1).optional().describe("Exact layer match (frontmatter-derived)"),
         status: z.string().min(1).optional().describe("Exact status match (frontmatter-derived)"),
-        tags_any: z.array(z.string().min(1)).optional().describe("Match any of these tags"),
-        tags_all: z.array(z.string().min(1)).optional().describe("Must include all of these tags"),
-        keywords_any: z.array(z.string().min(1)).optional().describe("Match any of these keywords"),
+        tags_any: z.array(z.string().min(1)).optional().describe("Match any of these tags (OR)"),
+        tags_all: z
+          .array(z.string().min(1))
+          .optional()
+          .describe("Must include all of these tags (AND)"),
+        keywords_any: z
+          .array(z.string().min(1))
+          .optional()
+          .describe("Match any of these keywords (OR)"),
         limit: z.number().int().min(1).max(500).default(50).describe("Maximum results to return"),
       },
       outputSchema: z.object({

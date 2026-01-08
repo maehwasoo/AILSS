@@ -13,7 +13,7 @@ export function registerFindNotesByTypedLinkTool(server: McpServer, deps: McpToo
     {
       title: "Find notes by typed link",
       description:
-        "Finds notes that link to a target via typed links (backrefs), optionally filtered by relation key (rel).",
+        "Find typed-link backrefs in the index DB (which notes point to a typed-link target). Optionally filter by relation (`rel`) and/or `target` (raw text or a `[[wikilink]]`; display/heading are stripped).",
       inputSchema: {
         rel: z
           .string()
@@ -24,14 +24,14 @@ export function registerFindNotesByTypedLinkTool(server: McpServer, deps: McpToo
           .string()
           .min(1)
           .optional()
-          .describe("Wikilink target to search for (e.g. [[WorldAce]])"),
+          .describe("Target to search for (raw text or [[wikilink]]; normalized before query)"),
         limit: z
           .number()
           .int()
           .min(1)
           .max(1000)
           .default(200)
-          .describe("Maximum backrefs to return"),
+          .describe("Maximum backrefs to return (1–1000)"),
       },
       outputSchema: z.object({
         query: z.object({

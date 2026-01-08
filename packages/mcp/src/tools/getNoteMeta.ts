@@ -13,7 +13,7 @@ export function registerGetNoteMetaTool(server: McpServer, deps: McpToolDeps): v
     {
       title: "Get note metadata",
       description:
-        "Returns indexed note metadata (frontmatter-derived fields + typed links). Requires indexing; does not read vault files.",
+        "Returns indexed note metadata (normalized frontmatter fields + typed links) from the SQLite DB. Requires the note to exist in the index DB; does not read vault files.",
       inputSchema: {
         path: z.string().min(1).describe("Vault-relative note path (must exist in the index DB)"),
       },

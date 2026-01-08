@@ -13,16 +13,19 @@ export function registerGetNoteTool(server: McpServer, deps: McpToolDeps): void 
     {
       title: "Get note",
       description:
-        "Reads a vault Markdown note by vault-relative path. Requires AILSS_VAULT_PATH. Denies path traversal.",
+        "Reads a Markdown note from the vault filesystem by vault-relative path. Requires AILSS_VAULT_PATH; path traversal is blocked. Returns raw note text (may be truncated by `max_chars`).",
       inputSchema: {
-        path: z.string().min(1).describe('Vault-relative note path (e.g. "Projects/Plan.md")'),
+        path: z
+          .string()
+          .min(1)
+          .describe('Vault-relative Markdown note path (e.g. "Projects/Plan.md")'),
         max_chars: z
           .number()
           .int()
           .min(200)
           .max(200_000)
           .default(20_000)
-          .describe("Maximum characters to return"),
+          .describe("Maximum characters to return (200–200,000)"),
       },
       outputSchema: z.object({
         path: z.string(),

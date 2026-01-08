@@ -30,9 +30,9 @@ export function registerActivateContextTool(server: McpServer, deps: McpToolDeps
     {
       title: "Activate context",
       description:
-        "Builds a context set: semantic_search(top1) seed note, then expands to typed-link connected notes up to 2 hops. Returns previews + evidence edges.",
+        "Builds a context set for a query: selects a seed via semantic_search(top1), then expands through typed links up to `max_hops` (0–2). Returns note previews (when AILSS_VAULT_PATH is set) plus evidence (`via`).",
       inputSchema: {
-        query: z.string().min(1).describe("User question or task"),
+        query: z.string().min(1).describe("User question or task to build context for"),
         max_hops: z.number().int().min(0).max(2).default(2).describe("Graph expansion depth (0–2)"),
         max_notes: z
           .number()
@@ -40,7 +40,7 @@ export function registerActivateContextTool(server: McpServer, deps: McpToolDeps
           .min(1)
           .max(50)
           .default(25)
-          .describe("Maximum number of notes to return"),
+          .describe("Maximum number of notes to return (includes the seed)"),
         max_chars_per_note: z
           .number()
           .int()
@@ -54,21 +54,21 @@ export function registerActivateContextTool(server: McpServer, deps: McpToolDeps
           .min(1)
           .max(200)
           .default(40)
-          .describe("Outgoing typed links followed per note"),
+          .describe("Maximum outgoing typed links followed per note"),
         max_resolutions_per_target: z
           .number()
           .int()
           .min(1)
           .max(20)
           .default(5)
-          .describe("Max resolved note paths per typed-link target"),
+          .describe("Maximum resolved note paths per typed-link target"),
         max_incoming_per_target: z
           .number()
           .int()
           .min(1)
           .max(500)
           .default(50)
-          .describe("Incoming typed-link backrefs pulled per target"),
+          .describe("Maximum incoming typed-link backrefs pulled per target"),
       },
       outputSchema: z.object({
         query: z.string(),

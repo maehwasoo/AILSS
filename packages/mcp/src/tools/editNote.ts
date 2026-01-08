@@ -23,15 +23,21 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
     {
       title: "Edit note",
       description:
-        "Edits an existing vault Markdown note by applying line-based patch ops. Requires AILSS_VAULT_PATH. Writes only when apply=true.",
+        "Edits an existing vault Markdown note by applying line-based patch ops (insert/delete/replace). Requires AILSS_VAULT_PATH. No write occurs unless apply=true (line numbers are 1-based; append via insert_lines at lineCount+1).",
       inputSchema: {
-        path: z.string().min(1).describe('Vault-relative note path (e.g. "Projects/Plan.md")'),
+        path: z
+          .string()
+          .min(1)
+          .describe('Vault-relative Markdown note path to edit (e.g. "Projects/Plan.md")'),
         expected_sha256: z
           .string()
           .regex(/^[0-9a-fA-F]{64}$/)
           .optional()
-          .describe("Optimistic concurrency guard; rejects if the current file sha256 differs"),
-        apply: z.boolean().default(false).describe("Apply file write; false = dry-run"),
+          .describe("Optional concurrency guard; rejects if the current file sha256 differs"),
+        apply: z
+          .boolean()
+          .default(false)
+          .describe("Apply file write; false = dry-run (preview only)"),
         reindex_after_apply: z
           .boolean()
           .default(true)
@@ -45,8 +51,12 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
                   .number()
                   .int()
                   .min(1)
-                  .describe("1-based line number to insert before (max = lineCount+1)"),
-                text: z.string().describe("Text to insert (may contain newlines)"),
+                  .describe(
+                    "1-based line number to insert before (max = lineCount+1; use lineCount+1 to append)",
+                  ),
+                text: z
+                  .string()
+                  .describe("Text to insert as a single string (may contain newlines)"),
               }),
               z.object({
                 op: z.literal("delete_lines"),
@@ -62,7 +72,7 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
             ]),
           )
           .min(1)
-          .describe("Patch ops applied in order"),
+          .describe("Patch ops applied in order (use apply=false for a dry-run)"),
       },
       outputSchema: z.object({
         path: z.string(),
