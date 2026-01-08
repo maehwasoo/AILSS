@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "bin": {
-    "ailss-mcp": "./dist/stdio.js"
+    "ailss-mcp": "./dist/stdio.js",
+    "ailss-mcp-http": "./dist/http.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist",
-    "start": "node dist/stdio.js"
+    "start": "node dist/stdio.js",
+    "start:http": "node dist/http.js"
   },
   "dependencies": {
     "@ailss/core": "workspace:*",
