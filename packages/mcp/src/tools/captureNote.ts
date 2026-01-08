@@ -82,11 +82,20 @@ export function registerCaptureNoteTool(server: McpServer, deps: McpToolDeps): v
     "capture_note",
     {
       title: "Capture note",
-      description:
-        'Creates a new note in the vault (default folder: "100. Inbox") with full frontmatter. Requires AILSS_VAULT_PATH. Writes only when apply=true.',
+      description: [
+        'Creates a new note in the vault (default folder: "100. Inbox") with full AILSS frontmatter.',
+        "Requires AILSS_VAULT_PATH.",
+        "Safety: prefer apply=false (dry-run) first; only write when apply=true after confirmation.",
+        "Tip: avoid overriding identity fields like id/created unless explicitly requested.",
+      ].join(" "),
       inputSchema: {
         title: z.string().min(1).describe("Note title"),
-        body: z.string().default("").describe("Note body (markdown)"),
+        body: z
+          .string()
+          .default("")
+          .describe(
+            "Note body (markdown). Recommended: short summary, key points, next actions/open questions.",
+          ),
         folder: z
           .string()
           .default("100. Inbox")
