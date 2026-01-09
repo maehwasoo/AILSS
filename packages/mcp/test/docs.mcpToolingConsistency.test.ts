@@ -184,7 +184,7 @@ describe("Docs/prompt MCP tool consistency", () => {
     });
   });
 
-  it("warns when Codex prompt metadata references unknown MCP tools", async () => {
+  it("warns when Codex guidance metadata references unknown MCP tools", async () => {
     await withTempDir("ailss-mcp-docs-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
@@ -202,7 +202,6 @@ describe("Docs/prompt MCP tool consistency", () => {
 
       const promptPaths = [
         path.join(process.cwd(), "docs", "ops", "codex-skills", "prometheus-agent", "SKILL.md"),
-        path.join(process.cwd(), "docs", "ops", "codex-prompts", "ailss-note-create.md"),
       ];
 
       const issues: Array<{ file: string; message: string }> = [];
@@ -211,7 +210,7 @@ describe("Docs/prompt MCP tool consistency", () => {
         const text = await fs.readFile(promptPath, "utf8");
 
         // Guard against reintroducing the known mismatch pattern (warn-only).
-        if (promptPath.endsWith("prometheus-agent.md")) {
+        if (promptPath.includes(`${path.sep}prometheus-agent${path.sep}`)) {
           if (/incoming\s*\+\s*outgoing/i.test(text)) {
             issues.push({
               file: path.relative(process.cwd(), promptPath),
