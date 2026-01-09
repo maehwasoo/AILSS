@@ -57,3 +57,11 @@ If your plugin does not need CSS, delete this file.
 .ailss-obsidian-statusbar.is-error {
 	color: var(--text-error);
 }
+
+.ailss-obsidian-mcp-statusbar.is-running {
+	color: var(--text-accent);
+}
+
+.ailss-obsidian-mcp-statusbar.is-error {
+	color: var(--text-error);
+}

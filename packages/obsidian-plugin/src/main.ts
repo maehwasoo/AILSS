@@ -66,6 +66,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
 
 	private statusBarEl: HTMLElement | null = null;
+	private mcpStatusBarEl: HTMLElement | null = null;
 	private indexerStatusListeners = new Set<(snapshot: AilssIndexerStatusSnapshot) => void>();
 	private indexerUiUpdateTimer: NodeJS.Timeout | null = null;
 
@@ -109,6 +110,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		await this.ensureMcpHttpServiceToken();
 
 		this.registerIndexerStatusUi();
+		this.registerMcpStatusUi();
 		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
 		registerCommands(this);
 		this.registerAutoIndexEvents();
@@ -118,6 +120,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		this.emitIndexerStatusNow();
+		this.updateMcpStatusBar();
 	}
 
 	async onunload(): Promise<void> {
@@ -311,6 +314,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			});
 
 			this.mcpHttpServiceProc = child;
+			this.updateMcpStatusBar();
 
 			child.stdout?.on("data", (chunk: unknown) => {
 				const text = typeof chunk === "string" ? chunk : String(chunk);
@@ -334,6 +338,7 @@ export default class AilssObsidianPlugin extends Plugin {
 				const message = error instanceof Error ? error.message : String(error);
 				this.mcpHttpServiceLastErrorMessage = message;
 				this.mcpHttpServiceProc = null;
+				this.updateMcpStatusBar();
 				new Notice(`AILSS MCP service failed: ${message}`);
 			});
 
@@ -341,6 +346,7 @@ export default class AilssObsidianPlugin extends Plugin {
 				this.mcpHttpServiceLastExitCode = code;
 				this.mcpHttpServiceLastStoppedAt = nowIso();
 				this.mcpHttpServiceProc = null;
+				this.updateMcpStatusBar();
 
 				if (this.settings.mcpHttpServiceEnabled) {
 					const suffix =
@@ -350,10 +356,12 @@ export default class AilssObsidianPlugin extends Plugin {
 			});
 
 			new Notice(`AILSS MCP service started: ${this.getMcpHttpServiceUrl()}`);
+			this.updateMcpStatusBar();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			this.mcpHttpServiceLastErrorMessage = message;
 			new Notice(`AILSS MCP service failed: ${message}`);
+			this.updateMcpStatusBar();
 		}
 	}
 
@@ -898,6 +906,61 @@ export default class AilssObsidianPlugin extends Plugin {
 		el.setAttribute("role", "button");
 		el.addEventListener("click", () => this.openIndexerStatusModal());
 		this.register(() => el.remove());
+	}
+
+	private registerMcpStatusUi(): void {
+		const el = this.addStatusBarItem();
+		this.mcpStatusBarEl = el;
+		el.addClass("ailss-obsidian-mcp-statusbar");
+		this.register(() => el.remove());
+		this.updateMcpStatusBar();
+	}
+
+	private updateMcpStatusBar(): void {
+		const el = this.mcpStatusBarEl;
+		if (!el) return;
+
+		el.removeClass("is-running");
+		el.removeClass("is-error");
+
+		if (!this.settings.mcpHttpServiceEnabled) {
+			el.textContent = "AILSS: MCP Off";
+			el.setAttribute("title", "AILSS MCP service is disabled.");
+			return;
+		}
+
+		if (this.mcpHttpServiceProc) {
+			el.textContent = "AILSS: MCP Running";
+			el.addClass("is-running");
+			el.setAttribute(
+				"title",
+				["AILSS MCP service running", this.getMcpHttpServiceUrl()].join("\n"),
+			);
+			return;
+		}
+
+		if (this.mcpHttpServiceLastErrorMessage) {
+			el.textContent = "AILSS: MCP Error";
+			el.addClass("is-error");
+			el.setAttribute(
+				"title",
+				["AILSS MCP service error", this.mcpHttpServiceLastErrorMessage].join("\n"),
+			);
+			return;
+		}
+
+		el.textContent = "AILSS: MCP Stopped";
+		const lastStoppedAt = formatAilssTimestampForUi(this.mcpHttpServiceLastStoppedAt);
+		el.setAttribute(
+			"title",
+			[
+				"AILSS MCP service stopped",
+				lastStoppedAt ? `Last stopped: ${lastStoppedAt}` : "",
+				this.getMcpHttpServiceUrl(),
+			]
+				.filter(Boolean)
+				.join("\n"),
+		);
 	}
 
 	private scheduleIndexerStatusUpdate(): void {
