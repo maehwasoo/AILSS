@@ -5,6 +5,7 @@ AILSS uses **Vitest** for tests.
 ## Quick start
 
 - Run the full test suite: `pnpm test`
+- Run the full test suite with coverage: `pnpm test:coverage`
 - Run typecheck (includes test files): `pnpm typecheck:repo`
 - Run the full local quality gate (format + lint + typecheck + tests): `pnpm check`
 
