@@ -88,4 +88,137 @@ describe("indexVault (wrapper)", () => {
       }
     });
   });
+
+  it("propagates OpenAI errors and does not insert partial chunks", async () => {
+    await withTempDir("ailss-indexer-", async (dir) => {
+      const vaultPath = path.join(dir, "vault");
+      await fs.mkdir(vaultPath, { recursive: true });
+      await fs.writeFile(
+        path.join(vaultPath, "Note.md"),
+        ["---", "id: 20260108123456", "---", "Hello"].join("\n") + "\n",
+        "utf8",
+      );
+
+      const embeddingModel = "text-embedding-3-large";
+      const dbPath = path.join(dir, "index.sqlite");
+      const db = openAilssDb({ dbPath, embeddingModel, embeddingDim: 3 });
+
+      const openai = {
+        embeddings: {
+          create: async () => {
+            throw new Error("timeout");
+          },
+        },
+      } as unknown as OpenAI;
+
+      try {
+        await expect(
+          indexVault({
+            db,
+            dbPath,
+            vaultPath,
+            openai,
+            embeddingModel,
+            maxChars: 4000,
+            batchSize: 32,
+          }),
+        ).rejects.toThrow(/timeout/i);
+
+        const chunks = db.prepare("SELECT COUNT(*) as count FROM chunks").get() as {
+          count: number;
+        };
+        expect(chunks.count).toBe(0);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  it("throws when OpenAI returns fewer embeddings than requested", async () => {
+    await withTempDir("ailss-indexer-", async (dir) => {
+      const vaultPath = path.join(dir, "vault");
+      await fs.mkdir(vaultPath, { recursive: true });
+      await fs.writeFile(
+        path.join(vaultPath, "Note.md"),
+        ["---", "id: 20260108123456", "---", "", "# A", "alpha", "", "# B", "bravo", ""].join("\n"),
+        "utf8",
+      );
+
+      const embeddingModel = "text-embedding-3-large";
+      const dbPath = path.join(dir, "index.sqlite");
+      const db = openAilssDb({ dbPath, embeddingModel, embeddingDim: 3 });
+
+      const openai = {
+        embeddings: {
+          create: async () => ({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
+        },
+      } as unknown as OpenAI;
+
+      try {
+        await expect(
+          indexVault({
+            db,
+            dbPath,
+            vaultPath,
+            openai,
+            embeddingModel,
+            maxChars: 4000,
+            batchSize: 32,
+          }),
+        ).rejects.toThrow(/returned 1 embeddings for 2 inputs/i);
+
+        const chunks = db.prepare("SELECT COUNT(*) as count FROM chunks").get() as {
+          count: number;
+        };
+        expect(chunks.count).toBe(0);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  it("throws when OpenAI returns an invalid embedding shape", async () => {
+    await withTempDir("ailss-indexer-", async (dir) => {
+      const vaultPath = path.join(dir, "vault");
+      await fs.mkdir(vaultPath, { recursive: true });
+      await fs.writeFile(
+        path.join(vaultPath, "Note.md"),
+        ["---", "id: 20260108123456", "---", "", "# A", "alpha", "", "# B", "bravo", ""].join("\n"),
+        "utf8",
+      );
+
+      const embeddingModel = "text-embedding-3-large";
+      const dbPath = path.join(dir, "index.sqlite");
+      const db = openAilssDb({ dbPath, embeddingModel, embeddingDim: 3 });
+
+      const openai = {
+        embeddings: {
+          create: async () => ({
+            data: [{ embedding: "nope" }, { embedding: [0.1, 0.2, 0.3] }],
+          }),
+        },
+      } as unknown as OpenAI;
+
+      try {
+        await expect(
+          indexVault({
+            db,
+            dbPath,
+            vaultPath,
+            openai,
+            embeddingModel,
+            maxChars: 4000,
+            batchSize: 32,
+          }),
+        ).rejects.toThrow(/invalid embedding/i);
+
+        const chunks = db.prepare("SELECT COUNT(*) as count FROM chunks").get() as {
+          count: number;
+        };
+        expect(chunks.count).toBe(0);
+      } finally {
+        db.close();
+      }
+    });
+  });
 });
