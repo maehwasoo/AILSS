@@ -118,7 +118,7 @@ Notes on queryability (current):
 
 Planned:
 
-- `validate_frontmatter`: validate frontmatter against the vault schema/rules
+- `frontmatter_validate`: validate frontmatter against the vault schema/rules
 - `suggest_typed_links`: suggest typed-link candidates with evidence
 
 TODO (to expand structured queries):
@@ -138,9 +138,9 @@ Write tools (explicit apply):
   - Supports `apply=false` dry-run, optional overwrite, and optional reindex
   - Updates frontmatter `updated` when a frontmatter block is present
   - Does not update inbound references (future enhancement)
-- `improve_frontmatter` (TODO): improve/normalize a note’s frontmatter to match vault rules (schema + typed links), returning patch ops and `needs_reindex`
-  - Must support preview/dry-run and refuse unsafe changes by default
-  - Future: auto-suggest safe target paths; update references when explicitly enabled
+- `improve_frontmatter`: normalize/add required frontmatter keys for a note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run (preview) and optional `expected_sha256` guard
+  - By default reindexes the edited path (set `reindex_after_apply=false` to skip); optional `fix_identity=true` can repair id/created mismatches
 
 Safety contract (for all MCP tools that touch the vault):
 
@@ -247,7 +247,7 @@ Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
   - `relocate_note` (move/rename a note; updates frontmatter `updated` when present)
-  - future: `improve_frontmatter`
+  - `improve_frontmatter` (normalize/add required frontmatter keys)
 - Ensure write tools trigger a path-scoped reindex after apply (or queue an index update).
 
 Phase 4 — Codex setup UX

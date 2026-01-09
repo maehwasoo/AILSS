@@ -39,7 +39,8 @@ This document defines the global working rules for the AILSS Obsidian vault. It 
   2. Use `read_note` to confirm exact wording and frontmatter.
   3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
-  5. Use `edit_note` for edits and `relocate_note` for moves/renames (both require `apply=true` approval).
+  5. Optional: use `suggest_typed_links` to propose candidates, then apply via `edit_note` (requires `apply=true` approval).
+  6. Use `edit_note` for edits and `relocate_note` for moves/renames (both require `apply=true` approval).
 - Failure handling: record the error and cause; temporarily fall back to `rg`/`find` only if MCP calls fail.
 
 ### Tool summary
@@ -49,8 +50,11 @@ This document defines the global working rules for the AILSS Obsidian vault. It 
 - `get_typed_links`: expands outgoing typed links into a bounded graph (metadata only).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
+- `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
+- `suggest_typed_links`: suggests typed-link candidates using already-indexed body wikilinks (DB-backed).
 - `capture_note`: creates a new note (requires `apply=true` approval).
 - `edit_note`: applies line-based patch ops to a note (requires `apply=true` approval).
+- `improve_frontmatter`: normalizes/adds required frontmatter keys for a note (requires `apply=true` approval).
 - `relocate_note`: moves/renames a note (requires `apply=true` approval).
 
 ### Semantic retrieval guidance
@@ -69,7 +73,7 @@ This document defines the global working rules for the AILSS Obsidian vault. It 
 - Frontmatter: verify required key presence (`id`, `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`).
 - Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `same_as`, `supersedes`).
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
-- Links: open `rg "\[\[" -n` results and fix unresolved wikilinks.
+- Links: run `find_broken_links` (preferred) and fix unresolved targets; fall back to `rg "\\[\\[" -n` if needed.
 - Assets: ensure a note-adjacent `assets/` folder exists; avoid absolute/external file paths.
 - Structure: keep H1 equal to filename; use H2–H4 for most content.
 - MCP: keep a log of MCP calls before summarizing/classifying/reviewing.

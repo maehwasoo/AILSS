@@ -34,6 +34,8 @@ Read-first tools (implemented in this repo):
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
+- `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
+- `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
 
 Client guidance (Codex):
 
@@ -54,14 +56,13 @@ Frontmatter query support (current):
 
 Read-first tools (planned):
 
-- (implemented) `frontmatter_validate`: check frontmatter required keys + `id`/`created` consistency
-- `suggest_typed_links`: suggest typed-link candidates
-- `find_broken_links`: detect broken links
+- TBD
 
 Explicit write tools (apply, implemented):
 
 - `capture_note`: capture a new inbox note with full frontmatter (default folder: `100. Inbox`; supports dry-run)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
+- `improve_frontmatter`: normalize/add required frontmatter keys for a note (supports dry-run; can optionally fix identity mismatches)
 - `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
 
 Write tools (planned):
