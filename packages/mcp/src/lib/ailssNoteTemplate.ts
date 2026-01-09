@@ -92,11 +92,6 @@ export function buildAilssFrontmatter(options: {
     source: [],
   };
 
-  // Typed links: always present as arrays (stable shape for downstream normalization).
-  for (const rel of AILSS_TYPED_LINK_KEYS) {
-    (base as Record<string, unknown>)[rel] = [];
-  }
-
   const merged: AilssFrontmatter = { ...base };
 
   // Preserve values from parsed input, but only for keys that exist on the object.
@@ -120,9 +115,6 @@ export function buildAilssFrontmatter(options: {
   for (const [k, v] of Object.entries(base)) {
     if (!hasOwn(merged, k)) (merged as Record<string, unknown>)[k] = v;
   }
-  for (const rel of AILSS_TYPED_LINK_KEYS) {
-    if (!hasOwn(merged, rel)) (merged as Record<string, unknown>)[rel] = [];
-  }
 
   // Ensure core identity fields stay in the expected types even when preserving
   // existing frontmatter (YAML parsers may infer numbers for unquoted scalars).
@@ -133,8 +125,10 @@ export function buildAilssFrontmatter(options: {
 }
 
 export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
-  // Stable key order: align with docs/standards/vault/frontmatter-schema.md template + append extra typed-link keys.
-  const orderedKeys = [
+  // Stable key order: align with docs/standards/vault/frontmatter-schema.md
+  // - required keys always emitted
+  // - typed-link keys emitted only when non-empty
+  const requiredKeys = [
     "id",
     "created",
     "title",
@@ -147,6 +141,9 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "status",
     "updated",
     "source",
+  ] satisfies string[];
+
+  const typedLinkKeys = [
     "instance_of",
     "part_of",
     "uses",
@@ -157,19 +154,37 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "authored_by",
     "supersedes",
     "same_as",
-  ] satisfies string[];
+  ] satisfies Array<(typeof AILSS_TYPED_LINK_KEYS)[number]>;
+
+  const reservedKeys = new Set<string>([...requiredKeys, ...typedLinkKeys]);
 
   const lines: string[] = [];
-  for (const key of orderedKeys) {
+
+  for (const key of requiredKeys) {
     const value = (frontmatter as Record<string, unknown>)[key];
     const serialized = yamlScalar(value);
     if (!serialized) lines.push(`${key}:`);
     else lines.push(`${key}: ${serialized}`);
   }
 
+  for (const key of typedLinkKeys) {
+    if (!Object.prototype.hasOwnProperty.call(frontmatter, key)) continue;
+
+    const value = (frontmatter as Record<string, unknown>)[key];
+    const values =
+      typeof value === "string" ? [value] : Array.isArray(value) ? (value as unknown[]) : [];
+
+    const hasAny = values.some((v) => typeof v === "string" && v.trim().length > 0);
+    if (!hasAny) continue;
+
+    const serialized = yamlScalar(value);
+    if (!serialized) continue;
+    lines.push(`${key}: ${serialized}`);
+  }
+
   // Any remaining keys (user-provided) come last in stable order.
   const remaining = Object.keys(frontmatter)
-    .filter((k) => !orderedKeys.includes(k))
+    .filter((k) => !reservedKeys.has(k))
     .sort((a, b) => a.localeCompare(b));
 
   for (const key of remaining) {

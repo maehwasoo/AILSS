@@ -168,7 +168,9 @@ describe("MCP HTTP server (write tools)", () => {
               (v) => typeof v === "string" && v.includes(sessionTitle),
             ),
           ).toBe(true);
-          expect(thoughtParsed1.frontmatter.depends_on).toEqual([]);
+          expect(
+            Object.prototype.hasOwnProperty.call(thoughtParsed1.frontmatter, "depends_on"),
+          ).toBe(false);
 
           const applied2 = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
             session_note_id: sessionNoteId,
@@ -391,10 +393,10 @@ describe("MCP HTTP server (write tools)", () => {
         expect(typeof parsed.frontmatter.updated).toBe("string");
         expect(Array.isArray(parsed.frontmatter.tags)).toBe(true);
 
-        // Typed-link keys should always exist as arrays.
-        expect(Array.isArray(parsed.frontmatter.instance_of)).toBe(true);
-        expect(Array.isArray(parsed.frontmatter.part_of)).toBe(true);
-        expect(Array.isArray(parsed.frontmatter.uses)).toBe(true);
+        // Typed-link keys should only exist when used.
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "instance_of")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "part_of")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "uses")).toBe(false);
       });
     });
   });

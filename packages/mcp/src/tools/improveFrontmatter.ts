@@ -121,7 +121,7 @@ export function registerImproveFrontmatterTool(server: McpServer, deps: McpToolD
     {
       title: "Improve frontmatter",
       description:
-        "Normalizes/adds required AILSS YAML frontmatter keys for a note (and ensures typed-link keys exist). Requires AILSS_VAULT_PATH. No write occurs unless apply=true.",
+        "Normalizes/adds required AILSS YAML frontmatter keys for a note (and normalizes typed-link keys when present). Requires AILSS_VAULT_PATH. No write occurs unless apply=true.",
       inputSchema: {
         path: z
           .string()
