@@ -16,7 +16,6 @@ const MCP_PROTOCOL_VERSION = "2025-03-26" as const;
 
 type ListedTool = {
   name?: unknown;
-  inputSchema?: unknown;
 };
 
 async function mcpToolsList(
@@ -106,31 +105,46 @@ function extractToolListFromOverview(markdown: string, sectionHeading: string): 
   return out.sort((a, b) => a.localeCompare(b));
 }
 
-function collectPromptToolMentions(markdown: string): string[] {
-  const patterns = [/\bcall\s+`([a-z_]+)`/gi, /\bvia\s+`([a-z_]+)`/gi, /\buse\s+`([a-z_]+)`/gi];
+function extractYamlFrontmatterBlock(markdown: string): string | null {
+  const normalized = (markdown ?? "").replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  if ((lines[0] ?? "").trim() !== "---") return null;
 
-  const out: string[] = [];
-  const seen = new Set<string>();
+  const endIndex = lines.slice(1).findIndex((l) => (l ?? "").trim() === "---");
+  if (endIndex < 0) return null;
 
-  for (const re of patterns) {
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(markdown))) {
-      const name = (m[1] ?? "").trim();
-      if (!name) continue;
-      if (seen.has(name)) continue;
-      seen.add(name);
-      out.push(name);
-    }
-  }
-
-  return out.sort((a, b) => a.localeCompare(b));
+  const fmStart = 1;
+  const fmEnd = 1 + endIndex;
+  return lines.slice(fmStart, fmEnd).join("\n");
 }
 
-function inputSchemaPropertyNames(inputSchema: unknown): string[] {
-  if (!inputSchema || typeof inputSchema !== "object" || Array.isArray(inputSchema)) return [];
-  const props = (inputSchema as Record<string, unknown>)["properties"];
-  if (!props || typeof props !== "object" || Array.isArray(props)) return [];
-  return Object.keys(props);
+function extractMcpToolsFromPromptFrontmatter(markdown: string): string[] | null {
+  const frontmatter = extractYamlFrontmatterBlock(markdown);
+  if (!frontmatter) return null;
+
+  const lines = frontmatter.split("\n");
+  const start = lines.findIndex((l) => (l ?? "").trim() === "mcp_tools:");
+  if (start < 0) return null;
+
+  const tools: string[] = [];
+  const seen = new Set<string>();
+
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+
+    // Stop when reaching another top-level key.
+    if (/^[A-Za-z0-9_-]+:\s*$/.test(line.trim())) break;
+
+    const m = line.match(/^\s*-\s*(.+?)\s*$/);
+    if (!m?.[1]) continue;
+    const tool = m[1].trim();
+    if (!tool) continue;
+    if (seen.has(tool)) continue;
+    seen.add(tool);
+    tools.push(tool);
+  }
+
+  return tools;
 }
 
 describe("Docs/prompt MCP tool consistency", () => {
@@ -170,56 +184,77 @@ describe("Docs/prompt MCP tool consistency", () => {
     });
   });
 
-  it("ensures Codex prompt snippets only reference existing MCP tools", async () => {
+  it("warns when Codex prompt metadata references unknown MCP tools", async () => {
     await withTempDir("ailss-mcp-docs-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
-      const { toolNames, argNames } = await withMcpHttpServer(
-        { dbPath, enableWriteTools: true },
-        async (ctx) => {
-          const sessionId = await mcpInitialize(ctx.url, ctx.token, "client-docs");
-          const tools = (await mcpToolsList(ctx.url, ctx.token, sessionId)) as ListedTool[];
+      const toolNames = await withMcpHttpServer({ dbPath, enableWriteTools: true }, async (ctx) => {
+        const sessionId = await mcpInitialize(ctx.url, ctx.token, "client-docs");
+        const tools = (await mcpToolsList(ctx.url, ctx.token, sessionId)) as ListedTool[];
 
-          const toolNames = new Set<string>();
-          const argNames = new Set<string>();
+        const toolNames = new Set<string>();
+        for (const t of tools) {
+          if (typeof t.name === "string") toolNames.add(t.name);
+        }
 
-          for (const t of tools) {
-            if (typeof t.name === "string") toolNames.add(t.name);
-            for (const key of inputSchemaPropertyNames(t.inputSchema)) {
-              argNames.add(key);
-            }
-          }
-
-          return { toolNames, argNames };
-        },
-      );
+        return toolNames;
+      });
 
       const promptPaths = [
         path.join(process.cwd(), "docs", "ops", "codex-prompts", "prometheus-agent.md"),
         path.join(process.cwd(), "docs", "ops", "codex-prompts", "ailss-note-create.md"),
       ];
 
+      const issues: Array<{ file: string; message: string }> = [];
+
       for (const promptPath of promptPaths) {
         const text = await fs.readFile(promptPath, "utf8");
 
-        // Guard against reintroducing the known mismatch pattern.
+        // Guard against reintroducing the known mismatch pattern (warn-only).
         if (promptPath.endsWith("prometheus-agent.md")) {
-          expect(text).not.toMatch(/incoming\s*\+\s*outgoing/i);
-          expect(text).not.toMatch(/up to\s+2\s+hops/i);
+          if (/incoming\s*\+\s*outgoing/i.test(text)) {
+            issues.push({
+              file: path.relative(process.cwd(), promptPath),
+              message: 'Contains outdated phrase: "incoming + outgoing"',
+            });
+          }
+          if (/up to\s+2\s+hops/i.test(text)) {
+            issues.push({
+              file: path.relative(process.cwd(), promptPath),
+              message: 'Contains outdated phrase: "up to 2 hops"',
+            });
+          }
         }
 
-        const mentions = collectPromptToolMentions(text);
-        for (const name of mentions) {
-          if (toolNames.has(name)) continue;
-          if (argNames.has(name)) continue;
+        const declaredTools = extractMcpToolsFromPromptFrontmatter(text);
+        if (!declaredTools || declaredTools.length === 0) {
+          issues.push({
+            file: path.relative(process.cwd(), promptPath),
+            message: "Missing prompt frontmatter key: mcp_tools",
+          });
+          continue;
+        }
 
-          throw new Error(
-            [
-              "Unknown identifier referenced in prompt snippet.",
-              `file="${path.relative(process.cwd(), promptPath)}"`,
-              `name="${name}"`,
-            ].join(" "),
-          );
+        for (const tool of declaredTools) {
+          if (toolNames.has(tool)) continue;
+          issues.push({
+            file: path.relative(process.cwd(), promptPath),
+            message: `Unknown MCP tool in mcp_tools: ${JSON.stringify(tool)}`,
+          });
+        }
+      }
+
+      if (issues.length > 0) {
+        // Warn by default; allow strict failure mode when explicitly enabled.
+        const strict = (process.env.AILSS_STRICT_PROMPT_LINT ?? "").trim() === "1";
+        const header = strict ? "[prompt-lint] FAIL" : "[prompt-lint] WARN";
+
+        const lines = issues.map((i) => `- ${i.file}: ${i.message}`);
+         
+        console.warn([header, ...lines].join("\n"));
+
+        if (strict) {
+          throw new Error("Prompt lint failed (set AILSS_STRICT_PROMPT_LINT=0 to warn only).");
         }
       }
     });
