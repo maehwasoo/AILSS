@@ -21,6 +21,12 @@ See:
 
 If you have not enabled the plugin-hosted service yet, the legacy stdio setup below is still relevant.
 
+## Codex prompts (copy/paste)
+
+For copy/paste Codex prompt snippets (for example “Prometheus Agent” workflow text you can install under `~/.codex/prompts/`), see:
+
+- `docs/ops/codex-prompts/`
+
 ## Codex setup (plugin-hosted HTTP service)
 
 1. In Obsidian: Settings → Community plugins → **AILSS Obsidian** → enable the “MCP service (Codex, localhost)” and copy the Codex config block.
