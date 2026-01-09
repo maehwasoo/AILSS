@@ -212,7 +212,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			}
 
 			await clipboard.writeText(codexPrometheusAgentPrompt());
-			new Notice("Copied Prometheus Agent prompt.");
+			new Notice("Copied Prometheus Agent skill.");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			new Notice(`Copy failed: ${message}`);

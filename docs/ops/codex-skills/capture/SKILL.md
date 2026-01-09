@@ -88,12 +88,7 @@ tags: ["inbox"]
 keywords: []
 status: draft
 updated: <YYYY-MM-DDTHH:mm:ss>
-instance_of: []
-part_of: []
-uses: []
-depends_on: []
-implements: []
-see_also: []
+source: []
 ---
 ```
 
@@ -117,6 +112,7 @@ see_also: []
 - `keywords`, typed links:
   - Apply options if provided.
   - Otherwise keep only high-confidence items, minimized to 0–5.
+  - For typed links: only include the relation key when you have at least one value (omit empty arrays), and keep them below `source`.
 
 ---
 

@@ -201,7 +201,7 @@ describe("Docs/prompt MCP tool consistency", () => {
       });
 
       const promptPaths = [
-        path.join(process.cwd(), "docs", "ops", "codex-prompts", "prometheus-agent.md"),
+        path.join(process.cwd(), "docs", "ops", "codex-skills", "prometheus-agent", "SKILL.md"),
         path.join(process.cwd(), "docs", "ops", "codex-prompts", "ailss-note-create.md"),
       ];
 

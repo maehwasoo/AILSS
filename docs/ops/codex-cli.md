@@ -21,11 +21,12 @@ See:
 
 If you have not enabled the plugin-hosted service yet, the legacy stdio setup below is still relevant.
 
-## Codex prompts (copy/paste)
+## Codex skills and prompts
 
-For copy/paste Codex prompt snippets (for example “Prometheus Agent” workflow text you can install under `~/.codex/prompts/`), see:
+For Codex CLI guidance artifacts:
 
-- `docs/ops/codex-prompts/`
+- Prometheus Agent workflow (recommended as a Codex skill snapshot): `docs/ops/codex-skills/prometheus-agent/SKILL.md`
+- Prompt snippets (slash commands): `docs/ops/codex-prompts/`
 
 ## Codex setup (plugin-hosted HTTP service)
 

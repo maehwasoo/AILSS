@@ -8,6 +8,8 @@ mcp_tools:
 
 Create a new Obsidian note in the AILSS vault using MCP write tools.
 
+Note: `capture_note` is a write tool and requires write tools to be enabled (`AILSS_ENABLE_WRITE_TOOLS=1`).
+
 Workflow:
 
 1. Call `get_context` using the TOPIC (or an inferred query) to avoid duplicates and reuse existing terminology.

@@ -121,12 +121,12 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Copy Prometheus Agent prompt (Codex)")
+			.setName("Copy Prometheus Agent skill (Codex)")
 			.setDesc(
 				[
-					"Copies a Codex CLI prompt snippet to your clipboard so you can paste it into your Codex prompts folder.",
-					"Recommended install path: ~/.codex/prompts/prometheus-agent.md",
-					"Note: prompt contents are bundled at build time; changes require plugin rebuild + reload.",
+					"Copies a Codex CLI skill snapshot to your clipboard so you can install it under your Codex skills folder.",
+					"Recommended install path: ~/.codex/skills/ailss-prometheus-agent/SKILL.md",
+					"Note: skill contents are bundled at build time; changes require plugin rebuild + reload.",
 				].join("\n"),
 			)
 			.addButton((button) => {

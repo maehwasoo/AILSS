@@ -78,12 +78,7 @@ tags: []
 keywords: []
 status: draft
 updated: <YYYY-MM-DDTHH:mm:ss>
-instance_of: []
-part_of: []
-uses: []
-depends_on: []
-implements: []
-see_also: []
+source: []
 ---
 ```
 
@@ -112,6 +107,7 @@ see_also: []
   - Extract candidates from body wikilinks and noun phrases.
   - Merge with existing arrays and remove duplicates.
   - Avoid over-linking: keep roughly 0–5 items per relation key, and sort lexicographically.
+  - Only include the relation key when you have at least one value (omit empty arrays), and keep typed-link keys below `source`.
 
 ### 2.4 Generate changes
 
