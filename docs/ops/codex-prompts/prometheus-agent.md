@@ -24,7 +24,8 @@ Thinking trace (vault-backed `sequentialthinking`):
 - Use `sequentialthinking` to plan and record key decisions as linked vault notes (not for every micro-step).
 - Start one session per user task:
   1. Call `sequentialthinking` with `apply=true`, `thoughtNumber=1`, `totalThoughts=<estimate>`, and a short safe step-summary in `thought`.
-  2. Save the returned `session_path` and reuse it in later `sequentialthinking` calls.
+  2. Save the returned `session_note_id` (durable resume key) and `session_path` (current location).
+     - Prefer resuming by `session_note_id` when you may have lost track of the path (requires the session note to be indexed in the DB).
   3. Keep `reindex_after_apply=false` unless the user explicitly asks to index now (indexing can cost money).
 - On major phase transitions (plan→execute, execute→verify, etc.), add another thought with `thoughtNumber += 1`.
 - If you need to revise/branch, set:
@@ -32,7 +33,7 @@ Thinking trace (vault-backed `sequentialthinking`):
   - branch: `branchFromThought=<n>`, `branchId=<string>`
 - Triage strategy: default to capturing in Inbox first. When structure is clear, move session/thought notes via `relocate_note`.
   - Links are title-based (`[[Title]]`), so moving paths should not break relationships.
-  - After moving the session note, keep using the updated `session_path` when continuing the session.
+  - After moving the session note, you can continue the session either by the updated `session_path` or by `session_note_id`.
 
 Read-first workflow:
 
