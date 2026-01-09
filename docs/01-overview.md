@@ -64,6 +64,7 @@ Explicit write tools (apply, implemented):
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
 - `improve_frontmatter`: normalize/add required frontmatter keys for a note (supports dry-run; can optionally fix identity mismatches)
 - `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
+- `sequentialthinking`: record a step-by-step thinking trace as linked vault notes (supports dry-run; requires `apply=true`)
 
 Write tools (planned):
 
