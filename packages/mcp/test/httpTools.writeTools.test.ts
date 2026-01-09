@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { parseMarkdownNote } from "@ailss/core";
+import type { AilssMcpRuntime } from "../src/createAilssMcpServer.js";
 
 import {
   assertString,
@@ -72,102 +73,141 @@ describe("MCP HTTP server (write tools)", () => {
 
   it("records a thinking session via sequentialthinking (dry-run + apply)", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
-      await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
-        const sessionId = await mcpInitialize(url, token, "client-a");
+      await withMcpHttpServer(
+        {
+          vaultPath,
+          enableWriteTools: true,
+          beforeStart: (runtime) => {
+            const row = runtime.deps.db
+              .prepare(`SELECT value FROM db_meta WHERE key = ?`)
+              .get("embedding_dim") as { value?: string } | undefined;
+            const dim = Number(row?.value ?? "0");
+            const embeddingDim = Number.isFinite(dim) && dim > 0 ? dim : 1;
+            const zeroEmbedding = Array.from({ length: embeddingDim }, () => 0);
 
-        const dryRun = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
-          thought: "step 1",
-          nextThoughtNeeded: true,
-          thoughtNumber: 1,
-          totalThoughts: 2,
-          apply: false,
-        });
+            const openaiStub = {
+              embeddings: {
+                create: async ({ input }: { input: string | string[] }) => {
+                  const count = Array.isArray(input) ? input.length : 1;
+                  return {
+                    data: Array.from({ length: count }, () => ({
+                      embedding: zeroEmbedding,
+                    })),
+                  };
+                },
+              },
+            } as unknown as AilssMcpRuntime["deps"]["openai"];
 
-        const dryStructured = getStructuredContent(dryRun);
-        const drySessionPath = dryStructured["session_path"];
-        assertString(drySessionPath, "dryRun.session_path");
-        const dryThoughtPath = dryStructured["thought_path"];
-        assertString(dryThoughtPath, "dryRun.thought_path");
-        await expect(fs.stat(path.join(vaultPath, drySessionPath))).rejects.toThrow(/ENOENT/);
-        await expect(fs.stat(path.join(vaultPath, dryThoughtPath))).rejects.toThrow(/ENOENT/);
+            runtime.deps.openai = openaiStub;
+          },
+        },
+        async ({ url, token }) => {
+          const sessionId = await mcpInitialize(url, token, "client-a");
 
-        const applied1 = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
-          thought: "step 1",
-          nextThoughtNeeded: true,
-          thoughtNumber: 1,
-          totalThoughts: 2,
-          apply: true,
-          reindex_after_apply: false,
-        });
+          const dryRun = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
+            thought: "step 1",
+            nextThoughtNeeded: true,
+            thoughtNumber: 1,
+            totalThoughts: 2,
+            apply: false,
+          });
 
-        const applied1Structured = getStructuredContent(applied1);
-        const sessionPath = applied1Structured["session_path"];
-        assertString(sessionPath, "applied1.session_path");
-        const sessionTitle = applied1Structured["session_title"];
-        assertString(sessionTitle, "applied1.session_title");
-        const thought1Path = applied1Structured["thought_path"];
-        assertString(thought1Path, "applied1.thought_path");
-        const thought1Title = applied1Structured["thought_title"];
-        assertString(thought1Title, "applied1.thought_title");
-        expect(sessionPath.startsWith("100. Inbox/")).toBe(true);
-        expect(thought1Path.startsWith("100. Inbox/")).toBe(true);
+          const dryStructured = getStructuredContent(dryRun);
+          const drySessionPath = dryStructured["session_path"];
+          assertString(drySessionPath, "dryRun.session_path");
+          const dryThoughtPath = dryStructured["thought_path"];
+          assertString(dryThoughtPath, "dryRun.thought_path");
+          await expect(fs.stat(path.join(vaultPath, drySessionPath))).rejects.toThrow(/ENOENT/);
+          await expect(fs.stat(path.join(vaultPath, dryThoughtPath))).rejects.toThrow(/ENOENT/);
 
-        const sessionText1 = await fs.readFile(path.join(vaultPath, sessionPath), "utf8");
-        const sessionParsed1 = parseMarkdownNote(sessionText1);
-        const sessionSeeAlso1 = sessionParsed1.frontmatter.see_also;
-        expect(Array.isArray(sessionSeeAlso1)).toBe(true);
-        expect(
-          (sessionSeeAlso1 as unknown[]).some(
-            (v) => typeof v === "string" && v.includes(thought1Title),
-          ),
-        ).toBe(true);
+          const applied1 = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
+            thought: "step 1",
+            nextThoughtNeeded: true,
+            thoughtNumber: 1,
+            totalThoughts: 2,
+            apply: true,
+            reindex_after_apply: true,
+          });
 
-        const thoughtText1 = await fs.readFile(path.join(vaultPath, thought1Path), "utf8");
-        const thoughtParsed1 = parseMarkdownNote(thoughtText1);
-        const thoughtPartOf1 = thoughtParsed1.frontmatter.part_of;
-        expect(Array.isArray(thoughtPartOf1)).toBe(true);
-        expect(
-          (thoughtPartOf1 as unknown[]).some(
-            (v) => typeof v === "string" && v.includes(sessionTitle),
-          ),
-        ).toBe(true);
-        expect(thoughtParsed1.frontmatter.depends_on).toEqual([]);
+          const applied1Structured = getStructuredContent(applied1);
+          const sessionPath = applied1Structured["session_path"];
+          assertString(sessionPath, "applied1.session_path");
+          const sessionNoteId = applied1Structured["session_note_id"];
+          assertString(sessionNoteId, "applied1.session_note_id");
+          const sessionTitle = applied1Structured["session_title"];
+          assertString(sessionTitle, "applied1.session_title");
+          const thought1Path = applied1Structured["thought_path"];
+          assertString(thought1Path, "applied1.thought_path");
+          const thought1Title = applied1Structured["thought_title"];
+          assertString(thought1Title, "applied1.thought_title");
+          expect(sessionPath.startsWith("100. Inbox/")).toBe(true);
+          expect(thought1Path.startsWith("100. Inbox/")).toBe(true);
 
-        const applied2 = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
-          session_path: sessionPath,
-          thought: "step 2",
-          nextThoughtNeeded: false,
-          thoughtNumber: 2,
-          totalThoughts: 2,
-          apply: true,
-          reindex_after_apply: false,
-        });
+          const sessionText1 = await fs.readFile(path.join(vaultPath, sessionPath), "utf8");
+          const sessionParsed1 = parseMarkdownNote(sessionText1);
+          expect(String(sessionParsed1.frontmatter.id)).toBe(sessionNoteId);
+          const sessionSeeAlso1 = sessionParsed1.frontmatter.see_also;
+          expect(Array.isArray(sessionSeeAlso1)).toBe(true);
+          expect(
+            (sessionSeeAlso1 as unknown[]).some(
+              (v) => typeof v === "string" && v.includes(thought1Title),
+            ),
+          ).toBe(true);
 
-        const applied2Structured = getStructuredContent(applied2);
-        const thought2Path = applied2Structured["thought_path"];
-        assertString(thought2Path, "applied2.thought_path");
-        const thought2Title = applied2Structured["thought_title"];
-        assertString(thought2Title, "applied2.thought_title");
-        const thoughtText2 = await fs.readFile(path.join(vaultPath, thought2Path), "utf8");
-        const thoughtParsed2 = parseMarkdownNote(thoughtText2);
-        const thoughtDepends2 = thoughtParsed2.frontmatter.depends_on;
-        expect(Array.isArray(thoughtDepends2)).toBe(true);
-        expect(
-          (thoughtDepends2 as unknown[]).some(
-            (v) => typeof v === "string" && v.includes(thought1Title),
-          ),
-        ).toBe(true);
+          const thoughtText1 = await fs.readFile(path.join(vaultPath, thought1Path), "utf8");
+          const thoughtParsed1 = parseMarkdownNote(thoughtText1);
+          const thought1NoteId = String(thoughtParsed1.frontmatter.id ?? "");
+          expect(thought1NoteId).not.toBe("");
+          expect(thought1NoteId).not.toBe(sessionNoteId);
+          const thoughtPartOf1 = thoughtParsed1.frontmatter.part_of;
+          expect(Array.isArray(thoughtPartOf1)).toBe(true);
+          expect(
+            (thoughtPartOf1 as unknown[]).some(
+              (v) => typeof v === "string" && v.includes(sessionTitle),
+            ),
+          ).toBe(true);
+          expect(thoughtParsed1.frontmatter.depends_on).toEqual([]);
 
-        const sessionText2 = await fs.readFile(path.join(vaultPath, sessionPath), "utf8");
-        const sessionParsed2 = parseMarkdownNote(sessionText2);
-        const sessionSeeAlso2 = sessionParsed2.frontmatter.see_also;
-        expect(Array.isArray(sessionSeeAlso2)).toBe(true);
-        expect(
-          (sessionSeeAlso2 as unknown[]).some(
-            (v) => typeof v === "string" && v.includes(thought2Title),
-          ),
-        ).toBe(true);
-      });
+          const applied2 = await mcpToolsCall(url, token, sessionId, "sequentialthinking", {
+            session_note_id: sessionNoteId,
+            thought: "step 2",
+            nextThoughtNeeded: false,
+            thoughtNumber: 2,
+            totalThoughts: 2,
+            apply: true,
+            reindex_after_apply: false,
+          });
+
+          const applied2Structured = getStructuredContent(applied2);
+          const thought2Path = applied2Structured["thought_path"];
+          assertString(thought2Path, "applied2.thought_path");
+          const thought2Title = applied2Structured["thought_title"];
+          assertString(thought2Title, "applied2.thought_title");
+          const thoughtText2 = await fs.readFile(path.join(vaultPath, thought2Path), "utf8");
+          const thoughtParsed2 = parseMarkdownNote(thoughtText2);
+          const thought2NoteId = String(thoughtParsed2.frontmatter.id ?? "");
+          expect(thought2NoteId).not.toBe("");
+          expect(thought2NoteId).not.toBe(sessionNoteId);
+          expect(thought2NoteId).not.toBe(thought1NoteId);
+          const thoughtDepends2 = thoughtParsed2.frontmatter.depends_on;
+          expect(Array.isArray(thoughtDepends2)).toBe(true);
+          expect(
+            (thoughtDepends2 as unknown[]).some(
+              (v) => typeof v === "string" && v.includes(thought1Title),
+            ),
+          ).toBe(true);
+
+          const sessionText2 = await fs.readFile(path.join(vaultPath, sessionPath), "utf8");
+          const sessionParsed2 = parseMarkdownNote(sessionText2);
+          const sessionSeeAlso2 = sessionParsed2.frontmatter.see_also;
+          expect(Array.isArray(sessionSeeAlso2)).toBe(true);
+          expect(
+            (sessionSeeAlso2 as unknown[]).some(
+              (v) => typeof v === "string" && v.includes(thought2Title),
+            ),
+          ).toBe(true);
+        },
+      );
     });
   });
 

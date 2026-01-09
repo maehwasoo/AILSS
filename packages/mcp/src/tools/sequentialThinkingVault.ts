@@ -5,7 +5,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { isDefaultIgnoredVaultRelPath, parseMarkdownNote, toWikilink } from "@ailss/core";
+import {
+  isDefaultIgnoredVaultRelPath,
+  parseMarkdownNote,
+  searchNotes,
+  toWikilink,
+} from "@ailss/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -35,6 +40,12 @@ type ThoughtData = {
   needsMoreThoughts?: boolean;
   nextThoughtNeeded: boolean;
 };
+
+function addSecondsIsoSeconds(isoSeconds: string, deltaSeconds: number): string {
+  const ms = Date.parse(`${isoSeconds}Z`);
+  if (!Number.isFinite(ms)) return isoSeconds;
+  return new Date(ms + deltaSeconds * 1000).toISOString().slice(0, 19);
+}
 
 function sanitizeFileStemFromTitle(title: string): string {
   const trimmed = title.trim();
@@ -217,6 +228,13 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
           .min(1)
           .optional()
           .describe("Existing session note path (vault-relative), returned by earlier calls"),
+        session_note_id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Existing session note frontmatter id (note_id). Used to resume without a path; requires the note to be indexed in the DB.",
+          ),
         session_title: z
           .string()
           .default("")
@@ -234,6 +252,7 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
       outputSchema: z.object({
         applied: z.boolean(),
         session_path: z.string(),
+        session_note_id: z.string(),
         session_title: z.string(),
         session_created: z.boolean(),
         thought_path: z.string(),
@@ -286,7 +305,7 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
         let sessionCreated = false;
         let sessionTitle = "";
         let sessionPath = "";
-        let sessionId = "";
+        let sessionNoteId = "";
 
         const notesWritten: string[] = [];
 
@@ -300,27 +319,85 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
           sessionTitle =
             String(parsed.frontmatter.title ?? "").trim() ||
             path.posix.basename(sessionPath, ".md");
-          sessionId =
-            String(parsed.frontmatter.session_id ?? "").trim() ||
+          sessionNoteId =
             String(parsed.frontmatter.id ?? "").trim() ||
+            String(parsed.frontmatter.session_id ?? "").trim() ||
             idFromIsoSeconds(now);
+        } else if (args.session_note_id) {
+          sessionCreated = false;
+          sessionNoteId = String(args.session_note_id ?? "").trim();
+          if (!sessionNoteId) {
+            throw new Error("session_note_id is empty after trimming.");
+          }
+
+          const matches = searchNotes(deps.db, { noteId: sessionNoteId, limit: 5 });
+          if (matches.length === 0) {
+            throw new Error(
+              [
+                `Session note not found for session_note_id="${sessionNoteId}".`,
+                "This lookup is DB-backed, so the note must be indexed.",
+                "Fix: run indexing (or move via relocate_note with reindex_after_apply=true), or pass session_path.",
+              ].join(" "),
+            );
+          }
+          if (matches.length > 1) {
+            const paths = matches.map((m) => m.path).join(", ");
+            throw new Error(
+              [
+                `Multiple notes found for session_note_id="${sessionNoteId}".`,
+                `paths=[${paths}]`,
+                "Fix: pass session_path to disambiguate, or repair duplicated frontmatter.id values.",
+              ].join(" "),
+            );
+          }
+
+          sessionPath = matches[0]?.path ?? "";
+          if (!sessionPath) {
+            throw new Error(`Resolved empty path for session_note_id="${sessionNoteId}".`);
+          }
+
+          const existing = await readVaultFileFullText({ vaultPath, vaultRelPath: sessionPath });
+          const parsed = parseMarkdownNote(existing);
+          const parsedId = String(parsed.frontmatter.id ?? "").trim();
+          if (parsedId && parsedId !== sessionNoteId) {
+            throw new Error(
+              [
+                "Session note id mismatch (DB is likely out of sync with the vault).",
+                `session_note_id="${sessionNoteId}"`,
+                `resolved_path="${sessionPath}"`,
+                `file_frontmatter.id="${parsedId}"`,
+                "Fix: reindex the vault DB, or pass session_path for a direct path-based session resume.",
+              ].join(" "),
+            );
+          }
+
+          sessionTitle =
+            String(parsed.frontmatter.title ?? "").trim() ||
+            String(matches[0]?.title ?? "").trim() ||
+            path.posix.basename(sessionPath, ".md");
         } else {
           sessionCreated = true;
-          sessionId = idFromIsoSeconds(now);
+          sessionNoteId = idFromIsoSeconds(now);
           const providedTitle = (args.session_title ?? "").trim();
-          sessionTitle = providedTitle || `추론 세션(Reasoning Session) ${sessionId}`;
+          sessionTitle = providedTitle || `추론 세션(Reasoning Session) ${sessionNoteId}`;
 
           const sessionStem = sanitizeFileStemFromTitle(sessionTitle);
           const folder = normalizeFolderPath(args.folder);
           sessionPath = await findAvailablePath({ vaultPath, folder, stem: sessionStem });
         }
 
+        // Identity safety: ensure thought notes get a unique (id, created) per thoughtNumber.
+        // - buildAilssFrontmatter derives `id` from `now` (seconds precision)
+        // - sequentialthinking may write multiple notes within the same second (session + thought)
+        // - offset by thoughtNumber to avoid collisions for fast successive calls
+        const thoughtNow = addSecondsIsoSeconds(now, input.thoughtNumber);
+
         if (isDefaultIgnoredVaultRelPath(sessionPath)) {
           throw new Error(`Refusing to write in ignored folder: path="${sessionPath}"`);
         }
 
         const sessionDir = dirnamePosix(sessionPath);
-        const thoughtTitle = `생각(Thought) ${sessionId} T${padThoughtNumber(input.thoughtNumber)}`;
+        const thoughtTitle = `생각(Thought) ${sessionNoteId} T${padThoughtNumber(input.thoughtNumber)}`;
         const thoughtStem = sanitizeFileStemFromTitle(thoughtTitle);
         const thoughtPath = sessionDir
           ? path.posix.join(sessionDir, `${thoughtStem}.md`)
@@ -336,12 +413,12 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
 
         const dependsOn: string[] = [];
         if (input.thoughtNumber > 1) {
-          const prevTitle = `생각(Thought) ${sessionId} T${padThoughtNumber(input.thoughtNumber - 1)}`;
+          const prevTitle = `생각(Thought) ${sessionNoteId} T${padThoughtNumber(input.thoughtNumber - 1)}`;
           dependsOn.push(toWikilink(prevTitle));
         }
 
         if (typeof input.branchFromThought === "number" && input.branchFromThought >= 1) {
-          const fromTitle = `생각(Thought) ${sessionId} T${padThoughtNumber(input.branchFromThought)}`;
+          const fromTitle = `생각(Thought) ${sessionNoteId} T${padThoughtNumber(input.branchFromThought)}`;
           dependsOn.push(toWikilink(fromTitle));
         }
 
@@ -351,13 +428,13 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
           typeof input.revisesThought === "number" &&
           input.revisesThought >= 1
         ) {
-          const oldTitle = `생각(Thought) ${sessionId} T${padThoughtNumber(input.revisesThought)}`;
+          const oldTitle = `생각(Thought) ${sessionNoteId} T${padThoughtNumber(input.revisesThought)}`;
           supersedes.push(toWikilink(oldTitle));
         }
 
         const thoughtFrontmatter = buildAilssFrontmatter({
           title: thoughtTitle,
-          now,
+          now: thoughtNow,
           tags: mergeStringListUnique(defaultTagsForRelPath(thoughtPath), ["ailss", "thinking"]),
           overrides: {
             entity: "log",
@@ -365,7 +442,7 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
             part_of: [sessionWikilink],
             depends_on: dependsOn,
             supersedes: supersedes,
-            session_id: sessionId,
+            session_note_id: sessionNoteId,
             thought_number: input.thoughtNumber,
             total_thoughts: adjustedTotal,
             next_thought_needed: input.nextThoughtNeeded,
@@ -404,9 +481,9 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
             overrides: {
               entity: "log",
               layer: "operational",
-              session_id: sessionId,
               see_also: [thoughtWikilink],
               branch_ids: input.branchId ? [input.branchId] : [],
+              updated: thoughtNow,
             },
           });
           const sessionBody = buildSessionNoteBody({ title: sessionTitle });
@@ -425,13 +502,12 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
             : existingBranchIds;
           const nextFrontmatter = buildAilssFrontmatter({
             title: String(parsed.frontmatter.title ?? sessionTitle) || sessionTitle,
-            now,
+            now: thoughtNow,
             preserve: parsed.frontmatter,
             overrides: {
               see_also: nextSeeAlso,
-              session_id: sessionId,
               branch_ids: nextBranchIds,
-              updated: now,
+              updated: thoughtNow,
             },
           });
           sessionMarkdown = renderMarkdownWithFrontmatter({
@@ -444,6 +520,7 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
           const payload = {
             applied: false,
             session_path: sessionPath,
+            session_note_id: sessionNoteId,
             session_title: sessionTitle,
             session_created: sessionCreated,
             thought_path: thoughtPath,
@@ -525,6 +602,7 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
         const payload = {
           applied: true,
           session_path: sessionPath,
+          session_note_id: sessionNoteId,
           session_title: sessionTitle,
           session_created: sessionCreated,
           thought_path: thoughtPath,
