@@ -1,12 +1,5 @@
 # Frontmatter schema
 
-## Related docs
-
-- Typed links: `./typed-links.md`
-- Vault structure: `./vault-structure.md`
-- Assistant workflow: `./assistant-workflow.md`
-- Index: `./README.md`
-
 ## Frontmatter schema
 
 All notes should keep the following YAML frontmatter template as the baseline.

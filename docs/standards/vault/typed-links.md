@@ -1,12 +1,5 @@
 # Typed links
 
-## Related docs
-
-- Frontmatter schema: `./frontmatter-schema.md`
-- Vault structure: `./vault-structure.md`
-- Assistant workflow: `./assistant-workflow.md`
-- Index: `./README.md`
-
 ## Typed link rules
 
 - Record semantic relations only as typed links in YAML frontmatter.

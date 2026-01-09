@@ -1,23 +1,9 @@
 # Vault structure
 
-## Related docs
-
-- Assistant workflow: `./assistant-workflow.md`
-- Frontmatter schema: `./frontmatter-schema.md`
-- Typed links: `./typed-links.md`
-- Index: `./README.md`
-
-## Snapshot (2025-11-11)
+## Top-level folders
 
 - Required top-level folders: `10. Projects`, `20. Areas`, `30. Resources`, `40. Archives`, `100. Inbox`.
 - Optional top-level folders (convenience): `0. System`, `1. Main` (and any additional folders you introduce intentionally).
-- Markdown file count: 494 total; 281 with frontmatter (about 57%). (Snapshot numbers; they may drift over time.)
-- Example notes missing frontmatter (cleanup priority):
-  - `0. System/Reset Frontmatter.md`
-  - `10. Projects/10. HouMe/OLD/CI_빌드실패_원인분석_및_수정보고서_LoadingPage.md`
-  - `10. Projects/10. HouMe/OLD/DIAGNOSIS.md`
-  - `10. Projects/10. HouMe/OLD/PR_LOADING_PAGE.md`
-  - `10. Projects/10. HouMe/OLD/TYPE_GUARD_NOTES.md`
 
 ## Immediate improvement actions
 
@@ -108,6 +94,6 @@ All notes should start with an H1 header, and the filename should match the H1.
 
 - Vault notes are written in Korean using the “~해요” style.
 - For technical terms, use Korean + English on first mention (example: frontmatter (metadata)).
-- Record date/time in ISO-8601 format (example: `2025-11-11T10:30:00`).
+- Record date/time in ISO-8601 format (example: `YYYY-MM-DDTHH:mm:ss`).
 - Code comments should be short, in Korean, and written as noun phrases (no sentence endings).
 - Do not use the middle dot (·) anywhere (title/body/lists/tables). If you need separators, use commas, hyphens, en dashes (–), semicolons, or conjunctions instead.
