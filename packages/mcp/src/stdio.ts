@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // AILSS MCP server - STDIO transport
-// - Prometheus Agent instructions + tool surface
+// - tool surface for AILSS vault access
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 

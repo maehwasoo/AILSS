@@ -5,7 +5,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { AsyncMutex } from "./lib/asyncMutex.js";
 import { embeddingDimForModel } from "./lib/openaiEmbeddings.js";
-import { PROMETHEUS_AGENT_INSTRUCTIONS, registerPrometheusPrompt } from "./prometheus.js";
 import type { McpToolDeps } from "./mcpDeps.js";
 import { registerCaptureNoteTool } from "./tools/captureNote.js";
 import { registerEditNoteTool } from "./tools/editNote.js";
@@ -60,12 +59,7 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
 } {
   const deps = runtime.deps;
 
-  const server = new McpServer(
-    { name: "ailss-mcp", version: "0.1.0" },
-    { instructions: PROMETHEUS_AGENT_INSTRUCTIONS },
-  );
-
-  registerPrometheusPrompt(server);
+  const server = new McpServer({ name: "ailss-mcp", version: "0.1.0" });
 
   registerGetContextTool(server, deps);
   registerGetTypedLinksTool(server, deps);
