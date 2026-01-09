@@ -1,34 +1,29 @@
 # AILSS
 
-**AILSS** = **Actionable Integrated Linked Semantic System**
+AILSS stands for **Actionable Integrated Linked Semantic System**.
 
-- Structure knowledge + memory, and work efficiently with AI.
-- Your Obsidian **vault is the SSOT** (Single Source of Truth) and the root of decisions.
+AILSS helps you structure knowledge in Obsidian and work efficiently with AI.
+Your Obsidian vault is the single source of truth.
 
-AILSS connects LLM tooling to an Obsidian vault by building a local index DB and exposing retrieval + (optional) write tools over **MCP** (Model Context Protocol).
+AILSS connects AI tooling to an Obsidian vault by building a local index database and exposing retrieval tools over MCP, the Model Context Protocol.
 
-## Architecture (high level)
+## Quickstart for Codex CLI and Obsidian
 
-- **Vault (SSOT)**: your `.md` notes
-- **Indexer**: chunks notes, generates embeddings, writes `<vault>/.ailss/index.sqlite`
-- **MCP service (localhost)**: Obsidian-hosted, token-protected, multi-session MCP over HTTP (`/mcp`)
-- **Codex CLI (or any MCP client)**: connects via URL + token; does not need vault filesystem permissions when using the plugin-hosted HTTP service
-
-## Setup (Codex CLI + Obsidian plugin)
-
-1. Install/build the Obsidian plugin from `packages/obsidian-plugin/` (desktop-first).
-2. In Obsidian plugin settings:
-   - Set your `OPENAI_API_KEY` (used for embeddings + semantic search queries)
-   - (Optional) set embedding model (default: `text-embedding-3-large`)
-   - Run/trigger indexing (command: **AILSS: Reindex vault**)
-   - Enable **MCP service (Codex, localhost)** and copy the config block
-3. Paste into `~/.codex/config.toml`:
+1. Build and install the Obsidian plugin from `packages/obsidian-plugin/`.
+2. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
+3. Enable the “MCP service (Codex, localhost)” setting and copy the Codex config block.
+4. Paste the config into `~/.codex/config.toml` and replace `<token>` with the value shown by the plugin.
 
 ```toml
 [mcp_servers.ailss]
 url = "http://127.0.0.1:31415/mcp"
 http_headers = { Authorization = "Bearer <token>" }
 ```
+
+## How it works
+
+AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.
+This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
 ## MCP tools
 
@@ -42,22 +37,29 @@ Read tools (current):
 
 Write tools (gated; require `AILSS_ENABLE_WRITE_TOOLS=1` and `apply=true`):
 
-- `capture_note` (creates a new inbox note with full frontmatter)
-- `edit_note` (line-based patch ops; supports dry-run)
-- `relocate_note` (move/rename a note; supports dry-run)
+- `capture_note`: new inbox note with full frontmatter
+- `edit_note`: line-based patch ops; supports dry-run
+- `relocate_note`: move/rename a note; supports dry-run
 
-## Notes / safety
+## Safety and costs
 
-- Local-only: the MCP service binds to `127.0.0.1` and requires a token.
-- Write tools are gated (plugin toggle) and must be explicitly applied.
-- Embeddings use the OpenAI API and can incur costs on large vaults.
+- The MCP service binds to `127.0.0.1` and requires a bearer token.
+- Embeddings and query vectors use the OpenAI API and can incur costs on large vaults.
+- Write tools are disabled by default and require both `AILSS_ENABLE_WRITE_TOOLS=1` and an explicit request with `apply=true`.
 
 ## Docs
 
-Start here:
-
-- `docs/README.md` (documentation index)
-- `docs/00-context.md` → `docs/01-overview.md` → `docs/02-significance.md` → `docs/03-plan.md`
-- `docs/ops/codex-cli.md` (Codex CLI + MCP config + troubleshooting)
-- `docs/ops/local-dev.md` (local dev runbook)
-- `docs/ops/agents-snippet.md` (AGENTS.md prompt snippet for using AILSS MCP tools)
+- `docs/README.md`: documentation index
+- `docs/00-context.md`: current context
+- `docs/01-overview.md`: architecture details and the MCP tool surface
+- `docs/02-significance.md`: significance and principles
+- `docs/03-plan.md`: implementation plan and milestones
+- `docs/ops/codex-cli.md`: Codex CLI setup and sandbox troubleshooting
+- `docs/ops/local-dev.md`: local development and plugin build instructions
+- `docs/ops/testing.md`: testing commands and guidance
+- `docs/ops/agents-snippet.md`: AGENTS.md prompt snippet for AILSS MCP usage
+- `docs/ops/codex-prompts/README.md`: Codex prompt snippets
+- `docs/standards/vault/README.md`: vault rules and frontmatter requirements
+- `docs/architecture/packages.md`: package structure and dependency direction
+- `docs/architecture/data-db.md`: SQLite schema and indexing data model
+- `docs/adr/README.md`: architectural decision records (ADRs)
