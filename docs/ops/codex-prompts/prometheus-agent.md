@@ -6,6 +6,7 @@ mcp_tools:
   - get_typed_links
   - read_note
   - sequentialthinking
+  - sequentialthinking_hydrate
   - capture_note
   - edit_note
   - relocate_note
@@ -34,6 +35,12 @@ Thinking trace (vault-backed `sequentialthinking`):
 - Triage strategy: default to capturing in Inbox first. When structure is clear, move session/thought notes via `relocate_note`.
   - Links are title-based (`[[Title]]`), so moving paths should not break relationships.
   - After moving the session note, you can continue the session either by the updated `session_path` or by `session_note_id`.
+
+Session resume (context hydrate):
+
+- If you are continuing work in a different Codex session (parallel workflows), call `sequentialthinking_hydrate` with `session_note_id`.
+  - This returns the session note + recent thought notes in one call, so you can rebuild context quickly.
+  - Note: `session_note_id` resolution is DB-backed, so the session note must be indexed.
 
 Read-first workflow:
 
