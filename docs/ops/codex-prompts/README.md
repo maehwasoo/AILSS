@@ -20,3 +20,4 @@ Notes:
 
 - Prompt filenames map to slash commands by basename (for example `prometheus-agent.md` → `/prometheus-agent`).
 - These prompts are guidance for Codex; they do not change MCP server behavior.
+- Prompt YAML frontmatter may include `mcp_tools` (string array) to declare which MCP tools the prompt expects to use.

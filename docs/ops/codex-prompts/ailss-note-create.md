@@ -1,6 +1,9 @@
 ---
 description: Create an AILSS-formatted note via MCP capture_note (dry-run first)
 argument-hint: TOPIC=... FOLDER=... TAGS=tag1,tag2 KEYWORDS=kw1,kw2
+mcp_tools:
+  - get_context
+  - capture_note
 ---
 
 Create a new Obsidian note in the AILSS vault using MCP write tools.
