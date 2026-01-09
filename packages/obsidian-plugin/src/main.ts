@@ -31,6 +31,7 @@ import {
 	spawnAndCapture,
 	toStringEnvRecord,
 } from "./utils/spawn.js";
+import { codexPrometheusAgentPrompt } from "./utils/codexPrompts.js";
 import { type PromptKind, promptFilename, promptTemplate } from "./utils/promptTemplates.js";
 import { normalizeVaultRelPath, shouldIndexVaultRelPath } from "./utils/vault.js";
 
@@ -191,6 +192,24 @@ export default class AilssObsidianPlugin extends Plugin {
 
 			await clipboard.writeText(this.getCodexMcpConfigBlock());
 			new Notice("Copied Codex MCP config block.");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			new Notice(`Copy failed: ${message}`);
+		}
+	}
+
+	async copyCodexPrometheusAgentPromptToClipboard(): Promise<void> {
+		try {
+			const clipboard = (
+				navigator as unknown as { clipboard?: { writeText?: (v: string) => Promise<void> } }
+			).clipboard;
+			if (!clipboard?.writeText) {
+				new Notice("Clipboard not available.");
+				return;
+			}
+
+			await clipboard.writeText(codexPrometheusAgentPrompt());
+			new Notice("Copied Prometheus Agent prompt.");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			new Notice(`Copy failed: ${message}`);

@@ -118,6 +118,21 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName("Copy Prometheus Agent prompt (Codex)")
+			.setDesc(
+				[
+					"Copies a Codex CLI prompt snippet to your clipboard so you can paste it into your Codex prompts folder.",
+					"Recommended install path: ~/.codex/prompts/prometheus-agent.md",
+				].join("\n"),
+			)
+			.addButton((button) => {
+				button.setButtonText("Copy");
+				button.onClick(() => {
+					void this.plugin.copyCodexPrometheusAgentPromptToClipboard();
+				});
+			});
+
+		new Setting(containerEl)
 			.setName("OpenAI API key")
 			.setDesc("Stored locally in Obsidian settings. Required for semantic search.")
 			.addText((text) => {
