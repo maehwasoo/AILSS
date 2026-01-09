@@ -88,7 +88,7 @@ The matrix is a baseline. If more links are justified, add them, but stay within
 
 ### Writing rules
 
-- Store values as arrays (empty arrays are fine).
+- Store values as arrays, and omit the key when you have no values (do not keep empty arrays).
 - Wikilink forms are all acceptable: `[[Title]]`, `[[Folder/Note]]`, `[[Folder/Note|Title]]` (and anchors like `[[Note#Heading]]`).
 - Prefer `[[path|title]]` when you want stable storage but title-only display.
 - Tools may emit JSON-style inline arrays (for example `[]` and `["inbox"]`); multi-line YAML arrays are also accepted.
@@ -110,7 +110,4 @@ implements:
   - "[[CI 파이프라인(CI Pipeline)]]"
 cites:
   - "[[문헌 제목(Reference Title)]]"
-same_as: []
-supersedes: []
-authored_by: []
 ```

@@ -40,7 +40,7 @@ Read-first tools (implemented in this repo):
 
 Client guidance (Codex):
 
-- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex prompt snippets (`docs/ops/codex-prompts/`).
+- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex skills/prompts (`docs/ops/codex-skills/`, `docs/ops/codex-prompts/`).
 
 Transport / client integration:
 
@@ -61,7 +61,7 @@ Read-first tools (planned):
 
 Explicit write tools (apply, implemented):
 
-- `capture_note`: capture a new inbox note with full frontmatter (default folder: `100. Inbox`; supports dry-run)
+- `capture_note`: capture a new inbox note with required frontmatter (default folder: `100. Inbox`; supports dry-run)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
 - `improve_frontmatter`: normalize/add required frontmatter keys for a note (supports dry-run; can optionally fix identity mismatches)
 - `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
