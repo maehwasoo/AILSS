@@ -1,6 +1,6 @@
 ---
 name: ailss-prometheus-agent
-description: Retrieval-first AILSS vault workflow for Codex CLI (uses MCP read tools first; gated writes)
+description: Retrieval-first AILSS vault workflow for Codex CLI (MCP read tools first; explicit gated writes)
 mcp_tools:
   # Always available (read tools)
   - get_context
@@ -21,13 +21,18 @@ mcp_tools:
 
 # Prometheus Agent (AILSS Codex skill)
 
-Use this skill when you want to work “retrieval-first” against an AILSS Obsidian vault.
+Use this skill when you want to work **retrieval-first** against an AILSS Obsidian vault.
 
 ## Core workflow
 
 1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
 2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
 3. Use `read_note` to confirm exact wording and frontmatter before making claims.
+
+## Sequential thinking (planning discipline)
+
+- If `sequentialthinking` is available, use it to break down the request step-by-step.
+- Do not proceed to execution until `nextThoughtNeeded=false`.
 
 ## Tool availability (important)
 
@@ -40,6 +45,39 @@ Use this skill when you want to work “retrieval-first” against an AILSS Obsi
 - Prefer `apply=false` first (dry-run), then confirm with the user, then `apply=true`.
 - For edits, use `expected_sha256` to avoid overwriting concurrent changes.
 - Keep identity fields safe: do not override `id`/`created` unless the user explicitly requests it.
+
+## Common recipes
+
+### Create a new note (`capture_note`)
+
+1. Run `get_context` with the intended topic/title to avoid duplicates and reuse existing naming.
+2. Draft a new note (title, optional summary, optional tags/keywords).
+3. Call `capture_note` with `apply=false` to preview the resulting path + sha256.
+4. Confirm with the user.
+5. Call `capture_note` again with `apply=true`.
+
+Notes:
+
+- Let `capture_note` generate `id`/`created`/`updated` unless the user explicitly wants overrides.
+- Typed links are optional; if you include typed links, only include keys that have values.
+
+### Improve frontmatter (`improve_frontmatter`)
+
+1. Read the note with `read_note`.
+2. Call `improve_frontmatter` with `apply=false` first.
+3. Confirm the proposed changes, then `apply=true`.
+
+### Apply typed-link suggestions (`suggest_typed_links` → `edit_note`)
+
+1. Use `suggest_typed_links` to propose candidates.
+2. Verify with `read_note` before editing (especially for ambiguous titles).
+3. Apply via `edit_note`:
+   - `apply=false` preview → confirm → `apply=true`
+
+### Move/rename a note (`relocate_note`)
+
+1. Call `relocate_note` with `apply=false` to preview the move.
+2. Confirm, then call again with `apply=true`.
 
 ## Preflight
 

@@ -40,7 +40,7 @@ Read-first tools (implemented in this repo):
 
 Client guidance (Codex):
 
-- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex skills/prompts (`docs/ops/codex-skills/`, `docs/ops/codex-prompts/`).
+- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex skills (`docs/ops/codex-skills/`).
 
 Transport / client integration:
 

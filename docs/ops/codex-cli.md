@@ -21,12 +21,11 @@ See:
 
 If you have not enabled the plugin-hosted service yet, the legacy stdio setup below is still relevant.
 
-## Codex skills and prompts
+## Codex skills
 
 For Codex CLI guidance artifacts:
 
-- Prometheus Agent workflow (recommended as a Codex skill snapshot): `docs/ops/codex-skills/prometheus-agent/SKILL.md`
-- Prompt snippets (slash commands): `docs/ops/codex-prompts/`
+- Prometheus Agent workflow (Codex skill snapshot): `docs/ops/codex-skills/prometheus-agent/SKILL.md`
 
 ## Codex setup (plugin-hosted HTTP service)
 
