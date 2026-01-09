@@ -190,4 +190,49 @@ describe("MCP HTTP server (write tools)", () => {
       });
     });
   });
+
+  it("improves frontmatter via improve_frontmatter (dry-run + apply)", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      const relPath = "NoFrontmatter.md";
+      await fs.writeFile(path.join(vaultPath, relPath), "# NoFrontmatter\n\nbody\n", "utf8");
+
+      await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+
+        const dryRun = await mcpToolsCall(url, token, sessionId, "improve_frontmatter", {
+          path: relPath,
+          apply: false,
+          reindex_after_apply: false,
+        });
+
+        const dryStructured = getStructuredContent(dryRun);
+        expect(dryStructured["applied"]).toBe(false);
+        expect(dryStructured["changed"]).toBe(true);
+
+        const applied = await mcpToolsCall(url, token, sessionId, "improve_frontmatter", {
+          path: relPath,
+          apply: true,
+          reindex_after_apply: false,
+        });
+
+        const appliedStructured = getStructuredContent(applied);
+        expect(appliedStructured["applied"]).toBe(true);
+        expect(appliedStructured["changed"]).toBe(true);
+
+        const written = await fs.readFile(path.join(vaultPath, relPath), "utf8");
+        const parsed = parseMarkdownNote(written);
+
+        expect(String(parsed.frontmatter.title)).toBe("NoFrontmatter");
+        expect(typeof parsed.frontmatter.id).toBe("string");
+        expect(typeof parsed.frontmatter.created).toBe("string");
+        expect(typeof parsed.frontmatter.updated).toBe("string");
+        expect(Array.isArray(parsed.frontmatter.tags)).toBe(true);
+
+        // Typed-link keys should always exist as arrays.
+        expect(Array.isArray(parsed.frontmatter.instance_of)).toBe(true);
+        expect(Array.isArray(parsed.frontmatter.part_of)).toBe(true);
+        expect(Array.isArray(parsed.frontmatter.uses)).toBe(true);
+      });
+    });
+  });
 });
