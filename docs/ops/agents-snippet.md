@@ -13,7 +13,7 @@ When the `ailss` MCP server is available:
    - Always call `get_context` first for any task that might depend on vault knowledge.
    - Use the returned note previews + snippets as the primary grounding source.
    - If you need exact wording/fields, fetch the full note via `read_note` (not assumptions).
-   - If you need typed-link navigation starting from a specific note path, call `get_typed_links` (incoming + outgoing, up to 2 hops).
+   - If you need typed-link navigation starting from a specific note path, call `get_typed_links` (outgoing only; bounded graph).
    - If you are unsure what tools exist or what arguments they require, call `tools/list` and follow the returned schemas exactly.
 
 2. Structure + validation
