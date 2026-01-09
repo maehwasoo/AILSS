@@ -36,6 +36,7 @@ Read-first tools (implemented in this repo):
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
 - `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
 - `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
+- `sequentialthinking_hydrate`: load a sequentialthinking session note plus recent thought notes as a context bundle (DB-backed session id; vault read)
 
 Client guidance (Codex):
 
