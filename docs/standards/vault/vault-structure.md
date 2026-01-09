@@ -10,7 +10,7 @@
 ## Snapshot (2025-11-11)
 
 - Required top-level folders: `10. Projects`, `20. Areas`, `30. Resources`, `40. Archives`, `100. Inbox`.
-- Optional top-level folders (convenience): `0. System`, `1. Main`, `101. Need to Review` (and any additional folders you introduce intentionally).
+- Optional top-level folders (convenience): `0. System`, `1. Main` (and any additional folders you introduce intentionally).
 - Markdown file count: 494 total; 281 with frontmatter (about 57%). (Snapshot numbers; they may drift over time.)
 - Example notes missing frontmatter (cleanup priority):
   - `0. System/Reset Frontmatter.md`
@@ -51,8 +51,7 @@ This document summarizes the AILSS ontology, layers, and Obsidian conventions (a
 - `20. Areas` — long-lived responsibility areas (conceptual + operational mix is normal).
 - `30. Resources` — reference material and external summaries (mostly conceptual).
 - `40. Archives` — inactive/finished material (when moving, keep origin via `part_of`).
-- `100. Inbox` — capture inbox; triage regularly (optionally via a review queue like `101. Need to Review`).
-- `101. Need to Review` (optional) — review queue; relocate to final folder after review.
+- `100. Inbox` — capture inbox; triage regularly.
 
 ### Structure improvement rules
 

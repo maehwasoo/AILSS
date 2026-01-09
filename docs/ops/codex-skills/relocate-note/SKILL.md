@@ -90,14 +90,16 @@ Recommended commands:
 
 At minimum, confirm the following top-level folders exist:
 
-- `0. System`
-- `1. Main`
 - `10. Projects`
 - `20. Areas`
 - `30. Resources`
 - `40. Archives`
 - `100. Inbox`
-- `101. Need to Review`
+
+Optional (if used in your vault):
+
+- `0. System`
+- `1. Main`
 
 ### 3.3 First-pass target folder candidates (rule-based)
 
@@ -117,7 +119,7 @@ Choose the initial candidate(s) based on frontmatter `entity` and `layer`.
   - If the related project/area is clear, place it under an operational folder there
   - If unclear, keep it in `100. Inbox` and defer classification
 - If `tags` includes `inbox` or the current path is `100. Inbox`:
-  - **Prefer moving to `101. Need to Review`**, or keep in Inbox if the user wants
+  - Prefer keeping in Inbox until it is classified, or relocate based on an explicit user target
 
 #### TARGET_HINT handling
 
