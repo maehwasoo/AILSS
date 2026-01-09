@@ -265,12 +265,16 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
         thought: args.thought,
         thoughtNumber: args.thoughtNumber,
         totalThoughts: args.totalThoughts,
-        isRevision: args.isRevision,
-        revisesThought: args.revisesThought,
-        branchFromThought: args.branchFromThought,
-        branchId: args.branchId,
-        needsMoreThoughts: args.needsMoreThoughts,
         nextThoughtNeeded: args.nextThoughtNeeded,
+        ...(args.isRevision !== undefined ? { isRevision: args.isRevision } : {}),
+        ...(args.revisesThought !== undefined ? { revisesThought: args.revisesThought } : {}),
+        ...(args.branchFromThought !== undefined
+          ? { branchFromThought: args.branchFromThought }
+          : {}),
+        ...(args.branchId !== undefined ? { branchId: args.branchId } : {}),
+        ...(args.needsMoreThoughts !== undefined
+          ? { needsMoreThoughts: args.needsMoreThoughts }
+          : {}),
       };
 
       const run = async () => {
@@ -378,10 +382,12 @@ export function registerSequentialThinkingVaultTool(server: McpServer, deps: Mcp
           thoughtNumber: input.thoughtNumber,
           totalThoughts: adjustedTotal,
           nextThoughtNeeded: input.nextThoughtNeeded,
-          isRevision: input.isRevision,
-          revisesThought: input.revisesThought,
-          branchFromThought: input.branchFromThought,
-          branchId: input.branchId,
+          ...(input.isRevision !== undefined ? { isRevision: input.isRevision } : {}),
+          ...(input.revisesThought !== undefined ? { revisesThought: input.revisesThought } : {}),
+          ...(input.branchFromThought !== undefined
+            ? { branchFromThought: input.branchFromThought }
+            : {}),
+          ...(input.branchId !== undefined ? { branchId: input.branchId } : {}),
         });
 
         const thoughtMarkdown = renderMarkdownWithFrontmatter({
