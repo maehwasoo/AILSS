@@ -31,8 +31,11 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 
 ## Sequential thinking (planning discipline)
 
-- If `sequentialthinking` is available, use it to break down the request step-by-step.
-- Do not proceed to execution until `nextThoughtNeeded=false`.
+- Required:
+  - Start every request by calling `sequentialthinking` to break the work into steps and verification criteria.
+  - Do not execute (especially any write) until `nextThoughtNeeded=false`.
+  - Once `nextThoughtNeeded=false` and no additional user confirmation is required, proceed immediately to the execution step in the same turn.
+  - Before any phase change (plan → execute, execute → verify), call `sequentialthinking` again and reach `nextThoughtNeeded=false` before continuing.
 
 ## Tool availability (important)
 
