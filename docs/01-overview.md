@@ -35,11 +35,9 @@ Read-first tools (implemented in this repo):
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
 
-Server guidance:
+Client guidance (Codex):
 
-- The MCP server exposes initialize-time instructions branded as **Prometheus Agent** (clients may use this to steer tool usage).
-- The server also provides a prompt template `prometheus-agent` that instructs: “call `get_context` first, then answer.”
-- The server also provides a prompt template `prometheus-capture-note` that instructs: retrieve context, draft an AILSS-formatted note, then call `capture_note` (dry-run first).
+- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex prompt snippets (`docs/ops/codex-prompts/`).
 
 Transport / client integration:
 
