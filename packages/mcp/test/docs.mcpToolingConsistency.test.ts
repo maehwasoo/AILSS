@@ -250,7 +250,7 @@ describe("Docs/prompt MCP tool consistency", () => {
         const header = strict ? "[prompt-lint] FAIL" : "[prompt-lint] WARN";
 
         const lines = issues.map((i) => `- ${i.file}: ${i.message}`);
-         
+
         console.warn([header, ...lines].join("\n"));
 
         if (strict) {
