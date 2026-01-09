@@ -21,7 +21,7 @@ export class AilssMcpClient {
 	private transport: StdioClientTransport | null = null;
 
 	constructor(private readonly spawn: AilssMcpSpawnConfig) {
-		this.client = new Client({ name: "ailss-obsidian", version: "0.1.0" });
+		this.client = new Client({ name: "ailss-obsidian", version: "0.1.1" });
 	}
 
 	async connect(): Promise<void> {
