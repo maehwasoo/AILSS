@@ -48,7 +48,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
 ## 3) MCP server MVP
 
 - Provide `get_context` (semantic retrieval) + `read_note` (exact note text)
-- Provide `get_typed_links` for typed-link navigation from a note path (incoming + outgoing, up to 2 hops)
+- Provide `get_typed_links` for typed-link navigation from a note path (outgoing only; bounded graph)
 - Include enough evidence in results (note path + snippet + optional preview)
 
 ## 4) Obsidian plugin MVP (UI)
@@ -105,7 +105,7 @@ MCP tools (read-only):
 Implemented:
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
-- `get_typed_links`: expand typed links for a specified note path (incoming + outgoing), up to 2 hops (DB-backed; metadata only)
+- `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency

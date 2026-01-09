@@ -30,7 +30,7 @@ Example tools:
 Read-first tools (implemented in this repo):
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
-- `get_typed_links`: expand typed links for a specified note path (incoming + outgoing), up to 2 hops (DB-backed; metadata only)
+- `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency

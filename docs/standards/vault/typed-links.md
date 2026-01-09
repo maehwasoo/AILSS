@@ -30,11 +30,17 @@ AILSS indexes and queries typed links by these frontmatter keys:
 
 If you need a new key, update the rules/ontology first and then use it consistently.
 
+Notes:
+
+- AILSS also extracts **body** `[[wikilinks]]` and stores them as edges with `rel: links_to`.
+  - `links_to` is **not** a frontmatter relation key you should write yourself; it is reserved for body-link extraction and navigation/backrefs.
+
 ### How AILSS uses typed links (implementation notes)
 
 - Typed links are extracted from frontmatter into a structured edge list (stored as `typed_links` in the index DB).
-- The `get_typed_links` tool reads those edges and can expand incoming/outgoing links up to N hops (metadata only).
-- Body wikilinks are indexed separately as “plain links”. Use typed links when the relationship is semantic (so queries/graphs can distinguish it).
+- The `get_typed_links` tool reads those edges and expands outgoing links into a bounded graph (metadata only).
+- Body `[[wikilinks]]` are also extracted and stored as `typed_links` edges with `rel: links_to` for non-semantic navigation and backrefs.
+  - Use frontmatter typed links when the relationship is semantic (so queries/graphs can distinguish it from `links_to`).
 
 ### Workflow: derive relationships from semantic analysis
 

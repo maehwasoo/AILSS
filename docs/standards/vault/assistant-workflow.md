@@ -37,7 +37,7 @@ This document defines the global working rules for the AILSS Obsidian vault. It 
 - Recommended flow:
   1. Use `get_context` to collect candidate notes (write your query as a full sentence for reproducibility).
   2. Use `read_note` to confirm exact wording and frontmatter.
-  3. Use `get_typed_links` (incoming/outgoing) to check for missing relationships and navigation gaps.
+  3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
   5. Use `edit_note` for edits and `relocate_note` for moves/renames (both require `apply=true` approval).
 - Failure handling: record the error and cause; temporarily fall back to `rg`/`find` only if MCP calls fail.
@@ -46,7 +46,7 @@ This document defines the global working rules for the AILSS Obsidian vault. It 
 
 - `get_context`: semantic retrieval over indexed chunks; returns related notes and optional previews.
 - `read_note`: reads a specific note from the vault filesystem (body included) to verify exact text/fields.
-- `get_typed_links`: expands typed links (incoming + outgoing) up to 2 hops (metadata only).
+- `get_typed_links`: expands outgoing typed links into a bounded graph (metadata only).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
 - `capture_note`: creates a new note (requires `apply=true` approval).
