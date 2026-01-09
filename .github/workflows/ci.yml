@@ -78,3 +78,6 @@ jobs:
 
       - name: Quality Gate
         run: pnpm check:ci
+
+      - name: Test Coverage
+        run: pnpm test:coverage
