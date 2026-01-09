@@ -5,6 +5,7 @@ mcp_tools:
   - get_context
   - get_typed_links
   - read_note
+  - sequentialthinking
   - capture_note
   - edit_note
   - relocate_note
@@ -17,6 +18,21 @@ Goal: retrieve vault context like "neurons activating": start with semantic retr
 Tool preflight:
 
 - If you are unsure what tools exist or what arguments they require, call `tools/list` and follow the returned schemas exactly.
+
+Thinking trace (vault-backed `sequentialthinking`):
+
+- Use `sequentialthinking` to plan and record key decisions as linked vault notes (not for every micro-step).
+- Start one session per user task:
+  1. Call `sequentialthinking` with `apply=true`, `thoughtNumber=1`, `totalThoughts=<estimate>`, and a short safe step-summary in `thought`.
+  2. Save the returned `session_path` and reuse it in later `sequentialthinking` calls.
+  3. Keep `reindex_after_apply=false` unless the user explicitly asks to index now (indexing can cost money).
+- On major phase transitions (plan→execute, execute→verify, etc.), add another thought with `thoughtNumber += 1`.
+- If you need to revise/branch, set:
+  - revision: `isRevision=true`, `revisesThought=<n>`
+  - branch: `branchFromThought=<n>`, `branchId=<string>`
+- Triage strategy: default to capturing in Inbox first. When structure is clear, move session/thought notes via `relocate_note`.
+  - Links are title-based (`[[Title]]`), so moving paths should not break relationships.
+  - After moving the session note, keep using the updated `session_path` when continuing the session.
 
 Read-first workflow:
 
@@ -38,6 +54,6 @@ Editing workflow (only when the user explicitly asks for a write and write tools
 3. When applying, use `expected_sha256` so you do not overwrite concurrent edits, and update frontmatter `updated` in the same change set.
 4. After apply, confirm the tool's reindex result so the DB stays consistent.
 
-Safety: do not write to the vault unless the user explicitly asks and confirms a write tool.
+Safety: `sequentialthinking` is a write tool; only use `apply=true` when the user wants the thinking trace recorded to the vault (using this prompt is a strong signal), and keep `thought` content safe (no secrets).
 
 $ARGUMENTS
