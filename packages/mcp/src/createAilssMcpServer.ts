@@ -16,6 +16,7 @@ import { registerGetVaultTreeTool } from "./tools/getVaultTree.js";
 import { registerGetTypedLinksTool } from "./tools/getTypedLinks.js";
 import { registerImproveFrontmatterTool } from "./tools/improveFrontmatter.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
+import { registerSequentialThinkingVaultTool } from "./tools/sequentialThinkingVault.js";
 import { registerSuggestTypedLinksTool } from "./tools/suggestTypedLinks.js";
 
 export type AilssMcpRuntime = {
@@ -73,6 +74,7 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   registerSuggestTypedLinksTool(server, deps);
 
   if (runtime.enableWriteTools) {
+    registerSequentialThinkingVaultTool(server, deps);
     registerCaptureNoteTool(server, deps);
     registerEditNoteTool(server, deps);
     registerImproveFrontmatterTool(server, deps);
