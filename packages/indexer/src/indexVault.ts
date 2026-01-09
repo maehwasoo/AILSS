@@ -16,13 +16,41 @@ export type IndexVaultOptions = {
 };
 
 async function embedTexts(client: OpenAI, model: string, inputs: string[]): Promise<number[][]> {
+  if (inputs.length === 0) return [];
+
   const resp = await client.embeddings.create({
     model,
     input: inputs,
     encoding_format: "float",
   });
 
-  return resp.data.map((d) => d.embedding as number[]);
+  const data = (resp as unknown as { data?: unknown }).data;
+  if (!Array.isArray(data)) {
+    throw new Error("OpenAI embeddings.create returned invalid response: data is not an array");
+  }
+
+  if (data.length !== inputs.length) {
+    throw new Error(
+      `OpenAI embeddings.create returned ${data.length} embeddings for ${inputs.length} inputs`,
+    );
+  }
+
+  return data.map((item, index) => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      throw new Error(
+        `OpenAI embeddings.create returned invalid embedding at index ${index}: expected object`,
+      );
+    }
+
+    const embedding = (item as { embedding?: unknown }).embedding;
+    if (!Array.isArray(embedding) || embedding.some((v) => typeof v !== "number")) {
+      throw new Error(
+        `OpenAI embeddings.create returned invalid embedding at index ${index}: expected number[]`,
+      );
+    }
+
+    return embedding as number[];
+  });
 }
 
 export async function indexVault(options: IndexVaultOptions): Promise<IndexVaultSummary> {
