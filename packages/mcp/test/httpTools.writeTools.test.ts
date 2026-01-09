@@ -7,6 +7,8 @@ import { parseMarkdownNote } from "@ailss/core";
 import type { AilssMcpRuntime } from "../src/createAilssMcpServer.js";
 
 import {
+  assertArray,
+  assertRecord,
   assertString,
   getStructuredContent,
   mcpInitialize,
@@ -206,6 +208,26 @@ describe("MCP HTTP server (write tools)", () => {
               (v) => typeof v === "string" && v.includes(thought2Title),
             ),
           ).toBe(true);
+
+          const hydrated = await mcpToolsCall(url, token, sessionId, "sequentialthinking_hydrate", {
+            session_note_id: sessionNoteId,
+            thought_scope: "latest",
+            max_thought_notes: 2,
+            max_chars_per_note: 5000,
+          });
+
+          const hydratedStructured = getStructuredContent(hydrated);
+          expect(hydratedStructured["session_path"]).toBe(sessionPath);
+          const hydratedThoughts = hydratedStructured["thoughts"];
+          assertArray(hydratedThoughts, "hydrated.thoughts");
+          expect(hydratedThoughts.length).toBe(2);
+          const lastThought = hydratedThoughts[hydratedThoughts.length - 1];
+          assertRecord(lastThought, "hydrated.thoughts[last]");
+          expect(typeof lastThought["content"]).toBe("string");
+          expect(String(lastThought["content"])).toContain("step 2");
+          const unresolved = hydratedStructured["unresolved_targets"];
+          assertArray(unresolved, "hydrated.unresolved_targets");
+          expect(unresolved.length).toBe(0);
         },
       );
     });
