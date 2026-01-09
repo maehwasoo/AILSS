@@ -1,12 +1,7 @@
 // get_typed_links tool
-// - DB-backed typed-link expansion (incoming + outgoing), up to 2 hops
+// - DB-backed typed-link expansion (outgoing only; depth-unbounded, bounded by max_notes/max_edges)
 
-import {
-  findNotesByTypedLink,
-  getNoteMeta,
-  guessWikilinkTargetsForNote,
-  resolveNotePathsByWikilinkTarget,
-} from "@ailss/core";
+import { getNoteMeta, resolveNotePathsByWikilinkTarget } from "@ailss/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -18,15 +13,9 @@ export function registerGetTypedLinksTool(server: McpServer, deps: McpToolDeps):
     {
       title: "Get typed links",
       description:
-        "Expands typed links for a specified note path (outgoing + incoming backrefs) up to `max_hops` (0–2). Returns a bounded graph of note metadata (DB-only; no note body reads).",
+        "Expands outgoing typed links from a specified note path into a bounded graph of note metadata (DB-only; no note body reads). Traversal continues until no more nodes are found or safety bounds are hit.",
       inputSchema: {
         path: z.string().min(1).describe("Vault-relative note path to expand from"),
-        max_hops: z.number().int().min(0).max(2).default(2).describe("Expansion depth (0–2)"),
-        include_outgoing: z.boolean().default(true).describe("Include outgoing typed links"),
-        include_incoming: z
-          .boolean()
-          .default(true)
-          .describe("Include incoming typed-link backrefs"),
         max_notes: z
           .number()
           .int()
@@ -55,22 +44,14 @@ export function registerGetTypedLinksTool(server: McpServer, deps: McpToolDeps):
           .max(20)
           .default(5)
           .describe("Maximum resolved note paths per typed-link target"),
-        max_incoming_per_target: z
-          .number()
-          .int()
-          .min(1)
-          .max(500)
-          .default(50)
-          .describe("Maximum incoming typed-link backrefs pulled per target"),
       },
       outputSchema: z.object({
         seed_path: z.string(),
         params: z.object({
-          max_hops: z.number().int(),
-          include_outgoing: z.boolean(),
-          include_incoming: z.boolean(),
           max_notes: z.number().int(),
           max_edges: z.number().int(),
+          max_links_per_note: z.number().int(),
+          max_resolutions_per_target: z.number().int(),
         }),
         truncated: z.boolean(),
         nodes: z.array(
@@ -89,7 +70,7 @@ export function registerGetTypedLinksTool(server: McpServer, deps: McpToolDeps):
         ),
         edges: z.array(
           z.object({
-            direction: z.union([z.literal("outgoing"), z.literal("incoming")]),
+            direction: z.literal("outgoing"),
             rel: z.string(),
             target: z.string(),
             from_path: z.string(),
@@ -133,7 +114,7 @@ export function registerGetTypedLinksTool(server: McpServer, deps: McpToolDeps):
       }> = [];
 
       const edges: Array<{
-        direction: "outgoing" | "incoming";
+        direction: "outgoing";
         rel: string;
         target: string;
         from_path: string;
@@ -161,84 +142,47 @@ export function registerGetTypedLinksTool(server: McpServer, deps: McpToolDeps):
           keywords: meta?.keywords ?? [],
         });
 
-        if (node.hop >= args.max_hops) continue;
         if (!meta) continue;
 
-        if (args.include_outgoing) {
-          for (const link of meta.typedLinks.slice(0, args.max_links_per_note)) {
-            const resolved = resolveNotePathsByWikilinkTarget(
-              deps.db,
-              link.toTarget,
-              args.max_resolutions_per_target,
-            );
+        for (const link of meta.typedLinks.slice(0, args.max_links_per_note)) {
+          const resolved = resolveNotePathsByWikilinkTarget(
+            deps.db,
+            link.toTarget,
+            args.max_resolutions_per_target,
+          );
 
-            for (const match of resolved) {
-              if (edges.length >= args.max_edges) {
-                truncated = true;
-                break;
-              }
-              edges.push({
-                direction: "outgoing",
-                rel: link.rel,
-                target: link.toTarget,
-                from_path: node.path,
-                to_path: match.path,
-                to_wikilink: link.toWikilink,
-              });
-
-              const nextPath = match.path;
-              if (visited.has(nextPath)) continue;
-              visited.add(nextPath);
-              queue.push({ path: nextPath, hop: node.hop + 1 });
-              if (nodes.length + queue.length >= args.max_notes) break;
+          for (const match of resolved) {
+            if (edges.length >= args.max_edges) {
+              truncated = true;
+              break;
             }
-
-            if (truncated || nodes.length + queue.length >= args.max_notes) break;
-          }
-        }
-
-        if (args.include_incoming) {
-          const targets = guessWikilinkTargetsForNote(meta);
-          for (const target of targets) {
-            const backrefs = findNotesByTypedLink(deps.db, {
-              toTarget: target,
-              limit: args.max_incoming_per_target,
+            edges.push({
+              direction: "outgoing",
+              rel: link.rel,
+              target: link.toTarget,
+              from_path: node.path,
+              to_path: match.path,
+              to_wikilink: link.toWikilink,
             });
 
-            for (const backref of backrefs) {
-              if (edges.length >= args.max_edges) {
-                truncated = true;
-                break;
-              }
-              edges.push({
-                direction: "incoming",
-                rel: backref.rel,
-                target: backref.toTarget,
-                from_path: backref.fromPath,
-                to_path: node.path,
-                to_wikilink: backref.toWikilink,
-              });
-
-              const nextPath = backref.fromPath;
-              if (visited.has(nextPath)) continue;
-              visited.add(nextPath);
-              queue.push({ path: nextPath, hop: node.hop + 1 });
-              if (nodes.length + queue.length >= args.max_notes) break;
-            }
-
-            if (truncated || nodes.length + queue.length >= args.max_notes) break;
+            const nextPath = match.path;
+            if (visited.has(nextPath)) continue;
+            visited.add(nextPath);
+            queue.push({ path: nextPath, hop: node.hop + 1 });
+            if (nodes.length + queue.length >= args.max_notes) break;
           }
+
+          if (truncated || nodes.length + queue.length >= args.max_notes) break;
         }
       }
 
       const payload = {
         seed_path: args.path,
         params: {
-          max_hops: args.max_hops,
-          include_outgoing: Boolean(args.include_outgoing),
-          include_incoming: Boolean(args.include_incoming),
           max_notes: args.max_notes,
           max_edges: args.max_edges,
+          max_links_per_note: args.max_links_per_note,
+          max_resolutions_per_target: args.max_resolutions_per_target,
         },
         truncated,
         nodes,

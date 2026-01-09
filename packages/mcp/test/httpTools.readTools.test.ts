@@ -230,9 +230,6 @@ describe("MCP HTTP server (read tools)", () => {
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "get_typed_links", {
             path: "A.md",
-            max_hops: 1,
-            include_outgoing: true,
-            include_incoming: false,
             max_notes: 10,
             max_edges: 10,
             max_resolutions_per_target: 5,

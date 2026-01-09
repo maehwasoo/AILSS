@@ -15,7 +15,7 @@ export const PROMETHEUS_AGENT_INSTRUCTIONS = [
   "",
   "Read-first workflow:",
   "1) For any vault-dependent task, call `get_context` with the user's query.",
-  "2) If you need link-shaped navigation from a specific note, call `get_typed_links` (incoming + outgoing, up to 2 hops).",
+  "2) If you need link-shaped navigation from a specific note, call `get_typed_links` (outgoing only; bounded by max_notes/max_edges).",
   "3) If you need exact wording/fields, call `read_note` for the specific path (do not assume).",
   "",
   "New-note workflow (only when the user explicitly asks for a write and write tools are enabled):",
