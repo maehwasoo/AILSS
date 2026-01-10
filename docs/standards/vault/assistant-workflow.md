@@ -31,7 +31,7 @@ Global working rules for the AILSS Obsidian vault.
   1. Use `get_context` to collect candidate notes (write your query as a full sentence for reproducibility).
   2. Use `read_note` to confirm exact wording and frontmatter.
      - Note: `read_note` does **not** search by title/id; it reads by vault-relative `path`.
-     - If you only know `id`/`title`, use `search_notes` to find candidate paths first, then `read_note`.
+     - If you only know `id`/`title`, use `resolve_note` (preferred) or `search_notes` to find candidate paths first, then `read_note`.
   3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
   5. Optional: use `suggest_typed_links` to propose candidates, then apply via `edit_note` (requires `apply=true` approval).
@@ -42,6 +42,7 @@ Global working rules for the AILSS Obsidian vault.
 
 - `get_context`: semantic retrieval over indexed chunks; returns related notes and optional previews.
 - `read_note`: reads a specific note from the vault filesystem (body included) to verify exact text/fields.
+- `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed).
 - `search_notes`: DB-backed metadata filtering (frontmatter-derived fields, tags/keywords/sources); no embeddings calls.
 - `list_tags`: list indexed tags and counts (use to reuse existing vocabulary).
 - `list_keywords`: list indexed keywords and counts (use to reuse existing vocabulary).

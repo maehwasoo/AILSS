@@ -37,6 +37,9 @@ The list below reflects the current MCP tool surface. For broader architecture d
 - `get_typed_links`: expands outgoing typed-link graph from a seed note (DB-only; no note body reads).  
   Required: `path`.  
   Options: `max_notes` (default 50, 1–200), `max_edges` (default 2000, 1–10,000), `max_links_per_note` (default 40), `max_resolutions_per_target` (default 5).
+- `resolve_note`: resolves an id/title/wikilink target to candidate note paths (DB-only).  
+  Required: `query`.  
+  Options: `limit` (default 20, 1–200).
 - `find_typed_link_backrefs`: finds notes that reference a target via typed links (incoming edges; includes `links_to`).  
   Required: none.  
   Options: `rel`, `to_target`, `limit` (default 100, 1–1000).
