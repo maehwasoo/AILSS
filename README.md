@@ -20,6 +20,34 @@ url = "http://127.0.0.1:31415/mcp"
 http_headers = { Authorization = "Bearer <token>" }
 ```
 
+## Recommended: install guidance (prompts) and Codex skills
+
+AILSS works best when your assistant is explicitly steered to:
+
+- use MCP tools (retrieval-first, DB-backed reads)
+- follow the vault frontmatter + typed-link rules
+- keep writes gated (`apply=true`) and auditable
+
+### Vault prompt files (Obsidian)
+
+In the Obsidian plugin settings, use **Prompt installer (vault root)** to write a prompt file like `AGENTS.md` at the vault root.
+
+- The prompt is meant to keep assistants aligned with your vault rules (frontmatter schema, typed links, and safe workflows).
+- Note: prompt contents are bundled at build time; changes require plugin rebuild + reload.
+
+### Workspace guidance snippet (optional)
+
+For a ready-to-paste `AGENTS.md` snippet focused on AILSS MCP usage, see `docs/ops/agents-snippet.md`.
+
+### Codex skill (optional, recommended)
+
+In the Obsidian plugin settings, use **Copy Prometheus Agent skill (Codex)** and install it under your Codex skills folder:
+
+- Recommended path: `~/.codex/skills/ailss-prometheus-agent/SKILL.md`
+- Snapshot reference: `docs/ops/codex-skills/prometheus-agent/SKILL.md`
+
+If you skip prompts/skills, assistants are more likely to guess instead of querying MCP tools, and may create notes with incomplete or inconsistent frontmatter/typed links.
+
 ## How it works
 
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.

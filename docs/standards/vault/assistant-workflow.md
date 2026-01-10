@@ -71,6 +71,7 @@ Global working rules for the AILSS Obsidian vault.
 
 - Before: gather related notes/assets (`get_context`, `rg "assets/" -n`).
 - Frontmatter: verify required key presence (`id`, `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`).
+- New notes: when capturing, set non-default frontmatter via `capture_note.frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
 - Tags/keywords: before adding a new value, check existing vocabulary via `list_tags` / `list_keywords` and reuse when possible.
 - Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `same_as`, `supersedes`).
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
