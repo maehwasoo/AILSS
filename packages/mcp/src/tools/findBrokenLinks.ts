@@ -81,7 +81,7 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
               z.object({
                 path: z.string(),
                 title: z.string().nullable(),
-                matched_by: z.union([z.literal("path"), z.literal("title")]),
+                matched_by: z.union([z.literal("path"), z.literal("note_id"), z.literal("title")]),
               }),
             ),
           }),
@@ -145,7 +145,11 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
         rel: string;
         target: string;
         to_wikilink: string;
-        resolutions: Array<{ path: string; title: string | null; matched_by: "path" | "title" }>;
+        resolutions: Array<{
+          path: string;
+          title: string | null;
+          matched_by: "path" | "note_id" | "title";
+        }>;
       }> = [];
 
       let brokenTotal = 0;

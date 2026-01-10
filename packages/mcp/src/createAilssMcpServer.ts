@@ -19,6 +19,7 @@ import { registerImproveFrontmatterTool } from "./tools/improveFrontmatter.js";
 import { registerListKeywordsTool } from "./tools/listKeywords.js";
 import { registerListTagsTool } from "./tools/listTags.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
+import { registerResolveNoteTool } from "./tools/resolveNote.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
 import { registerSuggestTypedLinksTool } from "./tools/suggestTypedLinks.js";
 
@@ -70,6 +71,7 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
 
   registerGetContextTool(server, deps);
   registerGetTypedLinksTool(server, deps);
+  registerResolveNoteTool(server, deps);
   registerGetNoteTool(server, deps);
   registerGetVaultTreeTool(server, deps);
   registerFrontmatterValidateTool(server, deps);

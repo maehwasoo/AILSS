@@ -80,7 +80,7 @@ export function registerSuggestTypedLinksTool(server: McpServer, deps: McpToolDe
               z.object({
                 path: z.string(),
                 title: z.string().nullable(),
-                matched_by: z.union([z.literal("path"), z.literal("title")]),
+                matched_by: z.union([z.literal("path"), z.literal("note_id"), z.literal("title")]),
               }),
             ),
             reason: z.string(),
@@ -137,7 +137,11 @@ export function registerSuggestTypedLinksTool(server: McpServer, deps: McpToolDe
         target: string;
         suggested_wikilink: string;
         source_wikilink: string;
-        resolved: Array<{ path: string; title: string | null; matched_by: "path" | "title" }>;
+        resolved: Array<{
+          path: string;
+          title: string | null;
+          matched_by: "path" | "note_id" | "title";
+        }>;
         reason: string;
       }> = [];
 
