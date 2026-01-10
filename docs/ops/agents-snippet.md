@@ -13,6 +13,9 @@ When the `ailss` MCP server is available:
    - Always call `get_context` first for any task that might depend on vault knowledge.
    - Use the returned note previews + snippets as the primary grounding source.
    - If you need exact wording/fields, fetch the full note via `read_note` (not assumptions).
+     - `read_note` is path-based. If you only have `id`/`title`/a wikilink target, call `resolve_note` first to get candidate paths.
+   - For metadata filtering (entity/layer/status/tags/keywords/source/date ranges), use `search_notes` (DB-only; no embeddings).
+   - Before adding new tags/keywords, prefer reusing existing vocabulary via `list_tags` / `list_keywords`.
    - If you need typed-link navigation starting from a specific note path, call `get_typed_links` (outgoing only; bounded graph).
    - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements/see_also; do not add reciprocal links unless explicitly requested.
    - If you are unsure what tools exist or what arguments they require, call `tools/list` and follow the returned schemas exactly.
@@ -24,6 +27,8 @@ When the `ailss` MCP server is available:
 3. Safe edits (explicit apply only)
    - Prefer `apply=false` first to preview changes.
    - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
+     - When capturing, set non-default frontmatter via `frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
+     - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
    - For note creation, do `apply=false` → confirm with the user → `apply=true`.
    - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
    - For line-based edits, fetch the note via `read_note`, then compute exact anchors + line numbers (do not guess).

@@ -5,10 +5,15 @@ mcp_tools:
   # Always available (read tools)
   - get_context
   - get_typed_links
+  - resolve_note
   - read_note
   - get_vault_tree
   - frontmatter_validate
   - find_broken_links
+  - find_typed_link_backrefs
+  - search_notes
+  - list_tags
+  - list_keywords
   - suggest_typed_links
   # Only when write tools are enabled (AILSS_ENABLE_WRITE_TOOLS=1)
   - capture_note
@@ -26,7 +31,9 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
 2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
    - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements/see_also; do not add reciprocal links unless explicitly requested.
-3. Use `read_note` to confirm exact wording and frontmatter before making claims.
+3. Use `resolve_note` when you only have `id`/`title`/a wikilink target and need a vault-relative path for `read_note`/`edit_note`.
+4. Use `read_note` to confirm exact wording and frontmatter before making claims.
+5. Use `search_notes` for metadata filtering (entity/layer/status/tags/keywords/source/date ranges) without embeddings calls.
 
 ## Tool availability (important)
 
@@ -45,7 +52,8 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 ### Create a new note (`capture_note`)
 
 1. Run `get_context` with the intended topic/title to avoid duplicates and reuse existing naming.
-2. Draft a new note (title, optional summary, optional tags/keywords).
+2. Draft a new note (title + frontmatter overrides that match the content).
+   - Prefer reusing existing tags/keywords: call `list_tags` / `list_keywords` first.
 3. Call `capture_note` with `apply=false` to preview the resulting path + sha256.
 4. Confirm with the user.
 5. Call `capture_note` again with `apply=true`.
@@ -53,6 +61,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 Notes:
 
 - Let `capture_note` generate `id`/`created`/`updated` unless the user explicitly wants overrides.
+- Prefer setting non-default fields via `frontmatter` overrides when known: `entity`, `layer`, `status`, `summary`, and optionally `tags`, `keywords`, `source`.
 - Typed links are optional; if you include typed links, only include keys that have values.
 - Typed links are one-way; link from the current note outward based on how it relates to other notes.
 
