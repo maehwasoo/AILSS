@@ -14,6 +14,7 @@ When the `ailss` MCP server is available:
    - Use the returned note previews + snippets as the primary grounding source.
    - If you need exact wording/fields, fetch the full note via `read_note` (not assumptions).
    - If you need typed-link navigation starting from a specific note path, call `get_typed_links` (outgoing only; bounded graph).
+   - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements/see_also; do not add reciprocal links unless explicitly requested.
    - If you are unsure what tools exist or what arguments they require, call `tools/list` and follow the returned schemas exactly.
 
 2. Structure + validation

@@ -25,6 +25,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 
 1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
 2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
+   - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements/see_also; do not add reciprocal links unless explicitly requested.
 3. Use `read_note` to confirm exact wording and frontmatter before making claims.
 
 ## Tool availability (important)
@@ -53,6 +54,7 @@ Notes:
 
 - Let `capture_note` generate `id`/`created`/`updated` unless the user explicitly wants overrides.
 - Typed links are optional; if you include typed links, only include keys that have values.
+- Typed links are one-way; link from the current note outward based on how it relates to other notes.
 
 ### Improve frontmatter (`improve_frontmatter`)
 
