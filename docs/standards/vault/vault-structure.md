@@ -46,27 +46,6 @@ This document summarizes the AILSS ontology, layers, and Obsidian conventions (a
 - Shared principles/definitions/patterns → promote to `20. Areas` or `30. Resources` and classify as `entity: concept|definition|pattern`.
 - After moving files, immediately check for broken links via `rg "\\[\\[" -n`.
 
-## Note body structure guide
-
-All notes should start with an H1 header, and the filename should match the H1.
-
-### Common skeleton
-
-- `# {Title}`
-- `Summary` — 3–5 sentences, only the essentials.
-- `Context` — background, problem, scope.
-- `Core` — main content (concept/design/procedure).
-- `Decision` — decisions, alternatives, criteria (tables are fine).
-- `Next actions` — TODO checklist.
-- `References` — sources and related links.
-
-### Minimum sections by entity
-
-- Concept: definition, examples, counterexamples, see also.
-- Project: objectives, scope, artifacts, timeline, risks.
-- Procedure: prerequisites, steps, verification criteria, rollback.
-- Decision: options, criteria, selection, impact.
-
 ## Obsidian grammar rules
 
 - Headings: use ATX `#` style only. Use H1 once; H2–H4 for most structure.
