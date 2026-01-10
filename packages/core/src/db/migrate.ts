@@ -140,7 +140,6 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
       layer TEXT,
       status TEXT,
       updated TEXT,
-      viewed INTEGER,
       frontmatter_json TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(path) REFERENCES files(path) ON DELETE CASCADE
@@ -173,6 +172,16 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
     );
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_note_keywords_keyword ON note_keywords(keyword);`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS note_sources (
+      path TEXT NOT NULL,
+      source TEXT NOT NULL,
+      PRIMARY KEY(path, source),
+      FOREIGN KEY(path) REFERENCES notes(path) ON DELETE CASCADE
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_note_sources_source ON note_sources(source);`);
 
   // Typed links (frontmatter relations)
   db.exec(`

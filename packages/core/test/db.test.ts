@@ -163,7 +163,6 @@ describe("searchNotes()", () => {
         layer: null,
         status: null,
         updated: null,
-        viewed: null,
         frontmatterJson: "{}",
       });
       upsertNote(db, {
@@ -176,16 +175,54 @@ describe("searchNotes()", () => {
         layer: null,
         status: null,
         updated: null,
-        viewed: null,
         frontmatterJson: "{}",
       });
 
       expect(searchNotes(db, { noteId: "note-a" })).toEqual([
-        { path: "notes/a.md", title: "A", entity: null, layer: null, status: null },
+        {
+          path: "notes/a.md",
+          noteId: "note-a",
+          created: null,
+          title: "A",
+          summary: null,
+          entity: null,
+          layer: null,
+          status: null,
+          updated: null,
+          tags: [],
+          keywords: [],
+          sources: [],
+        },
       ]);
       expect(searchNotes(db, { noteId: ["note-a", "note-b"] })).toEqual([
-        { path: "notes/a.md", title: "A", entity: null, layer: null, status: null },
-        { path: "notes/b.md", title: "B", entity: null, layer: null, status: null },
+        {
+          path: "notes/a.md",
+          noteId: "note-a",
+          created: null,
+          title: "A",
+          summary: null,
+          entity: null,
+          layer: null,
+          status: null,
+          updated: null,
+          tags: [],
+          keywords: [],
+          sources: [],
+        },
+        {
+          path: "notes/b.md",
+          noteId: "note-b",
+          created: null,
+          title: "B",
+          summary: null,
+          entity: null,
+          layer: null,
+          status: null,
+          updated: null,
+          tags: [],
+          keywords: [],
+          sources: [],
+        },
       ]);
     } finally {
       db.close();

@@ -8,6 +8,9 @@ import path from "node:path";
 
 import {
   findNotesByTypedLink,
+  listKeywords,
+  listTags,
+  replaceNoteSources,
   openAilssDb,
   replaceNoteKeywords,
   replaceNoteTags,
@@ -49,11 +52,11 @@ describe("notes + typed_links queries", () => {
         layer: "strategic",
         status: "draft",
         updated: null,
-        viewed: 0,
         frontmatterJson: JSON.stringify({ title: "Project A" }),
       });
       replaceNoteTags(db, "notes/a.md", ["inbox", "project"]);
       replaceNoteKeywords(db, "notes/a.md", ["llm"]);
+      replaceNoteSources(db, "notes/a.md", ["https://example.com/a"]);
 
       upsertFile(db, { path: "notes/b.md", mtimeMs: 0, sizeBytes: 0, sha256: "b" });
       upsertNote(db, {
@@ -66,11 +69,11 @@ describe("notes + typed_links queries", () => {
         layer: "conceptual",
         status: "active",
         updated: null,
-        viewed: 1,
         frontmatterJson: JSON.stringify({ title: "Concept B" }),
       });
       replaceNoteTags(db, "notes/b.md", ["reference"]);
       replaceNoteKeywords(db, "notes/b.md", []);
+      replaceNoteSources(db, "notes/b.md", []);
 
       expect(searchNotes(db, { entity: "project" }).map((r) => r.path)).toEqual(["notes/a.md"]);
       expect(searchNotes(db, { layer: "conceptual" }).map((r) => r.path)).toEqual(["notes/b.md"]);
@@ -78,6 +81,23 @@ describe("notes + typed_links queries", () => {
       expect(searchNotes(db, { tagsAll: ["inbox", "project"] }).map((r) => r.path)).toEqual([
         "notes/a.md",
       ]);
+      expect(searchNotes(db, { createdFrom: "2026-01-02T00:00:00" }).map((r) => r.path)).toEqual([
+        "notes/b.md",
+      ]);
+      expect(searchNotes(db, { sourcesAny: ["https://example.com/a"] }).map((r) => r.path)).toEqual(
+        ["notes/a.md"],
+      );
+      expect(searchNotes(db, { orderBy: "created", orderDir: "desc" }).map((r) => r.path)).toEqual([
+        "notes/b.md",
+        "notes/a.md",
+      ]);
+
+      expect(listTags(db, { limit: 10 })).toEqual([
+        { tag: "inbox", count: 1 },
+        { tag: "project", count: 1 },
+        { tag: "reference", count: 1 },
+      ]);
+      expect(listKeywords(db, { limit: 10 })).toEqual([{ keyword: "llm", count: 1 }]);
     } finally {
       db.close();
     }
@@ -100,7 +120,6 @@ describe("notes + typed_links queries", () => {
         layer: null,
         status: null,
         updated: null,
-        viewed: null,
         frontmatterJson: "{}",
       });
 

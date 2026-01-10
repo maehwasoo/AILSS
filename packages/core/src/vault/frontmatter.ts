@@ -32,9 +32,9 @@ export type NormalizedAilssNoteMeta = {
   layer: string | null;
   status: string | null;
   updated: string | null;
-  viewed: number | null;
   tags: string[];
   keywords: string[];
+  sources: string[];
   frontmatter: Record<string, unknown>;
   typedLinks: TypedLink[];
 };
@@ -55,17 +55,6 @@ function coerceString(value: unknown): string | null {
     return value.toISOString().slice(0, 19);
   }
 
-  return null;
-}
-
-function coerceNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    const parsed = Number(trimmed);
-    if (Number.isFinite(parsed)) return parsed;
-  }
   return null;
 }
 
@@ -122,7 +111,7 @@ export function normalizeAilssNoteMeta(
 ): NormalizedAilssNoteMeta {
   const tags = normalizeStringList(frontmatter.tags);
   const keywords = normalizeStringList(frontmatter.keywords);
-  const source = normalizeStringList(frontmatter.source);
+  const sources = normalizeStringList(frontmatter.source);
 
   const typedLinks: TypedLink[] = [];
   for (const rel of AILSS_TYPED_LINK_KEYS) {
@@ -143,7 +132,7 @@ export function normalizeAilssNoteMeta(
   const normalizedFrontmatter: Record<string, unknown> = { ...frontmatter };
   normalizedFrontmatter.tags = tags;
   normalizedFrontmatter.keywords = keywords;
-  normalizedFrontmatter.source = source;
+  normalizedFrontmatter.source = sources;
   for (const rel of AILSS_TYPED_LINK_KEYS) {
     const values = normalizeStringList(frontmatter[rel]).map(toWikilink);
     normalizedFrontmatter[rel] = values;
@@ -158,9 +147,9 @@ export function normalizeAilssNoteMeta(
     layer: coerceString(frontmatter.layer),
     status: coerceString(frontmatter.status),
     updated: coerceString(frontmatter.updated),
-    viewed: coerceNumber(frontmatter.viewed),
     tags,
     keywords,
+    sources,
     frontmatter: normalizedFrontmatter,
     typedLinks,
   };

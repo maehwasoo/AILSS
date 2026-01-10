@@ -11,6 +11,7 @@ import {
   listChunkIdsByPath,
   insertChunkWithEmbedding,
   listFilePaths,
+  replaceNoteSources,
   replaceNoteKeywords,
   replaceNoteTags,
   replaceTypedLinks,
@@ -199,11 +200,11 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
       layer: noteMeta.layer,
       status: noteMeta.status,
       updated: noteMeta.updated,
-      viewed: noteMeta.viewed,
       frontmatterJson: JSON.stringify(noteMeta.frontmatter),
     });
     replaceNoteTags(options.db, file.relPath, noteMeta.tags);
     replaceNoteKeywords(options.db, file.relPath, noteMeta.keywords);
+    replaceNoteSources(options.db, file.relPath, noteMeta.sources);
     replaceTypedLinks(options.db, file.relPath, [...noteMeta.typedLinks, ...bodyLinks]);
 
     if (!needsEmbeddingUpdate) {

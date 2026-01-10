@@ -167,7 +167,6 @@ export type UpsertNoteInput = {
   layer: string | null;
   status: string | null;
   updated: string | null;
-  viewed: number | null;
   frontmatterJson: string;
 };
 
@@ -175,12 +174,12 @@ export function upsertNote(db: AilssDb, input: UpsertNoteInput): void {
   const stmt = db.prepare(`
     INSERT INTO notes(
       path, note_id, created, title, summary,
-      entity, layer, status, updated, viewed,
+      entity, layer, status, updated,
       frontmatter_json, updated_at
     )
     VALUES (
       @path, @note_id, @created, @title, @summary,
-      @entity, @layer, @status, @updated, @viewed,
+      @entity, @layer, @status, @updated,
       @frontmatter_json, @updated_at
     )
     ON CONFLICT(path) DO UPDATE SET
@@ -192,7 +191,6 @@ export function upsertNote(db: AilssDb, input: UpsertNoteInput): void {
       layer=excluded.layer,
       status=excluded.status,
       updated=excluded.updated,
-      viewed=excluded.viewed,
       frontmatter_json=excluded.frontmatter_json,
       updated_at=excluded.updated_at
   `);
@@ -207,7 +205,6 @@ export function upsertNote(db: AilssDb, input: UpsertNoteInput): void {
     layer: input.layer,
     status: input.status,
     updated: input.updated,
-    viewed: input.viewed,
     frontmatter_json: input.frontmatterJson,
     updated_at: nowIso(),
   });
@@ -230,6 +227,17 @@ export function replaceNoteKeywords(db: AilssDb, notePath: string, keywords: str
     const insert = db.prepare(`INSERT INTO note_keywords(path, keyword) VALUES (?, ?)`);
     for (const keyword of keywords) {
       insert.run(notePath, keyword);
+    }
+  });
+  tx();
+}
+
+export function replaceNoteSources(db: AilssDb, notePath: string, sources: string[]): void {
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM note_sources WHERE path = ?`).run(notePath);
+    const insert = db.prepare(`INSERT INTO note_sources(path, source) VALUES (?, ?)`);
+    for (const source of sources) {
+      insert.run(notePath, source);
     }
   });
   tx();
@@ -275,7 +283,6 @@ export type NoteRow = {
   layer: string | null;
   status: string | null;
   updated: string | null;
-  viewed: number | null;
   frontmatter_json: string;
   updated_at: string;
 };
@@ -290,9 +297,9 @@ export type NoteMeta = {
   layer: string | null;
   status: string | null;
   updated: string | null;
-  viewed: number | null;
   tags: string[];
   keywords: string[];
+  sources: string[];
   frontmatter: Record<string, unknown>;
   typedLinks: Array<{
     rel: string;
@@ -328,6 +335,10 @@ export function getNoteMeta(db: AilssDb, notePath: string): NoteMeta | null {
     .prepare(`SELECT keyword FROM note_keywords WHERE path = ? ORDER BY keyword`)
     .all(notePath) as Array<{ keyword: string }>;
 
+  const sources = db
+    .prepare(`SELECT source FROM note_sources WHERE path = ? ORDER BY source`)
+    .all(notePath) as Array<{ source: string }>;
+
   const typedLinks = db
     .prepare(
       `SELECT rel, to_target, to_wikilink, position FROM typed_links WHERE from_path = ? ORDER BY rel, position`,
@@ -349,9 +360,9 @@ export function getNoteMeta(db: AilssDb, notePath: string): NoteMeta | null {
     layer: note.layer,
     status: note.status,
     updated: note.updated,
-    viewed: note.viewed,
     tags: tags.map((t) => t.tag),
     keywords: keywords.map((k) => k.keyword),
+    sources: sources.map((s) => s.source),
     frontmatter: safeParseJsonObject(note.frontmatter_json),
     typedLinks: typedLinks.map((l) => ({
       rel: l.rel,
@@ -369,18 +380,32 @@ export type SearchNotesFilters = {
   entity?: string | string[];
   layer?: string | string[];
   status?: string | string[];
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
   tagsAny?: string[];
   tagsAll?: string[];
   keywordsAny?: string[];
+  sourcesAny?: string[];
+  orderBy?: "path" | "created" | "updated";
+  orderDir?: "asc" | "desc";
   limit?: number;
 };
 
 export type SearchNotesResult = {
   path: string;
+  noteId: string | null;
+  created: string | null;
   title: string | null;
+  summary: string | null;
   entity: string | null;
   layer: string | null;
   status: string | null;
+  updated: string | null;
+  tags: string[];
+  keywords: string[];
+  sources: string[];
 };
 
 function normalizeStringList(input: string | string[] | undefined): string[] | undefined {
@@ -427,6 +452,26 @@ export function searchNotes(db: AilssDb, filters: SearchNotesFilters = {}): Sear
     params.push(...statusList);
   }
 
+  if (filters.createdFrom) {
+    where.push(`notes.created IS NOT NULL AND notes.created >= ?`);
+    params.push(filters.createdFrom);
+  }
+
+  if (filters.createdTo) {
+    where.push(`notes.created IS NOT NULL AND notes.created <= ?`);
+    params.push(filters.createdTo);
+  }
+
+  if (filters.updatedFrom) {
+    where.push(`notes.updated IS NOT NULL AND notes.updated >= ?`);
+    params.push(filters.updatedFrom);
+  }
+
+  if (filters.updatedTo) {
+    where.push(`notes.updated IS NOT NULL AND notes.updated <= ?`);
+    params.push(filters.updatedTo);
+  }
+
   const tagsAny = filters.tagsAny?.filter(Boolean) ?? [];
   if (tagsAny.length > 0) {
     where.push(
@@ -453,24 +498,137 @@ export function searchNotes(db: AilssDb, filters: SearchNotesFilters = {}): Sear
     params.push(...keywordsAny);
   }
 
+  const sourcesAny = filters.sourcesAny?.filter(Boolean) ?? [];
+  if (sourcesAny.length > 0) {
+    where.push(
+      `EXISTS (SELECT 1 FROM note_sources s WHERE s.path = notes.path AND s.source IN (${sourcesAny
+        .map(() => "?")
+        .join(", ")}))`,
+    );
+    params.push(...sourcesAny);
+  }
+
   const limit = Math.min(Math.max(1, filters.limit ?? 50), 500);
 
+  const orderBy = filters.orderBy ?? "path";
+  const orderDir = filters.orderDir ?? "asc";
+  const dirSql = orderDir === "desc" ? "DESC" : "ASC";
+
+  const orderSql =
+    orderBy === "created"
+      ? `notes.created IS NULL, notes.created ${dirSql}, notes.path`
+      : orderBy === "updated"
+        ? `notes.updated IS NULL, notes.updated ${dirSql}, notes.path`
+        : `notes.path ${dirSql}`;
+
   const sql = `
-    SELECT path, title, entity, layer, status
+    SELECT path, note_id, created, title, summary, entity, layer, status, updated
     FROM notes
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-    ORDER BY path
+    ORDER BY ${orderSql}
     LIMIT ?
   `;
 
   const rows = db.prepare(sql).all(...params, limit) as Array<{
     path: string;
+    note_id: string | null;
+    created: string | null;
     title: string | null;
+    summary: string | null;
     entity: string | null;
     layer: string | null;
     status: string | null;
+    updated: string | null;
   }>;
 
+  if (rows.length === 0) return [];
+
+  const paths = rows.map((r) => r.path);
+  const placeholders = paths.map(() => "?").join(", ");
+
+  const tagsByPath = new Map<string, string[]>();
+  const tagsRows = db
+    .prepare(`SELECT path, tag FROM note_tags WHERE path IN (${placeholders}) ORDER BY tag`)
+    .all(...paths) as Array<{ path: string; tag: string }>;
+  for (const row of tagsRows) {
+    const list = tagsByPath.get(row.path) ?? [];
+    list.push(row.tag);
+    tagsByPath.set(row.path, list);
+  }
+
+  const keywordsByPath = new Map<string, string[]>();
+  const keywordRows = db
+    .prepare(
+      `SELECT path, keyword FROM note_keywords WHERE path IN (${placeholders}) ORDER BY keyword`,
+    )
+    .all(...paths) as Array<{ path: string; keyword: string }>;
+  for (const row of keywordRows) {
+    const list = keywordsByPath.get(row.path) ?? [];
+    list.push(row.keyword);
+    keywordsByPath.set(row.path, list);
+  }
+
+  const sourcesByPath = new Map<string, string[]>();
+  const sourceRows = db
+    .prepare(
+      `SELECT path, source FROM note_sources WHERE path IN (${placeholders}) ORDER BY source`,
+    )
+    .all(...paths) as Array<{ path: string; source: string }>;
+  for (const row of sourceRows) {
+    const list = sourcesByPath.get(row.path) ?? [];
+    list.push(row.source);
+    sourcesByPath.set(row.path, list);
+  }
+
+  return rows.map((row) => ({
+    path: row.path,
+    noteId: row.note_id,
+    created: row.created,
+    title: row.title,
+    summary: row.summary,
+    entity: row.entity,
+    layer: row.layer,
+    status: row.status,
+    updated: row.updated,
+    tags: tagsByPath.get(row.path) ?? [],
+    keywords: keywordsByPath.get(row.path) ?? [],
+    sources: sourcesByPath.get(row.path) ?? [],
+  }));
+}
+
+export type TagFacet = { tag: string; count: number };
+
+export function listTags(db: AilssDb, options: { limit?: number } = {}): TagFacet[] {
+  const limit = Math.min(Math.max(1, options.limit ?? 200), 5000);
+  const rows = db
+    .prepare(
+      `
+        SELECT tag, COUNT(*) as count
+        FROM note_tags
+        GROUP BY tag
+        ORDER BY count DESC, tag ASC
+        LIMIT ?
+      `,
+    )
+    .all(limit) as Array<{ tag: string; count: number }>;
+  return rows;
+}
+
+export type KeywordFacet = { keyword: string; count: number };
+
+export function listKeywords(db: AilssDb, options: { limit?: number } = {}): KeywordFacet[] {
+  const limit = Math.min(Math.max(1, options.limit ?? 200), 5000);
+  const rows = db
+    .prepare(
+      `
+        SELECT keyword, COUNT(*) as count
+        FROM note_keywords
+        GROUP BY keyword
+        ORDER BY count DESC, keyword ASC
+        LIMIT ?
+      `,
+    )
+    .all(limit) as Array<{ keyword: string; count: number }>;
   return rows;
 }
 
