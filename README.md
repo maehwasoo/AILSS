@@ -27,7 +27,48 @@ This setup lets Codex connect over HTTP without needing direct vault filesystem 
 
 ## MCP tools
 
-For the current MCP tool surface (read tools + gated write tools), see `docs/01-overview.md`.
+The list below reflects the current MCP tool surface. For broader architecture details, see `docs/01-overview.md`.
+
+### Read tools (always available)
+
+- `get_context`: semantic retrieval over the index DB with optional vault previews.  
+  Required: `query` (string).  
+  Options: `top_k` (default 10, 1–50), `max_chars_per_note` (default 2000, 200–50,000).
+- `get_typed_links`: expands outgoing typed-link graph from a seed note (DB-only; no note body reads).  
+  Required: `path`.  
+  Options: `max_notes` (default 50, 1–200), `max_edges` (default 2000, 1–10,000), `max_links_per_note` (default 40), `max_resolutions_per_target` (default 5).
+- `read_note`: reads a vault Markdown note by path (filesystem).  
+  Required: `path`.  
+  Options: `max_chars` (default 20,000; 200–200,000).
+- `get_vault_tree`: renders a folder tree of vault markdown files.  
+  Required: none.  
+  Options: `path_prefix`, `include_files` (default false), `max_depth` (default 8, 1–50), `max_nodes` (default 2000, 1–20,000).
+- `frontmatter_validate`: scans notes for required YAML frontmatter keys and `id`/`created` consistency.  
+  Required: none.  
+  Options: `path_prefix`, `max_files` (default 20,000).
+- `find_broken_links`: detects unresolved wikilinks/typed links using the index DB.  
+  Required: none.  
+  Options: `path_prefix`, `rels` (default: `links_to` + typed-link keys), `max_links` (default 20,000), `max_broken` (default 2000), `max_resolutions_per_target` (default 5).
+- `suggest_typed_links`: proposes frontmatter typed-link candidates from body wikilinks (DB-only).  
+  Required: `path`.  
+  Options: `max_links_to_consider` (default 500), `max_suggestions` (default 100), `max_resolutions_per_target` (default 5).
+
+### Write tools (gated)
+
+Write tools are disabled by default and require `AILSS_ENABLE_WRITE_TOOLS=1`. They also require `apply=true` to perform a write.
+
+- `capture_note`: creates a new note with full AILSS frontmatter.  
+  Required: `title`.  
+  Options: `body` (default ""), `folder` (default `"100. Inbox"`), `frontmatter` (overrides), `apply` (default false), `reindex_after_apply` (default true).
+- `edit_note`: applies line-based patch ops to an existing note.  
+  Required: `path`, `ops` (insert/delete/replace).  
+  Options: `expected_sha256`, `apply` (default false), `reindex_after_apply` (default true).
+- `improve_frontmatter`: normalizes/adds required frontmatter keys (and typed-link key normalization).  
+  Required: `path`.  
+  Options: `expected_sha256`, `apply` (default false), `reindex_after_apply` (default true), `fix_identity` (default false).
+- `relocate_note`: moves/renames a note.  
+  Required: `from_path`, `to_path`.  
+  Options: `apply` (default false), `overwrite` (default false), `reindex_after_apply` (default true).
 
 ## Safety and costs
 
