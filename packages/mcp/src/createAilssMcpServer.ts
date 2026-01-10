@@ -8,6 +8,7 @@ import { embeddingDimForModel } from "./lib/openaiEmbeddings.js";
 import type { McpToolDeps } from "./mcpDeps.js";
 import { registerCaptureNoteTool } from "./tools/captureNote.js";
 import { registerEditNoteTool } from "./tools/editNote.js";
+import { registerFindTypedLinkBackrefsTool } from "./tools/findTypedLinkBackrefs.js";
 import { registerFindBrokenLinksTool } from "./tools/findBrokenLinks.js";
 import { registerFrontmatterValidateTool } from "./tools/frontmatterValidate.js";
 import { registerGetContextTool } from "./tools/getContext.js";
@@ -15,7 +16,10 @@ import { registerGetNoteTool } from "./tools/getNote.js";
 import { registerGetVaultTreeTool } from "./tools/getVaultTree.js";
 import { registerGetTypedLinksTool } from "./tools/getTypedLinks.js";
 import { registerImproveFrontmatterTool } from "./tools/improveFrontmatter.js";
+import { registerListKeywordsTool } from "./tools/listKeywords.js";
+import { registerListTagsTool } from "./tools/listTags.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
+import { registerSearchNotesTool } from "./tools/searchNotes.js";
 import { registerSuggestTypedLinksTool } from "./tools/suggestTypedLinks.js";
 
 export type AilssMcpRuntime = {
@@ -71,6 +75,10 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   registerFrontmatterValidateTool(server, deps);
   registerFindBrokenLinksTool(server, deps);
   registerSuggestTypedLinksTool(server, deps);
+  registerSearchNotesTool(server, deps);
+  registerListTagsTool(server, deps);
+  registerListKeywordsTool(server, deps);
+  registerFindTypedLinkBackrefsTool(server, deps);
 
   if (runtime.enableWriteTools) {
     registerCaptureNoteTool(server, deps);
