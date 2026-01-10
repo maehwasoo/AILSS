@@ -1,12 +1,5 @@
 # Frontmatter schema
 
-## Related docs
-
-- Typed links: `./typed-links.md`
-- Vault structure: `./vault-structure.md`
-- Assistant workflow: `./assistant-workflow.md`
-- Index: `./README.md`
-
 ## Frontmatter schema
 
 All notes should keep the following YAML frontmatter template as the baseline.
@@ -29,16 +22,6 @@ keywords: []
 status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 source: []
-instance_of: [] # taxonomy / classification
-part_of: [] # composition / “part of”
-uses: [] # tools/services used by this note
-depends_on: [] # dependencies required by this note/topic
-implements: [] # specs/standards/procedures implemented by this note/topic
-see_also: [] # related notes (non-directional, for navigation)
-cites: [] # note sources as links to other notes
-authored_by: [] # authorship / attribution
-supersedes: [] # replacement (this note supersedes others)
-same_as: [] # equivalence / duplicates
 ---
 ```
 
@@ -51,6 +34,7 @@ same_as: [] # equivalence / duplicates
 - Relationship keys should use the typed-link keys (see `./typed-links.md`).
 - If you are unsure, it is acceptable to leave `layer` empty temporarily (or keep `conceptual`) and refine during review.
 - Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
+- Typed links: only add typed-link keys when you have at least one value (omit empty arrays).
 
 ### `source` (external sources)
 
@@ -59,6 +43,25 @@ Use `source` to record **non-vault** sources that support the note (URLs, papers
 - Type: **string array** (keep it present even when empty: `source: []`).
 - Use when the “source” is not another vault note (for vault notes, prefer `cites` typed links instead).
 - Prefer stable identifiers (URLs/DOIs) over long quotes; put quotes in the body and keep references in `source`.
+
+### Typed links (relationships)
+
+Typed links are optional frontmatter keys used to record semantic relations as wikilinks.
+
+- Keep typed-link keys **below `source`** when present.
+- Only include a key when you have at least one value; do not keep empty arrays.
+
+Supported keys:
+
+- `instance_of` (classification)
+- `part_of` (composition)
+- `depends_on`, `uses` (dependencies)
+- `implements` (implementation)
+- `see_also` (related, non-directional)
+- `cites` (citation to other vault notes)
+- `authored_by` (authorship/attribution)
+- `supersedes` (replacement/versioning)
+- `same_as` (equivalence/duplicates)
 
 ## Layers: definition and classification
 

@@ -10,8 +10,4 @@ Notes:
 
 ## Available snapshots
 
-- `capture`: `docs/ops/codex-skills/capture/SKILL.md`
-- `frontmatter-improve`: `docs/ops/codex-skills/frontmatter-improve/SKILL.md`
-- `read-note-context`: `docs/ops/codex-skills/read-note-context/SKILL.md`
-- `related-notes-link`: `docs/ops/codex-skills/related-notes-link/SKILL.md`
-- `relocate-note`: `docs/ops/codex-skills/relocate-note/SKILL.md`
+- `prometheus-agent`: `docs/ops/codex-skills/prometheus-agent/SKILL.md`

@@ -1,13 +1,6 @@
 # AILSS Obsidian Vault working rules
 
-This document defines the global working rules for the AILSS Obsidian vault. It reflects the vault structure as of **2025-11-11** and includes improvement guidance.
-
-## Related docs
-
-- Vault structure: `./vault-structure.md`
-- Frontmatter schema: `./frontmatter-schema.md`
-- Typed links: `./typed-links.md`
-- Index: `./README.md`
+Global working rules for the AILSS Obsidian vault.
 
 ## TL;DR
 

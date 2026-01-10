@@ -36,10 +36,11 @@ Read-first tools (implemented in this repo):
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
 - `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
 - `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
+- `sequentialthinking_hydrate`: load a sequentialthinking session note plus recent thought notes as a context bundle (DB-backed session id; vault read)
 
 Client guidance (Codex):
 
-- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex prompt snippets (`docs/ops/codex-prompts/`).
+- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex skills (`docs/ops/codex-skills/`).
 
 Transport / client integration:
 
@@ -60,10 +61,11 @@ Read-first tools (planned):
 
 Explicit write tools (apply, implemented):
 
-- `capture_note`: capture a new inbox note with full frontmatter (default folder: `100. Inbox`; supports dry-run)
+- `capture_note`: capture a new inbox note with required frontmatter (default folder: `100. Inbox`; supports dry-run)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
 - `improve_frontmatter`: normalize/add required frontmatter keys for a note (supports dry-run; can optionally fix identity mismatches)
 - `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
+- `sequentialthinking`: record a step-by-step thinking trace as linked vault notes (supports dry-run; requires `apply=true`)
 
 Write tools (planned):
 

@@ -27,19 +27,7 @@ This setup lets Codex connect over HTTP without needing direct vault filesystem 
 
 ## MCP tools
 
-Read tools (current):
-
-- `get_context`
-- `get_typed_links`
-- `read_note`
-- `get_vault_tree`
-- `frontmatter_validate`
-
-Write tools (gated; require `AILSS_ENABLE_WRITE_TOOLS=1` and `apply=true`):
-
-- `capture_note`: new inbox note with full frontmatter
-- `edit_note`: line-based patch ops; supports dry-run
-- `relocate_note`: move/rename a note; supports dry-run
+For the current MCP tool surface (read tools + gated write tools), see `docs/01-overview.md`.
 
 ## Safety and costs
 
@@ -58,7 +46,7 @@ Write tools (gated; require `AILSS_ENABLE_WRITE_TOOLS=1` and `apply=true`):
 - `docs/ops/local-dev.md`: local development and plugin build instructions
 - `docs/ops/testing.md`: testing commands and guidance
 - `docs/ops/agents-snippet.md`: AGENTS.md prompt snippet for AILSS MCP usage
-- `docs/ops/codex-prompts/README.md`: Codex prompt snippets
+- `docs/ops/codex-skills/README.md`: Codex skill snapshots (reference)
 - `docs/standards/vault/README.md`: vault rules and frontmatter requirements
 - `docs/architecture/packages.md`: package structure and dependency direction
 - `docs/architecture/data-db.md`: SQLite schema and indexing data model

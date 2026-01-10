@@ -1,22 +1,28 @@
 ## Summary
 
-What does this PR change, and why?
+This PR has been created because [REPLACE ME].
 
-## How to test
+Fixes #<issue-number> (or N/A)
 
-Commands run (or manual steps):
+## Validation
 
-- `pnpm -r typecheck`
-- `pnpm test`
+To verify this change:
 
-## Notes (optional)
+- Run `pnpm -r typecheck`
+- Run `pnpm test`
 
-- DB reset/reindex needed?
-- Vault write behavior changed?
+If manual validation is required, describe the exact steps here:
+[REPLACE ME]
+
+## Risk / migration (if any)
+
+DB/index impact (reset/reindex/migration needed?): [REPLACE ME]
+
+Vault write behavior changed (what/why?): [REPLACE ME]
 
 ## Checklist
 
 - [ ] Commit message follows `<type>(<scope>): <subject>` (single line; no trailing period)
-- [ ] Tests run (or N/A) and results noted above
+- [ ] Validation results noted above (or N/A)
 - [ ] No secrets committed (API keys, vault private data)
-- [ ] Docs updated where behavior changed
+- [ ] Docs updated where behavior changed (or N/A)

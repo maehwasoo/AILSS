@@ -71,6 +71,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	private indexerUiUpdateTimer: NodeJS.Timeout | null = null;
 
 	private mcpHttpServiceProc: ChildProcess | null = null;
+	private mcpHttpServiceStopRequested = false;
 	private mcpHttpServiceLiveStdout = "";
 	private mcpHttpServiceLiveStderr = "";
 	private mcpHttpServiceStartedAt: string | null = null;
@@ -212,7 +213,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			}
 
 			await clipboard.writeText(codexPrometheusAgentPrompt());
-			new Notice("Copied Prometheus Agent prompt.");
+			new Notice("Copied Prometheus Agent skill.");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			new Notice(`Copy failed: ${message}`);
@@ -249,6 +250,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		if (this.mcpHttpServiceProc) return;
 
 		try {
+			this.mcpHttpServiceStopRequested = false;
 			await this.ensureMcpHttpServiceToken();
 			const token = this.settings.mcpHttpServiceToken.trim();
 			if (!token) {
@@ -346,6 +348,25 @@ export default class AilssObsidianPlugin extends Plugin {
 				this.mcpHttpServiceLastExitCode = code;
 				this.mcpHttpServiceLastStoppedAt = nowIso();
 				this.mcpHttpServiceProc = null;
+
+				const stopRequested = this.mcpHttpServiceStopRequested;
+				this.mcpHttpServiceStopRequested = false;
+
+				if (stopRequested) {
+					this.mcpHttpServiceLastErrorMessage = null;
+				} else if ((code !== null && code !== 0) || (code === null && signal)) {
+					const stderr = this.mcpHttpServiceLiveStderr.trim();
+					const stderrTail = stderr
+						? stderr.split(/\r?\n/).slice(-10).join("\n").trim()
+						: "";
+					const suffix = code === null ? `signal ${signal}` : `exit ${code}`;
+					this.mcpHttpServiceLastErrorMessage = stderrTail
+						? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}`
+						: `Unexpected stop (${suffix}).`;
+				} else {
+					this.mcpHttpServiceLastErrorMessage = null;
+				}
+
 				this.updateMcpStatusBar();
 
 				if (this.settings.mcpHttpServiceEnabled) {
@@ -369,6 +390,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		const child = this.mcpHttpServiceProc;
 		if (!child) return;
 
+		this.mcpHttpServiceStopRequested = true;
 		await new Promise<void>((resolve) => {
 			const timeout = setTimeout(() => {
 				try {
