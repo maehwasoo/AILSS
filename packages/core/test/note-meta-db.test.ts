@@ -11,6 +11,7 @@ import {
   listKeywords,
   listTags,
   replaceNoteSources,
+  resolveNotePathsByWikilinkTarget,
   openAilssDb,
   replaceNoteKeywords,
   replaceNoteTags,
@@ -90,6 +91,13 @@ describe("notes + typed_links queries", () => {
       expect(searchNotes(db, { orderBy: "created", orderDir: "desc" }).map((r) => r.path)).toEqual([
         "notes/b.md",
         "notes/a.md",
+      ]);
+
+      expect(resolveNotePathsByWikilinkTarget(db, "20260101000000")).toEqual([
+        { path: "notes/a.md", title: "Project A", matchedBy: "note_id" },
+      ]);
+      expect(resolveNotePathsByWikilinkTarget(db, "Project A")).toEqual([
+        { path: "notes/a.md", title: "Project A", matchedBy: "title" },
       ]);
 
       expect(listTags(db, { limit: 10 })).toEqual([

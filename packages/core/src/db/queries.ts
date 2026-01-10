@@ -682,7 +682,7 @@ export function findNotesByTypedLink(db: AilssDb, query: TypedLinkQuery): TypedL
 export type ResolvedNoteTarget = {
   path: string;
   title: string | null;
-  matchedBy: "path" | "title";
+  matchedBy: "path" | "note_id" | "title";
 };
 
 export function resolveNotePathsByWikilinkTarget(
@@ -716,6 +716,19 @@ export function resolveNotePathsByWikilinkTarget(
     title: string | null;
   }>;
 
+  // Note ID match (frontmatter-derived, if present)
+  const noteIdMatches = db
+    .prepare(
+      `
+        SELECT path, title
+        FROM notes
+        WHERE note_id = ?
+        ORDER BY path
+        LIMIT ?
+      `,
+    )
+    .all(targetNoExt, effectiveLimit) as Array<{ path: string; title: string | null }>;
+
   // Title-based match (frontmatter-derived, if present)
   const titleMatches = db
     .prepare(
@@ -737,6 +750,13 @@ export function resolveNotePathsByWikilinkTarget(
     if (seen.has(row.path)) continue;
     seen.add(row.path);
     out.push({ path: row.path, title: row.title, matchedBy: "path" });
+    if (out.length >= effectiveLimit) return out;
+  }
+
+  for (const row of noteIdMatches) {
+    if (seen.has(row.path)) continue;
+    seen.add(row.path);
+    out.push({ path: row.path, title: row.title, matchedBy: "note_id" });
     if (out.length >= effectiveLimit) return out;
   }
 
