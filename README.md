@@ -37,6 +37,9 @@ The list below reflects the current MCP tool surface. For broader architecture d
 - `get_typed_links`: expands outgoing typed-link graph from a seed note (DB-only; no note body reads).  
   Required: `path`.  
   Options: `max_notes` (default 50, 1–200), `max_edges` (default 2000, 1–10,000), `max_links_per_note` (default 40), `max_resolutions_per_target` (default 5).
+- `find_typed_link_backrefs`: finds notes that reference a target via typed links (incoming edges; includes `links_to`).  
+  Required: none.  
+  Options: `rel`, `to_target`, `limit` (default 100, 1–1000).
 - `read_note`: reads a vault Markdown note by path (filesystem).  
   Required: `path`.  
   Options: `max_chars` (default 20,000; 200–200,000).
@@ -49,6 +52,15 @@ The list below reflects the current MCP tool surface. For broader architecture d
 - `find_broken_links`: detects unresolved wikilinks/typed links using the index DB.  
   Required: none.  
   Options: `path_prefix`, `rels` (default: `links_to` + typed-link keys), `max_links` (default 20,000), `max_broken` (default 2000), `max_resolutions_per_target` (default 5).
+- `search_notes`: searches indexed note metadata (frontmatter-derived fields, tags/keywords/sources) in the local DB (no embeddings).  
+  Required: none.  
+  Options: `path_prefix`, `title_query`, `note_id`, `entity`, `layer`, `status`, `created_from`, `created_to`, `updated_from`, `updated_to`, `tags_any`, `tags_all`, `keywords_any`, `sources_any`, `order_by`, `order_dir`, `limit`.
+- `list_tags`: lists indexed tags with usage counts (helps reuse existing vocabulary).  
+  Required: none.  
+  Options: `limit` (default 200, 1–5000).
+- `list_keywords`: lists indexed keywords with usage counts (helps reuse existing vocabulary).  
+  Required: none.  
+  Options: `limit` (default 200, 1–5000).
 - `suggest_typed_links`: proposes frontmatter typed-link candidates from body wikilinks (DB-only).  
   Required: `path`.  
   Options: `max_links_to_consider` (default 500), `max_suggestions` (default 100), `max_resolutions_per_target` (default 5).
@@ -73,7 +85,8 @@ Write tools are disabled by default and require `AILSS_ENABLE_WRITE_TOOLS=1`. Th
 ## Safety and costs
 
 - The MCP service binds to `127.0.0.1` and requires a bearer token.
-- Embeddings and query vectors use the OpenAI API and can incur costs on large vaults.
+- Index-time embeddings and query-time vectors (`get_context`) use the OpenAI embeddings API and can incur costs.
+- Metadata tools (`search_notes`, `list_tags`, `list_keywords`, typed-link graph/backrefs) are DB-only and do not call embeddings APIs.
 - Write tools are disabled by default and require both `AILSS_ENABLE_WRITE_TOOLS=1` and an explicit request with `apply=true`.
 
 ## Docs
