@@ -34,6 +34,7 @@ source: []
 - Relationship keys should use the typed-link keys (see `./typed-links.md`).
 - If you are unsure, it is acceptable to leave `layer` empty temporarily (or keep `conceptual`) and refine during review.
 - Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
+- Prefer reusing existing `tags`/`keywords` vocabulary when possible (avoid near-duplicates like `llm` vs `LLM`).
 - Typed links: only add typed-link keys when you have at least one value (omit empty arrays).
 
 ### `source` (external sources)
@@ -62,6 +63,8 @@ Supported keys:
 - `authored_by` (authorship/attribution)
 - `supersedes` (replacement/versioning)
 - `same_as` (equivalence/duplicates)
+
+The supported key list is also encoded in the implementation (see `./typed-links.md` for the “sources of truth” that must be updated together when adding new keys).
 
 ## Layers: definition and classification
 

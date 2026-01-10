@@ -23,6 +23,15 @@ AILSS indexes and queries typed links by these frontmatter keys:
 
 If you need a new key, update the rules/ontology first and then use it consistently.
 
+Implementation sources of truth (when adding/changing relation keys):
+
+- Code: `packages/core/src/vault/frontmatter.ts` (`AILSS_TYPED_LINK_KEYS`) is the canonical list of frontmatter keys that AILSS recognizes as typed links.
+  - Only keys in this list are extracted from frontmatter and indexed into the `typed_links` table.
+- Template: `packages/mcp/src/lib/ailssNoteTemplate.ts` controls which typed-link keys are emitted (and their order) by `capture_note` and `improve_frontmatter`.
+- Docs: this file + `./frontmatter-schema.md` define the vault writing rules and supported ontology.
+
+To introduce a new typed-link key, update **all** of the above in the same change set (otherwise the key may exist in notes but won’t be indexed/emitted consistently).
+
 Notes:
 
 - AILSS also extracts **body** `[[wikilinks]]` and stores them as edges with `rel: links_to`.

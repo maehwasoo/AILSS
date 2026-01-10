@@ -30,6 +30,8 @@ Global working rules for the AILSS Obsidian vault.
 - Recommended flow:
   1. Use `get_context` to collect candidate notes (write your query as a full sentence for reproducibility).
   2. Use `read_note` to confirm exact wording and frontmatter.
+     - Note: `read_note` does **not** search by title/id; it reads by vault-relative `path`.
+     - If you only know `id`/`title`, use `search_notes` to find candidate paths first, then `read_note`.
   3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
   5. Optional: use `suggest_typed_links` to propose candidates, then apply via `edit_note` (requires `apply=true` approval).
@@ -40,7 +42,11 @@ Global working rules for the AILSS Obsidian vault.
 
 - `get_context`: semantic retrieval over indexed chunks; returns related notes and optional previews.
 - `read_note`: reads a specific note from the vault filesystem (body included) to verify exact text/fields.
+- `search_notes`: DB-backed metadata filtering (frontmatter-derived fields, tags/keywords/sources); no embeddings calls.
+- `list_tags`: list indexed tags and counts (use to reuse existing vocabulary).
+- `list_keywords`: list indexed keywords and counts (use to reuse existing vocabulary).
 - `get_typed_links`: expands outgoing typed links into a bounded graph (metadata only).
+- `find_typed_link_backrefs`: find notes that link _to_ a target via typed links (incoming edges; includes `links_to`).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
 - `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
@@ -64,6 +70,7 @@ Global working rules for the AILSS Obsidian vault.
 
 - Before: gather related notes/assets (`get_context`, `rg "assets/" -n`).
 - Frontmatter: verify required key presence (`id`, `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`).
+- Tags/keywords: before adding a new value, check existing vocabulary via `list_tags` / `list_keywords` and reuse when possible.
 - Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `same_as`, `supersedes`).
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
 - Links: run `find_broken_links` (preferred) and fix unresolved targets; fall back to `rg "\\[\\[" -n` if needed.
