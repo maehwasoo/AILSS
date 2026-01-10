@@ -49,15 +49,16 @@ Stores note-level metadata derived from frontmatter, plus the normalized raw fro
 
 - `path` (PK, FK → `files.path`): vault-relative path
 - `note_id`, `created`, `title`, `summary`
-- `entity`, `layer`, `status`, `updated`, `viewed`
+- `entity`, `layer`, `status`, `updated`
 - `frontmatter_json`: normalized JSON (stable arrays for tags/keywords/typed links)
 
-### `note_tags` / `note_keywords`
+### `note_tags` / `note_keywords` / `note_sources`
 
 Simple mapping tables for fast filtering without relying on sqlite JSON functions.
 
 - `note_tags(path, tag)`
 - `note_keywords(path, keyword)`
+- `note_sources(path, source)`
 
 ### `typed_links`
 
@@ -73,7 +74,8 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 
 - Metadata filtering supports only a fixed set of filters backed by indexed columns/tables:
   - `notes.note_id`, `notes.entity`, `notes.layer`, `notes.status`
-  - `note_tags.tag`, `note_keywords.keyword`
+  - `notes.created`, `notes.updated`
+  - `note_tags.tag`, `note_keywords.keyword`, `note_sources.source`
   - basic path/title filters
 - Typed-link “backrefs” are supported by `rel` + `to_target`.
 - The full normalized frontmatter JSON is stored, but arbitrary filtering over `frontmatter_json` is not implemented yet.
@@ -85,7 +87,7 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 2. Compare the file sha256 to the DB; if it differs, treat as “changed”
 3. Upsert `files`
 4. Parse Markdown into `frontmatter` + `body`, normalize frontmatter fields + typed links, extract body `[[wikilinks]]` as `links_to`, and upsert:
-   - `notes`, `note_tags`, `note_keywords`, `typed_links`
+   - `notes`, `note_tags`, `note_keywords`, `note_sources`, `typed_links`
 5. Chunk the Markdown body by headings (with `maxChars`) and compute stable chunk IDs per file
 6. Compare existing chunks for that file to the next chunk set:
    - Delete chunks that no longer exist (including vec0 rows)
@@ -98,7 +100,7 @@ Stores “typed links” as graph edges (frontmatter relations and body wikilink
 
 - Semantic retrieval embeds the query and performs a KNN search via sqlite-vec using `MATCH` + `k = ?`
 - Due to sqlite-vec constraints, the KNN query needs `k = ?` or `LIMIT`, so matches are separated with a CTE
-- Metadata filtering queries `notes` + mapping tables for frontmatter-derived filtering (note_id/entity/layer/status/tags/keywords)
+- Metadata filtering queries `notes` + mapping tables for frontmatter-derived filtering (id/entity/layer/status/tags/keywords/source/created/updated)
 - Typed-link backrefs query `typed_links` (relation + target)
 
 ## Embedding dimension caveat

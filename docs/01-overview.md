@@ -31,10 +31,14 @@ Read-first tools (implemented in this repo):
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
+- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges; includes `links_to`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
 - `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
+- `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
+- `list_tags`: list indexed tags with usage counts
+- `list_keywords`: list indexed keywords with usage counts
 - `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
 
 Client guidance (Codex):
@@ -52,7 +56,9 @@ Transport / client integration:
 Frontmatter query support (current):
 
 - AILSS stores normalized frontmatter in SQLite for retrieval and graph building.
-- The MCP surface focuses on `get_context` (semantic retrieval) and `get_typed_links` (typed-link navigation) rather than exposing arbitrary frontmatter filtering.
+- The MCP surface supports both:
+  - semantic retrieval via `get_context`
+  - metadata filtering via `search_notes` + typed-link navigation/backrefs via `get_typed_links` / `find_typed_link_backrefs`
 
 Read-first tools (planned):
 
