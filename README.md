@@ -53,6 +53,52 @@ If you skip prompts/skills, assistants are more likely to guess instead of query
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
+## Vault model
+
+AILSS treats your vault as a **knowledge graph**:
+
+- YAML frontmatter is the structured “note metadata”.
+- Frontmatter “typed links” are the structured graph edges (semantic relations).
+- Body `[[wikilinks]]` are still useful and are also extracted, but they are treated as **non-semantic navigation** by default.
+
+The indexer normalizes frontmatter and stores it in SQLite (including a `typed_links` table) so tools can build context without guessing.
+For the full rules/templates, see `docs/standards/vault/README.md`.
+
+### Required frontmatter fields
+
+All notes should keep these keys (template: `docs/standards/vault/frontmatter-schema.md`):
+
+| field      | type                                                                    | purpose                                                                                 |
+| ---------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `id`       | string (`YYYYMMDDHHmmss`)                                               | stable note identifier; should match the first 14 digits of `created`                   |
+| `created`  | string (ISO `YYYY-MM-DDTHH:mm:ss`)                                      | creation time                                                                           |
+| `title`    | string                                                                  | canonical title (Obsidian link target)                                                  |
+| `summary`  | string \| null                                                          | short human summary (improves retrieval + review)                                       |
+| `aliases`  | string[]                                                                | alternate titles (for linking/search)                                                   |
+| `entity`   | string \| null                                                          | classification (concept, project, procedure, log, etc.)                                 |
+| `layer`    | `strategic` \| `conceptual` \| `logical` \| `physical` \| `operational` | why/what/structure/implementation/operations dimension                                  |
+| `tags`     | string[]                                                                | lightweight navigation tags (use sparingly; inbox tag for `100. Inbox/`)                |
+| `keywords` | string[]                                                                | controlled vocabulary (reuse existing terms when possible)                              |
+| `status`   | `draft` \| `in-review` \| `active` \| `archived`                        | lifecycle state                                                                         |
+| `updated`  | string (ISO `YYYY-MM-DDTHH:mm:ss`)                                      | last updated time                                                                       |
+| `source`   | string[]                                                                | external sources (URLs/DOIs/tickets/specs); for vault-to-vault citations prefer `cites` |
+
+### Typed links (semantic relations)
+
+Typed links are optional frontmatter keys used to record semantic edges as wikilinks (rules: `docs/standards/vault/typed-links.md`):
+
+- `instance_of`: classification (“is a kind of”)
+- `part_of`: composition / parent hub (“is part of”)
+- `depends_on`, `uses`: dependencies (“needs/uses”)
+- `implements`: implementation of a spec/standard/procedure
+- `see_also`: related notes
+- `cites`: citation to other vault notes (use `source` for external sources)
+- `authored_by`: authorship / attribution
+- `same_as`, `supersedes`: equivalence / replacement
+
+Note: AILSS also extracts body `[[wikilinks]]` and stores them as `typed_links` edges with `rel: links_to`.
+You should not write `links_to` in frontmatter.
+
 ## MCP tools
 
 The list below reflects the current MCP tool surface. For broader architecture details, see `docs/01-overview.md`.
