@@ -6,7 +6,7 @@ This file contains global rules for the repository root.
 
 ## 0. Fixed opening line
 
-**“Break down every request with `sequentialthinking`, and when `nextThoughtNeeded=false`, proceed immediately to the execution step within the same turn unless the user asks you to stop.”**
+**“Break down every request into steps, and proceed immediately to the execution step within the same turn unless the user asks you to stop.”**
 
 ---
 
@@ -112,7 +112,6 @@ This repo recommends Conventional Commits.
 
 ## 4. Tooling rules (required)
 
-- Start every request with `sequentialthinking`
 - For URL source text, prefer `fetch`
 - Parallelize independent reads via `multi_tool_use.parallel`
 - Prefer `apply_patch` for edits

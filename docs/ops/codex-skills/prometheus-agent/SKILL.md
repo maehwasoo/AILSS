@@ -10,9 +10,7 @@ mcp_tools:
   - frontmatter_validate
   - find_broken_links
   - suggest_typed_links
-  - sequentialthinking_hydrate
   # Only when write tools are enabled (AILSS_ENABLE_WRITE_TOOLS=1)
-  - sequentialthinking
   - capture_note
   - edit_note
   - improve_frontmatter
@@ -28,14 +26,6 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
 2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
 3. Use `read_note` to confirm exact wording and frontmatter before making claims.
-
-## Sequential thinking (planning discipline)
-
-- Required:
-  - Start every request by calling `sequentialthinking` to break the work into steps and verification criteria.
-  - Do not execute (especially any write) until `nextThoughtNeeded=false`.
-  - Once `nextThoughtNeeded=false` and no additional user confirmation is required, proceed immediately to the execution step in the same turn.
-  - Before any phase change (plan → execute, execute → verify), call `sequentialthinking` again and reach `nextThoughtNeeded=false` before continuing.
 
 ## Tool availability (important)
 
