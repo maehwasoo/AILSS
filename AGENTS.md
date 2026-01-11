@@ -4,12 +4,6 @@ This file contains global rules for the repository root.
 
 ---
 
-## 0. Fixed opening line
-
-**“Break down every request into steps, and proceed immediately to the execution step within the same turn unless the user asks you to stop.”**
-
----
-
 ## 1. Documentation/context entrypoints
 
 When starting non-trivial work (multi-step, behavior change, or anything cross-package), check these docs first:
@@ -41,6 +35,7 @@ Use this to “fully utilize” docs without loading unrelated context:
 - Node.js `>=20` (`package.json#engines`)
 - pnpm `pnpm@10.20.0` (`package.json#packageManager`)
 - pnpm workspace: `packages/*` (`pnpm-workspace.yaml`)
+- Use **pnpm only** — do not commit npm/yarn lockfiles (e.g. `package-lock.json`, `yarn.lock`)
 
 ### 2.2 Install/build: local / sandbox
 
@@ -138,12 +133,3 @@ This repo recommends Conventional Commits.
 - Verification requirement: after refactoring, run the closest tests/lint/typecheck available and ensure no public API/CLI behavior changes unless explicitly requested.
 
 ---
-
-## 7. AILSS note creation (Codex + MCP)
-
-When the `ailss` MCP server is available and the user asks to create a new vault note:
-
-- Prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
-- Do a dry-run first (`apply=false`), show the proposed path + sha256, then ask for confirmation before `apply=true`.
-- Do not override identity fields (`id`, `created`) unless the user explicitly asks.
-- Keep the body structured: short summary, key points, next actions/open questions, then relevant wikilinks.

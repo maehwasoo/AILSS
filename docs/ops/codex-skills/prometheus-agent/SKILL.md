@@ -34,12 +34,23 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 3. Use `resolve_note` when you only have `id`/`title`/a wikilink target and need a vault-relative path for `read_note`/`edit_note`.
 4. Use `read_note` to confirm exact wording and frontmatter before making claims.
 5. Use `search_notes` for metadata filtering (entity/layer/status/tags/keywords/source/date ranges) without embeddings calls.
+6. Keep relationships in frontmatter only:
+   - Record semantic relations as typed-link keys in YAML frontmatter (not a `## Links` section at the end of the note).
+   - Avoid adding wikilinks to tool names or input keys (e.g. `[[sequentialthinking]]`, `[[session_note_id]]`) unless there is an actual vault note with that title.
 
 ## Tool availability (important)
 
 - Read tools are always registered.
 - Write tools are **not** registered by default. They require `AILSS_ENABLE_WRITE_TOOLS=1`.
 - If a write tool is missing, do not “simulate” a write. Ask the user to enable write tools or proceed read-only.
+
+## Obsidian grammar (titles + links)
+
+- Titles are filenames: keep them cross-device safe (especially for Sync).
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
+- If you need the full path in a wikilink (disambiguation), hide it with display text:
+  - Example: `[[20. Areas/50. AILSS/20. 운영(Operations)/20. 운영(Operations)|20. 운영(Operations)]]`
 
 ## Safe writes (when enabled)
 
@@ -61,6 +72,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 Notes:
 
 - Let `capture_note` generate `id`/`created`/`updated` unless the user explicitly wants overrides.
+- `capture_note` timestamps follow system local time (no fixed timezone) and are stored as ISO to seconds without a timezone suffix (`YYYY-MM-DDTHH:mm:ss`).
 - Prefer setting non-default fields via `frontmatter` overrides when known: `entity`, `layer`, `status`, `summary`, and optionally `tags`, `keywords`, `source`.
 - Typed links are optional; if you include typed links, only include keys that have values.
 - Typed links are one-way; link from the current note outward based on how it relates to other notes.

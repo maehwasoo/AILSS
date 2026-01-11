@@ -46,6 +46,9 @@ describe("MCP HTTP server (write tools)", () => {
         const written = await fs.readFile(path.join(vaultPath, appliedPath), "utf8");
         const parsed = parseMarkdownNote(written);
         expect(parsed.frontmatter.title).toBe("Hello Capture");
+        expect(parsed.frontmatter.summary).toBe(null);
+        expect(parsed.frontmatter.entity).toBe(null);
+        expect(parsed.frontmatter.layer).toBe(null);
         expect(Array.isArray(parsed.frontmatter.tags)).toBe(true);
         expect(parsed.frontmatter.tags).toContain("inbox");
         expect(parsed.body).toContain("body");

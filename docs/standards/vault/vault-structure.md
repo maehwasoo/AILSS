@@ -57,6 +57,9 @@ This document summarizes the AILSS ontology, layers, and Obsidian conventions (a
 - Embeds: use `![[filename]]`; keep assets in a note-adjacent `assets/` folder.
 - Tags: use a small number of navigation tags; promote semantic relations into typed links.
 - Filenames: keep the vault filename convention consistent (see naming rule above).
+- Filenames (cross-device safe): avoid characters/sequences that can break links or Sync on other OSes.
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
 
 ## Wikilinks, anchors, and footnotes
 

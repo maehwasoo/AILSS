@@ -6,8 +6,8 @@ All notes should keep the following YAML frontmatter template as the baseline.
 
 ```
 ---
-id: {{date:YYYYMMDDHHmmss}}
-created: {{date:YYYY-MM-DDTHH:mm:ss}}
+id: "{{date:YYYYMMDDHHmmss}}"
+created: "{{date:YYYY-MM-DDTHH:mm:ss}}"
 title: {{title}}
 summary:
 aliases:
@@ -15,12 +15,12 @@ aliases:
 entity:
 # strategic | conceptual | logical | physical | operational
 # why / what / structure / implementation / operations
-layer: conceptual
+layer:
 tags: [] # Only use the inbox tag for notes under 100. Inbox/ (example: ['inbox'])
 keywords: []
 # draft | in-review | active | archived
 status: draft
-updated: {{date:YYYY-MM-DDTHH:mm:ss}}
+updated: "{{date:YYYY-MM-DDTHH:mm:ss}}"
 source: []
 ---
 ```
@@ -28,11 +28,12 @@ source: []
 ### Field guidelines
 
 - Frontmatter is the minimum metadata set needed to keep the knowledge graph consistent.
+- Timestamps (`created`/`updated`) are expected to use system local time (no fixed timezone) and are stored as ISO to seconds without a timezone suffix (`YYYY-MM-DDTHH:mm:ss`).
 - The `entity` field should use an allowed type (concept, document, project, guide, tool, etc.).
 - The `layer` field should be one of: strategic, conceptual, logical, physical, operational.
 - The `status` field should be one of: draft, in-review, active, archived.
 - Relationship keys should use the typed-link keys (see `./typed-links.md`).
-- If you are unsure, it is acceptable to leave `layer` empty temporarily (or keep `conceptual`) and refine during review.
+- If you are unsure, it is acceptable to leave `layer` empty temporarily and refine during review.
 - Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
 - Prefer reusing existing `tags`/`keywords` vocabulary when possible (avoid near-duplicates like `llm` vs `LLM`).
 - Typed links: only add typed-link keys when you have at least one value (omit empty arrays).

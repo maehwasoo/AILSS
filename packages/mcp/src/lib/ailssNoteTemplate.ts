@@ -20,9 +20,21 @@ export function defaultTagsForRelPath(vaultRelPath: string): string[] {
   return isInboxRelPath(vaultRelPath) ? ["inbox"] : [];
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
 export function nowIsoSeconds(): string {
-  // ISO without milliseconds/timezone (matches core db metadata style)
-  return new Date().toISOString().slice(0, 19);
+  // Local ISO-like timestamp without milliseconds/timezone suffix.
+  // - Uses the system timezone (local time)
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = pad2(now.getMonth() + 1);
+  const d = pad2(now.getDate());
+  const hh = pad2(now.getHours());
+  const mm = pad2(now.getMinutes());
+  const ss = pad2(now.getSeconds());
+  return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
 }
 
 export function idFromIsoSeconds(isoSeconds: string): string {
@@ -84,7 +96,7 @@ export function buildAilssFrontmatter(options: {
     summary: null,
     aliases: [],
     entity: null,
-    layer: "conceptual",
+    layer: null,
     tags: options.tags ?? [],
     keywords: [],
     status: "draft",

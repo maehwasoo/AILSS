@@ -20,6 +20,41 @@ url = "http://127.0.0.1:31415/mcp"
 http_headers = { Authorization = "Bearer <token>" }
 ```
 
+## Claude Code (MCP) setup
+
+You can connect Claude Code to the same Obsidian plugin-hosted MCP service.
+
+1. In Obsidian plugin settings, enable “MCP service (Codex, localhost)” and generate/copy the bearer token.
+2. Add the MCP server in Claude Code (local scope is recommended so you don’t commit secrets):
+
+```bash
+claude mcp add --transport http --scope local ailss http://127.0.0.1:31415/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+3. Verify it’s configured:
+
+```bash
+claude mcp list
+```
+
+Optional: if you want a team-shared configuration, Claude Code supports a project-scoped `.mcp.json` in the repo root.
+Use environment variable expansion so the token is not committed:
+
+```json
+{
+  "mcpServers": {
+    "ailss": {
+      "type": "http",
+      "url": "http://127.0.0.1:31415/mcp",
+      "headers": {
+        "Authorization": "Bearer ${AILSS_MCP_BEARER_TOKEN}"
+      }
+    }
+  }
+}
+```
+
 ## Recommended: install guidance (prompts) and Codex skills
 
 AILSS works best when your assistant is explicitly steered to:
