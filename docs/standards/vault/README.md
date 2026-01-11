@@ -14,4 +14,10 @@ The rules are split into topic-scoped docs so they stay navigable and can be ref
 
 ## Prompt installer
 
-The Obsidian plugin “Prompt installer (vault root)” stitches these docs into a single prompt file (for example `AGENTS.md`) and writes it to the vault root.
+The Obsidian plugin “Prompt installer (vault root)” stitches these docs into a single prompt file (for example `AGENTS.md`) and writes it to the vault root:
+
+- `assistant-workflow.md`
+- `frontmatter-schema.md`
+- `typed-links.md`
+- `vault-structure.md`
+- `note-style.md`

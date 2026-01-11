@@ -2,7 +2,9 @@
 
 This document contains **optional** Markdown and writing-style conventions for vault notes.
 
-AILSS does not require these conventions for indexing, and the Obsidian plugin prompt installer does **not** bundle this file into `AGENTS.md` by default.
+AILSS does not require these conventions for indexing. The Obsidian plugin prompt installer bundles this file into installed prompts so assistants can follow a consistent style when desired.
+
+Do not rewrite existing notes solely to enforce style unless the user explicitly asks.
 
 ## Obsidian Markdown conventions (optional)
 
