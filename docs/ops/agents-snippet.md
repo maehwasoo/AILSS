@@ -31,6 +31,8 @@ When the `ailss` MCP server is available:
      - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
    - For note creation, do `apply=false` → confirm with the user → `apply=true`.
    - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
+   - Timestamps:
+     - `capture_note` generates `id`/`created`/`updated` using system local time (no fixed timezone) and stores them as ISO to seconds without a timezone suffix (`YYYY-MM-DDTHH:mm:ss`).
    - For line-based edits, fetch the note via `read_note`, then compute exact anchors + line numbers (do not guess).
    - Use `expected_sha256` to avoid overwriting concurrent edits.
    - Only set `apply=true` after confirming the target path + patch ops are correct.
@@ -41,6 +43,9 @@ When the `ailss` MCP server is available:
    - Treat the Obsidian vault as the Single Source of Truth (SSOT).
    - Do not invent facts not present in notes; if something is missing, say so and propose where to add it.
    - Keep edits minimal and auditable (small patch ops; no mass rewrites without explicit request).
+   - Keep relationships in frontmatter only:
+     - Record semantic relations as typed-link keys in YAML frontmatter (not a `## Links` section at the end of the note).
+     - Avoid adding wikilinks to tool names or input keys (e.g. `[[sequentialthinking]]`, `[[session_note_id]]`) unless there is an actual vault note with that title.
 ```
 
 ## Notes
