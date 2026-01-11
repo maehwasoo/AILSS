@@ -35,6 +35,7 @@ Use this to “fully utilize” docs without loading unrelated context:
 - Node.js `>=20` (`package.json#engines`)
 - pnpm `pnpm@10.20.0` (`package.json#packageManager`)
 - pnpm workspace: `packages/*` (`pnpm-workspace.yaml`)
+- Use **pnpm only** — do not commit npm/yarn lockfiles (e.g. `package-lock.json`, `yarn.lock`)
 
 ### 2.2 Install/build: local / sandbox
 

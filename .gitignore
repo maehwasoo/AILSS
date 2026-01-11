@@ -7,6 +7,11 @@ coverage/
 .cache/
 *.log
 
+# Package manager lockfiles (pnpm-only repo)
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+
 # Env
 .env
 .env.*
