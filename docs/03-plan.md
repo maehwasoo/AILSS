@@ -191,6 +191,9 @@ Plan:
 
 - Plugin-managed **long-lived MCP process**: implemented for the localhost MCP HTTP service (avoid spawn-per-search latency; restart on crash; stop on unload)
 - Indexer **single-writer lock**: partial (plugin serializes its own runs; cross-process lock TBD)
+  - Clarification: “cross-process” means separate Node processes (e.g. Obsidian plugin indexing + a terminal-run `ailss-indexer`), not the plugin’s local MCP (stdio) setting.
+  - Goal: prevent concurrent writes to `<vault>/.ailss/index.sqlite` and avoid duplicate embedding calls/costs when two indexers run at the same time.
+  - Minimal approach: lockfile under `<vault>/.ailss/` with a clear “indexing already running” error and a safe TTL/force-unlock story.
 - DB **identity + validation**: implemented for embedding model/dimension (schema version later)
 
 ## 9) Production readiness (public distribution)
