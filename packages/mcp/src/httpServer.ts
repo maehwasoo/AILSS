@@ -171,9 +171,9 @@ function getSingleHeaderValue(req: IncomingMessage, name: string): string | null
 }
 
 function parseMaxSessionsFromEnv(): number {
-  const raw = (process.env.AILSS_MCP_HTTP_MAX_SESSIONS ?? "5").trim();
+  const raw = (process.env.AILSS_MCP_HTTP_MAX_SESSIONS ?? "20").trim();
   const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) return 5;
+  if (!Number.isFinite(n) || n < 1) return 20;
   return n;
 }
 
