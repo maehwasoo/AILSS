@@ -29,6 +29,7 @@ When the `ailss` MCP server is available:
    - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
      - When capturing, set non-default frontmatter via `frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
      - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
+     - Write the note body to be readable later (not raw chat logs): keep it short and structured (Context / Key points / Next actions / Open questions / References).
    - For note creation, do `apply=false` → confirm with the user → `apply=true`.
    - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
    - Timestamps:
