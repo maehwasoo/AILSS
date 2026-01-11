@@ -15,7 +15,7 @@ aliases:
 entity:
 # strategic | conceptual | logical | physical | operational
 # why / what / structure / implementation / operations
-layer: conceptual
+layer:
 tags: [] # Only use the inbox tag for notes under 100. Inbox/ (example: ['inbox'])
 keywords: []
 # draft | in-review | active | archived
@@ -33,7 +33,7 @@ source: []
 - The `layer` field should be one of: strategic, conceptual, logical, physical, operational.
 - The `status` field should be one of: draft, in-review, active, archived.
 - Relationship keys should use the typed-link keys (see `./typed-links.md`).
-- If you are unsure, it is acceptable to leave `layer` empty temporarily (or keep `conceptual`) and refine during review.
+- If you are unsure, it is acceptable to leave `layer` empty temporarily and refine during review.
 - Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
 - Prefer reusing existing `tags`/`keywords` vocabulary when possible (avoid near-duplicates like `llm` vs `LLM`).
 - Typed links: only add typed-link keys when you have at least one value (omit empty arrays).
