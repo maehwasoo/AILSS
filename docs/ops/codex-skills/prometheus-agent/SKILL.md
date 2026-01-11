@@ -54,7 +54,8 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 
 ## Safe writes (when enabled)
 
-- Prefer `apply=false` first (dry-run), then confirm with the user, then `apply=true`.
+- Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
+  - Only pause when the user explicitly requests “preview only” or the preview indicates a suspicious target.
 - For edits, use `expected_sha256` to avoid overwriting concurrent changes.
 - Keep identity fields safe: do not override `id`/`created` unless the user explicitly requests it.
 
