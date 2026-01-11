@@ -24,8 +24,9 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read tools: `get_context`, `get_typed_links`, `read_note`, `get_vault_tree`, `frontmatter_validate`
-  - Transport: stdio + streamable HTTP (`/mcp` on localhost)
+  - Read-first tools: `get_context`, `get_typed_links`, `find_typed_link_backrefs`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `suggest_typed_links`
+  - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
+  - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: semantic search modal that opens a selected note
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
@@ -53,10 +54,24 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 ## 4) Obsidian plugin MVP (UI)
 
-- Recommendation list UI
-- Keep “Apply” disabled at first, or limit it to calling existing scripts
+- Semantic search modal UI (opens the selected note)
+- No “Apply” UI for note edits yet; vault writes happen via gated MCP write tools (`apply=true`).
 
 ## 5) Obsidian-managed indexing (background)
+
+Status (current): partially implemented
+
+Implemented:
+
+- Manual “Reindex vault” command + optional debounced auto-index on file changes
+- Indexing status surface (status bar + modal)
+- Default ignore rules for vault-internal folders (e.g. `.obsidian`, `.trash`, `.ailss`)
+
+Remaining / TODO:
+
+- User-configurable exclusions + “blocked paths” events
+- Pause/resume UX (if needed)
+- Throttling/rate limiting (beyond batch size) for large vaults
 
 Goal:
 
@@ -106,25 +121,31 @@ Implemented:
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
+- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges; includes `links_to`)
+- `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
 - `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
+- `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
+- `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
+- `list_tags`: list indexed tags with usage counts
+- `list_keywords`: list indexed keywords with usage counts
+- `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
 
 Notes on queryability (current):
 
 - AILSS stores normalized frontmatter + typed links in SQLite (used for graph expansion and retrieval).
-- The MCP surface focuses on `get_context` (semantic retrieval) and `get_typed_links` (typed-link navigation) rather than exposing arbitrary frontmatter filtering.
+- The MCP surface supports both semantic retrieval (`get_context`) and structured navigation/filtering (`get_typed_links`, `find_typed_link_backrefs`, `search_notes`).
 - Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:
 
-- `frontmatter_validate`: validate frontmatter against the vault schema/rules
-- `suggest_typed_links`: suggest typed-link candidates with evidence
+- Extend `frontmatter_validate` to validate the full vault schema/rules (types, allowed values) beyond required-key presence and `id`/`created` consistency.
 
 TODO (to expand structured queries):
 
 - Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`).
-- Add date/range filters for `created` / `updated` (requires consistent formatting across the vault).
+- Date/range filters for `created` / `updated`: implemented via `search_notes` (`created_from`/`created_to`, `updated_from`/`updated_to`); requires consistent formatting across the vault.
 
 Write tools (explicit apply):
 
@@ -147,16 +168,20 @@ Safety contract (for all MCP tools that touch the vault):
 - Always treat `AILSS_VAULT_PATH` as the root; deny absolute paths and prevent path traversal.
 - Restrict reads/writes to markdown notes (`.md`) and ignore vault-internal/system folders (e.g. `.obsidian`, `.git`, `.trash`, `.backups`, `.ailss`, `node_modules`).
 - For any write tool:
-  - Require an explicit confirmation signal (e.g. `confirm_paths` that must match the final resolved paths).
-  - Support `dry_run` to preview the exact path + content without writing.
-  - Default: create-only (no overwrite); destructive actions require separate explicit flags.
+  - Default `apply=false` (preview only); no write occurs unless `apply=true`.
+  - Prefer an `expected_sha256` guard when modifying existing notes (when supported by the tool).
+  - Default: create-only / no overwrite; destructive actions require explicit flags (e.g. overwrite).
 
 ## 7) Integration / operations
 
-- Local config (API key, vault path)
-- Privacy documentation + opt-in options
+Status (current): partially implemented
+
+- Local config (API key, vault path): implemented (plugin settings + env vars for CLI)
+- Privacy documentation + opt-in options: TODO
 
 ## 8) Production readiness (personal daily use)
+
+Status (current): partially implemented
 
 Goal:
 
@@ -164,9 +189,12 @@ Goal:
 
 Plan:
 
-- Plugin-managed **long-lived MCP process** (avoid spawn-per-search latency; restart on crash; stop on unload)
-- Indexer **single-writer lock** (prevent concurrent indexing from plugin/CLI)
-- DB **identity + validation** (embedding model/dimension now; schema version later)
+- Plugin-managed **long-lived MCP process**: implemented for the localhost MCP HTTP service (avoid spawn-per-search latency; restart on crash; stop on unload)
+- Indexer **single-writer lock**: partial (plugin serializes its own runs; cross-process lock TBD)
+  - Clarification: “cross-process” means separate Node processes (e.g. Obsidian plugin indexing + a terminal-run `ailss-indexer`), not the plugin’s local MCP (stdio) setting.
+  - Goal: prevent concurrent writes to `<vault>/.ailss/index.sqlite` and avoid duplicate embedding calls/costs when two indexers run at the same time.
+  - Minimal approach: lockfile under `<vault>/.ailss/` with a clear “indexing already running” error and a safe TTL/force-unlock story.
+- DB **identity + validation**: implemented for embedding model/dimension (schema version later)
 
 ## 9) Production readiness (public distribution)
 
@@ -223,6 +251,7 @@ Phase 0 — docs + contracts (no code changes)
 
 Phase 1 — add HTTP transport for the MCP server
 
+- Status: implemented
 - Add a new MCP entrypoint (in `packages/mcp`) that serves the same tools over streamable HTTP.
 - Use the MCP SDK server transport for streamable HTTP (SSE + POST).
 - Add minimal auth middleware (reject missing/invalid token).
@@ -230,6 +259,7 @@ Phase 1 — add HTTP transport for the MCP server
 
 Phase 2 — Obsidian plugin “AILSS service” lifecycle
 
+- Status: implemented
 - Add plugin settings:
   - enable/disable local service
   - port (default e.g. 31415) + bind address (fixed to 127.0.0.1)
@@ -243,6 +273,7 @@ Phase 2 — Obsidian plugin “AILSS service” lifecycle
 
 Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
+- Status: implemented
 - Expose explicit write tools over the localhost MCP server when enabled:
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
@@ -252,6 +283,7 @@ Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 Phase 4 — Codex setup UX
 
+- Status: implemented
 - Provide a plugin UI that outputs a ready-to-paste `~/.codex/config.toml` block.
 - Troubleshooting: if MCP fails, check service running + token + port.
 
@@ -269,7 +301,7 @@ Goal:
 
 Status (implemented):
 
-- Implemented in `packages/mcp/src/http.ts` using a session manager that creates one server + transport per `initialize`.
+- Implemented in `packages/mcp/src/httpServer.ts` using a session manager that creates one server + transport per `initialize`.
 - Defaults:
   - `AILSS_MCP_HTTP_MAX_SESSIONS=5`
   - `AILSS_MCP_HTTP_IDLE_TTL_MS=3600000` (1 hour)
@@ -281,7 +313,7 @@ Why this needs explicit design:
 
 Implementation approach (preferred): in-process session manager
 
-- Add an HTTP “session manager” to the MCP HTTP entrypoint (`packages/mcp/src/http.ts`):
+- Add an HTTP “session manager” to the MCP HTTP entrypoint (`packages/mcp/src/httpServer.ts`):
   - Maintain `Map<string, Session>` keyed by `mcp-session-id`.
   - On `POST initialize`:
     - Create a **new** `StreamableHTTPServerTransport({ sessionIdGenerator, onsessioninitialized, onsessionclosed })`.
@@ -295,17 +327,16 @@ Implementation approach (preferred): in-process session manager
 
 Shared resource strategy (required for correctness + performance):
 
-- Create shared dependencies once per service process (DB + OpenAI client) and reuse across sessions.
-  - Refactor `packages/mcp/src/createAilssMcpServer.ts` into:
-    - `createAilssMcpDeps()` → opens DB once, creates OpenAI client once
-    - `createAilssMcpServer(deps)` → registers tools/prompts on a new `McpServer`
+- Create shared runtime dependencies once per service process (DB + OpenAI client) and reuse across sessions.
+  - `createAilssMcpRuntimeFromEnv()` opens the DB and creates the OpenAI client once.
+  - `createAilssMcpServerFromRuntime(runtime)` registers tools on a new `McpServer` while reusing `runtime.deps`.
   - This avoids opening multiple SQLite connections to the same WAL DB and avoids repeated sqlite-vec extension loads.
 
 Concurrency / safety contract (must be explicit):
 
 - Reads can run concurrently across sessions (subject to Node single-thread scheduling).
 - Writes must be serialized to avoid races:
-  - Introduce a global async “write queue” (a simple mutex) for vault write tools (e.g. `edit_note`, `capture_note`, `relocate_note`).
+  - Implement a global async “write queue” (a simple mutex) for vault write tools (e.g. `edit_note`, `capture_note`, `relocate_note`).
   - Optional follow-up: file-level locks so edits to different notes can proceed safely in parallel.
 - Keep a hard cap on active sessions (e.g. `maxSessions = 5`) and an idle timeout (e.g. `idleTtlMs = 15m`) to prevent leaks.
 
