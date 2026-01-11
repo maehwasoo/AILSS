@@ -90,12 +90,7 @@ export function registerCaptureNoteTool(server: McpServer, deps: McpToolDeps): v
       ].join(" "),
       inputSchema: {
         title: z.string().min(1).describe("Note title"),
-        body: z
-          .string()
-          .default("")
-          .describe(
-            "Note body (markdown). Recommended: short summary, key points, next actions/open questions.",
-          ),
+        body: z.string().default("").describe("Note body (markdown)."),
         folder: z
           .string()
           .default("100. Inbox")

@@ -62,6 +62,7 @@ AILSS works best when your assistant is explicitly steered to:
 - use MCP tools (retrieval-first, DB-backed reads)
 - follow the vault frontmatter + typed-link rules
 - keep writes gated (`apply=true`) and auditable
+- follow a predictable write workflow (preview with `apply=false`, then apply with `apply=true` for common note edits)
 
 ### Vault prompt files (Obsidian)
 

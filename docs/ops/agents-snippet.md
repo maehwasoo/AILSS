@@ -29,7 +29,9 @@ When the `ailss` MCP server is available:
    - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
      - When capturing, set non-default frontmatter via `frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
      - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
-   - For note creation, do `apply=false` → confirm with the user → `apply=true`.
+     - Write the note body to be readable later
+   - Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
+     - Only pause when the user explicitly requests “preview only” or the preview indicates a suspicious target.
    - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
    - Timestamps:
      - `capture_note` generates `id`/`created`/`updated` using system local time (no fixed timezone) and stores them as ISO to seconds without a timezone suffix (`YYYY-MM-DDTHH:mm:ss`).

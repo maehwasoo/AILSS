@@ -9,8 +9,15 @@ The rules are split into topic-scoped docs so they stay navigable and can be ref
 - Assistant workflow (how an LLM should operate + MCP usage): `./assistant-workflow.md`
 - Frontmatter schema (identity fields, entity/layer/status, templates): `./frontmatter-schema.md`
 - Typed links (frontmatter relations as graph edges): `./typed-links.md`
-- Vault structure (folders, naming, Obsidian grammar, wikilinks): `./vault-structure.md`
+- Vault structure (folders, naming, wikilinks): `./vault-structure.md`
+- Note style (optional Markdown/language conventions): `./note-style.md`
 
 ## Prompt installer
 
-The Obsidian plugin “Prompt installer (vault root)” stitches these docs into a single prompt file (for example `AGENTS.md`) and writes it to the vault root.
+The Obsidian plugin “Prompt installer (vault root)” stitches these docs into a single prompt file (for example `AGENTS.md`) and writes it to the vault root:
+
+- `assistant-workflow.md`
+- `frontmatter-schema.md`
+- `typed-links.md`
+- `vault-structure.md`
+- `note-style.md`

@@ -11,11 +11,14 @@
 - For notes under `10. Projects/10. HouMe/OLD/`, standardize first as `entity: document`, `layer: physical`, then reclassify later if needed.
 - For each unit of work, check broken wikilinks via `rg "\\[\\[" -n`, and move assets into a note-adjacent `assets/` folder.
 
-This document summarizes the AILSS ontology, layers, and Obsidian conventions (and how they map into typed links and frontmatter).
+This document summarizes the AILSS vault structure, naming, and linking conventions (and how they map into typed links and frontmatter).
 
 ## Naming and asset placement
 
 - Filenames should use a Korean title with optional English in parentheses (example: `도메인 주도 설계(Domain-Driven Design).md`).
+- Filenames (cross-device safe): avoid characters/sequences that can break links or Sync on other OSes.
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
 - Keep assets in a note-adjacent `assets/` folder and embed via relative paths (example: `20. Areas/50. AILSS/assets/diagram.png`).
 - After moving a path/file, check for broken links via `rg "\\[\\[" -n`.
 
@@ -46,21 +49,6 @@ This document summarizes the AILSS ontology, layers, and Obsidian conventions (a
 - Shared principles/definitions/patterns → promote to `20. Areas` or `30. Resources` and classify as `entity: concept|definition|pattern`.
 - After moving files, immediately check for broken links via `rg "\\[\\[" -n`.
 
-## Obsidian grammar rules
-
-- Headings: use ATX `#` style only. Use H1 once; H2–H4 for most structure.
-- Lists: standardize on `-` bullets; indent sub-lists with 2 spaces.
-- Code: use triple backticks code fences and specify the language when possible.
-- Tables: use pipe (`|`) tables and include a header row.
-- Emphasis: use `**bold**` and `*italic*` sparingly (meaning-first).
-- Callouts: use Obsidian defaults only (`[!NOTE]`, `[!TIP]`, `[!WARNING]`).
-- Embeds: use `![[filename]]`; keep assets in a note-adjacent `assets/` folder.
-- Tags: use a small number of navigation tags; promote semantic relations into typed links.
-- Filenames: keep the vault filename convention consistent (see naming rule above).
-- Filenames (cross-device safe): avoid characters/sequences that can break links or Sync on other OSes.
-  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
-  - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
-
 ## Wikilinks, anchors, and footnotes
 
 - Wikilinks: use `[[Note title]]` by default; use `[[Note title|Display text]]` when display text should differ.
@@ -71,11 +59,3 @@ This document summarizes the AILSS ontology, layers, and Obsidian conventions (a
 - Block references: attach `^id` to the smallest quote-worthy block and reference via `[[Note#^id]]`.
 - Footnotes: use `[^key]` in the body and define at the bottom as `[^key]: ...` (use short meaningful keys).
 - Link checking: before/after work, check broken wikilinks via `rg "\\[\\[" -n`.
-
-## Language and typography rules
-
-- Vault notes are written in Korean using the “~해요” style.
-- For technical terms, use Korean + English on first mention (example: frontmatter (metadata)).
-- Record date/time in ISO-8601 format (example: `YYYY-MM-DDTHH:mm:ss`).
-- Code comments should be short, in Korean, and written as noun phrases (no sentence endings).
-- Do not use the middle dot (·) anywhere (title/body/lists/tables). If you need separators, use commas, hyphens, en dashes (–), semicolons, or conjunctions instead.
