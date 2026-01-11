@@ -66,11 +66,6 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 1. Run `get_context` with the intended topic/title to avoid duplicates and reuse existing naming.
 2. Draft a new note (title + frontmatter overrides that match the content).
    - Prefer reusing existing tags/keywords: call `list_tags` / `list_keywords` first.
-   - Write the body for future reading/maintenance (not raw chat):
-     - short `summary`
-     - key points (bullets)
-     - next actions + open questions
-     - references (either `source: []` or `cites` typed links)
 3. Call `capture_note` with `apply=false` to preview the resulting path + sha256.
 4. Confirm with the user.
 5. Call `capture_note` again with `apply=true`.

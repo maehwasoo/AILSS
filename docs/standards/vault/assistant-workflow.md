@@ -75,8 +75,7 @@ Global working rules for the AILSS Obsidian vault.
 - New notes: when capturing, set non-default frontmatter via `capture_note.frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
 - Capture quality: write captured notes to be readable and maintainable later (not raw chat logs).
   - Title: specific and stable; add disambiguators when needed (Korean + English in parentheses is OK).
-  - Summary: 2–5 sentences that answer “what is this note for?” + “what’s the next action?”
-  - Body: keep a short structure such as “Context / Key points / Next actions / Open questions / References”.
+  - Summary: 2–5 sentences that answer “what is this note for?”
 - Tags/keywords: before adding a new value, check existing vocabulary via `list_tags` / `list_keywords` and reuse when possible.
 - Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `same_as`, `supersedes`).
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
