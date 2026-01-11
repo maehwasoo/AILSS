@@ -24,7 +24,8 @@ Global working rules for the AILSS Obsidian vault.
 
 - Required: before summarizing/classifying/reviewing/link-checking, query AILSS MCP for vault metadata.
 - Principles:
-  - Use read-first by default. Writes require explicit approval (use `apply=true` only after preview).
+  - Use read-first by default. Writes require explicit `apply=true`.
+    - Default policy: do `apply=false` preview first, then proceed with `apply=true` automatically for `capture_note` / `edit_note` / `improve_frontmatter` (auto-apply).
   - Leading queries: `get_context` (semantic retrieval), `get_vault_tree` (folder/file structure)
   - Follow-up queries: `read_note` (exact text + frontmatter), `get_typed_links` (typed-link graph)
 - Recommended flow:
@@ -34,8 +35,8 @@ Global working rules for the AILSS Obsidian vault.
      - If you only know `id`/`title`, use `resolve_note` (preferred) or `search_notes` to find candidate paths first, then `read_note`.
   3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
-  5. Optional: use `suggest_typed_links` to propose candidates, then apply via `edit_note` (requires `apply=true` approval).
-  6. Use `edit_note` for edits and `relocate_note` for moves/renames (both require `apply=true` approval).
+  5. Optional: use `suggest_typed_links` to propose candidates, then apply via `edit_note` (`apply=false` preview → `apply=true` auto-apply).
+  6. Use `edit_note` for edits and `relocate_note` for moves/renames (`relocate_note` is still manual confirm; `edit_note` is auto-apply).
 - Failure handling: record the error and cause; temporarily fall back to `rg`/`find` only if MCP calls fail.
 
 ### Tool summary
@@ -52,10 +53,10 @@ Global working rules for the AILSS Obsidian vault.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
 - `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
 - `suggest_typed_links`: suggests typed-link candidates using already-indexed body wikilinks (DB-backed).
-- `capture_note`: creates a new note (requires `apply=true` approval).
-- `edit_note`: applies line-based patch ops to a note (requires `apply=true` approval).
-- `improve_frontmatter`: normalizes/adds required frontmatter keys for a note (requires `apply=true` approval).
-- `relocate_note`: moves/renames a note (requires `apply=true` approval).
+- `capture_note`: creates a new note (`apply=false` preview → `apply=true` auto-apply by default).
+- `edit_note`: applies line-based patch ops to a note (`apply=false` preview → `apply=true` auto-apply by default).
+- `improve_frontmatter`: normalizes/adds required frontmatter keys for a note (`apply=false` preview → `apply=true` auto-apply by default).
+- `relocate_note`: moves/renames a note (manual confirm; requires `apply=true`).
 
 ### Semantic retrieval guidance
 
