@@ -6,8 +6,8 @@ All notes should keep the following YAML frontmatter template as the baseline.
 
 ```
 ---
-id: {{date:YYYYMMDDHHmmss}}
-created: {{date:YYYY-MM-DDTHH:mm:ss}}
+id: "{{date:YYYYMMDDHHmmss}}"
+created: "{{date:YYYY-MM-DDTHH:mm:ss}}"
 title: {{title}}
 summary:
 aliases:
@@ -20,7 +20,7 @@ tags: [] # Only use the inbox tag for notes under 100. Inbox/ (example: ['inbox'
 keywords: []
 # draft | in-review | active | archived
 status: draft
-updated: {{date:YYYY-MM-DDTHH:mm:ss}}
+updated: "{{date:YYYY-MM-DDTHH:mm:ss}}"
 source: []
 ---
 ```
@@ -28,6 +28,7 @@ source: []
 ### Field guidelines
 
 - Frontmatter is the minimum metadata set needed to keep the knowledge graph consistent.
+- Timestamps (`created`/`updated`) are expected to use system local time (no fixed timezone) and are stored as ISO to seconds without a timezone suffix (`YYYY-MM-DDTHH:mm:ss`).
 - The `entity` field should use an allowed type (concept, document, project, guide, tool, etc.).
 - The `layer` field should be one of: strategic, conceptual, logical, physical, operational.
 - The `status` field should be one of: draft, in-review, active, archived.
