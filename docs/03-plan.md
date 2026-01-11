@@ -55,9 +55,23 @@ It also records a few **hard decisions** so code and docs stay consistent.
 ## 4) Obsidian plugin MVP (UI)
 
 - Semantic search modal UI (opens the selected note)
-- Keep “Apply” disabled at first, or limit it to calling existing scripts
+- No “Apply” UI for note edits yet; vault writes happen via gated MCP write tools (`apply=true`).
 
 ## 5) Obsidian-managed indexing (background)
+
+Status (current): partially implemented
+
+Implemented:
+
+- Manual “Reindex vault” command + optional debounced auto-index on file changes
+- Indexing status surface (status bar + modal)
+- Default ignore rules for vault-internal folders (e.g. `.obsidian`, `.trash`, `.ailss`)
+
+Remaining / TODO:
+
+- User-configurable exclusions + “blocked paths” events
+- Pause/resume UX (if needed)
+- Throttling/rate limiting (beyond batch size) for large vaults
 
 Goal:
 
@@ -131,7 +145,7 @@ Planned:
 TODO (to expand structured queries):
 
 - Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`).
-- Add date/range filters for `created` / `updated` (requires consistent formatting across the vault).
+- Date/range filters for `created` / `updated`: implemented via `search_notes` (`created_from`/`created_to`, `updated_from`/`updated_to`); requires consistent formatting across the vault.
 
 Write tools (explicit apply):
 
@@ -160,10 +174,14 @@ Safety contract (for all MCP tools that touch the vault):
 
 ## 7) Integration / operations
 
-- Local config (API key, vault path)
-- Privacy documentation + opt-in options
+Status (current): partially implemented
+
+- Local config (API key, vault path): implemented (plugin settings + env vars for CLI)
+- Privacy documentation + opt-in options: TODO
 
 ## 8) Production readiness (personal daily use)
+
+Status (current): partially implemented
 
 Goal:
 
@@ -171,9 +189,9 @@ Goal:
 
 Plan:
 
-- Plugin-managed **long-lived MCP process** (avoid spawn-per-search latency; restart on crash; stop on unload)
-- Indexer **single-writer lock** (prevent concurrent indexing from plugin/CLI)
-- DB **identity + validation** (embedding model/dimension now; schema version later)
+- Plugin-managed **long-lived MCP process**: implemented for the localhost MCP HTTP service (avoid spawn-per-search latency; restart on crash; stop on unload)
+- Indexer **single-writer lock**: partial (plugin serializes its own runs; cross-process lock TBD)
+- DB **identity + validation**: implemented for embedding model/dimension (schema version later)
 
 ## 9) Production readiness (public distribution)
 
