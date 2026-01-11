@@ -96,7 +96,7 @@ export function buildAilssFrontmatter(options: {
     summary: null,
     aliases: [],
     entity: null,
-    layer: "conceptual",
+    layer: null,
     tags: options.tags ?? [],
     keywords: [],
     status: "draft",
