@@ -4,12 +4,6 @@ This file contains global rules for the repository root.
 
 ---
 
-## 0. Fixed opening line
-
-**“Break down every request into steps, and proceed immediately to the execution step within the same turn unless the user asks you to stop.”**
-
----
-
 ## 1. Documentation/context entrypoints
 
 When starting non-trivial work (multi-step, behavior change, or anything cross-package), check these docs first:
