@@ -82,7 +82,6 @@ Global working rules for the AILSS Obsidian vault.
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
 - Links: run `find_broken_links` (preferred) and fix unresolved targets; fall back to `rg "\\[\\[" -n` if needed.
 - Assets: ensure a note-adjacent `assets/` folder exists; avoid absolute/external file paths.
-- Structure: keep H1 equal to filename; use H2–H4 for most content.
 - MCP: keep a log of MCP calls before summarizing/classifying/reviewing.
 - After: record changed file paths and entity/layer changes.
 - Rationale: confirm rationale was explained in chat (not inserted into note bodies).

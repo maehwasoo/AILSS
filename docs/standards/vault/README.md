@@ -9,7 +9,8 @@ The rules are split into topic-scoped docs so they stay navigable and can be ref
 - Assistant workflow (how an LLM should operate + MCP usage): `./assistant-workflow.md`
 - Frontmatter schema (identity fields, entity/layer/status, templates): `./frontmatter-schema.md`
 - Typed links (frontmatter relations as graph edges): `./typed-links.md`
-- Vault structure (folders, naming, Obsidian grammar, wikilinks): `./vault-structure.md`
+- Vault structure (folders, naming, wikilinks): `./vault-structure.md`
+- Note style (optional Markdown/language conventions): `./note-style.md`
 
 ## Prompt installer
 
