@@ -230,6 +230,7 @@ Phase 0 — docs + contracts (no code changes)
 
 Phase 1 — add HTTP transport for the MCP server
 
+- Status: implemented
 - Add a new MCP entrypoint (in `packages/mcp`) that serves the same tools over streamable HTTP.
 - Use the MCP SDK server transport for streamable HTTP (SSE + POST).
 - Add minimal auth middleware (reject missing/invalid token).
@@ -237,6 +238,7 @@ Phase 1 — add HTTP transport for the MCP server
 
 Phase 2 — Obsidian plugin “AILSS service” lifecycle
 
+- Status: implemented
 - Add plugin settings:
   - enable/disable local service
   - port (default e.g. 31415) + bind address (fixed to 127.0.0.1)
@@ -250,6 +252,7 @@ Phase 2 — Obsidian plugin “AILSS service” lifecycle
 
 Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
+- Status: implemented
 - Expose explicit write tools over the localhost MCP server when enabled:
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
@@ -259,6 +262,7 @@ Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 Phase 4 — Codex setup UX
 
+- Status: implemented
 - Provide a plugin UI that outputs a ready-to-paste `~/.codex/config.toml` block.
 - Troubleshooting: if MCP fails, check service running + token + port.
 
