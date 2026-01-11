@@ -44,6 +44,14 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 - Write tools are **not** registered by default. They require `AILSS_ENABLE_WRITE_TOOLS=1`.
 - If a write tool is missing, do not “simulate” a write. Ask the user to enable write tools or proceed read-only.
 
+## Obsidian grammar (titles + links)
+
+- Titles are filenames: keep them cross-device safe (especially for Sync).
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
+- If you need the full path in a wikilink (disambiguation), hide it with display text:
+  - Example: `[[20. Areas/50. AILSS/20. 운영(Operations)/20. 운영(Operations)|20. 운영(Operations)]]`
+
 ## Safe writes (when enabled)
 
 - Prefer `apply=false` first (dry-run), then confirm with the user, then `apply=true`.

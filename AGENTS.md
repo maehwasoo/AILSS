@@ -141,3 +141,7 @@ When the `ailss` MCP server is available and the user asks to create a new vault
 - Do a dry-run first (`apply=false`), show the proposed path + sha256, then ask for confirmation before `apply=true`.
 - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
 - Keep the body structured: short summary, key points, next actions/open questions, then relevant wikilinks.
+- Obsidian titles are filenames: keep them cross-device safe (especially for Sync).
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
+- If you need the full path in a wikilink (disambiguation), hide it with display text: `[[path/to/note|Title]]`.
