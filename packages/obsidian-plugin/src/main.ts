@@ -1,6 +1,7 @@
 import { FileSystemAdapter, Notice, Plugin, TFile } from "obsidian";
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
+import * as net from "node:net";
 import path from "node:path";
 
 import { registerCommands } from "./commands/registerCommands.js";
@@ -302,13 +303,27 @@ export default class AilssObsidianPlugin extends Plugin {
 				await this.saveSettings();
 			}
 
+			const host = "127.0.0.1";
+			const portAvailable = await waitForTcpPortToBeAvailable({
+				host,
+				port,
+				timeoutMs: 3_000,
+			});
+			if (!portAvailable) {
+				const message = `Port ${port} is already in use (${host}). Stop the process using it, or change the port in settings.`;
+				this.mcpHttpServiceLastErrorMessage = message;
+				new Notice(`AILSS MCP service failed: ${message}`);
+				this.updateMcpStatusBar();
+				return;
+			}
+
 			const env: Record<string, string> = {
 				OPENAI_API_KEY: openaiApiKey,
 				OPENAI_EMBEDDING_MODEL:
 					this.settings.openaiEmbeddingModel.trim() ||
 					DEFAULT_SETTINGS.openaiEmbeddingModel,
 				AILSS_VAULT_PATH: vaultPath,
-				AILSS_MCP_HTTP_HOST: "127.0.0.1",
+				AILSS_MCP_HTTP_HOST: host,
 				AILSS_MCP_HTTP_PORT: String(port),
 				AILSS_MCP_HTTP_PATH: "/mcp",
 				AILSS_MCP_HTTP_TOKEN: token,
@@ -1245,4 +1260,41 @@ function parseAilssPluginData(raw: unknown): {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+async function waitForTcpPortToBeAvailable(options: {
+	host: string;
+	port: number;
+	timeoutMs: number;
+}): Promise<boolean> {
+	const deadline = Date.now() + Math.max(0, options.timeoutMs);
+
+	while (Date.now() < deadline) {
+		const available = await canListenTcpPort({ host: options.host, port: options.port });
+		if (available) return true;
+		await sleep(200);
+	}
+
+	return canListenTcpPort({ host: options.host, port: options.port });
+}
+
+function canListenTcpPort(options: { host: string; port: number }): Promise<boolean> {
+	return new Promise((resolve) => {
+		const server = net.createServer();
+		server.unref();
+
+		server.once("error", () => {
+			resolve(false);
+		});
+
+		server.listen(options.port, options.host, () => {
+			server.close(() => {
+				resolve(true);
+			});
+		});
+	});
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
