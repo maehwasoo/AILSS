@@ -415,31 +415,47 @@ export default class AilssObsidianPlugin extends Plugin {
 
 		this.mcpHttpServiceStopRequested = true;
 		await new Promise<void>((resolve) => {
-			const timeout = setTimeout(() => {
+			let settled = false;
+
+			const finish = () => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(sigkillTimeout);
+				clearTimeout(hardTimeout);
+				resolve();
+			};
+
+			const sigkillTimeout = setTimeout(() => {
 				try {
 					child.kill("SIGKILL");
 				} catch {
 					// ignore
 				}
-				resolve();
 			}, 2_000);
 
-			child.once("close", () => {
-				clearTimeout(timeout);
-				resolve();
-			});
+			const hardTimeout = setTimeout(() => {
+				finish();
+			}, 10_000);
+
+			child.once("close", finish);
 
 			try {
 				child.kill();
 			} catch {
-				clearTimeout(timeout);
-				resolve();
+				// ignore
 			}
 		});
 	}
 
 	async restartMcpHttpService(): Promise<void> {
 		await this.stopMcpHttpService();
+		if (this.mcpHttpServiceProc) {
+			this.mcpHttpServiceLastErrorMessage =
+				"MCP service restart timed out while waiting for the previous process to stop.";
+			this.updateMcpStatusBar();
+			new Notice("AILSS MCP service restart failed (timed out waiting for stop).");
+			return;
+		}
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.startMcpHttpService();
 		}
