@@ -304,13 +304,41 @@ export default class AilssObsidianPlugin extends Plugin {
 			}
 
 			const host = "127.0.0.1";
-			const portAvailable = await waitForTcpPortToBeAvailable({
+			let portAvailable = await waitForTcpPortToBeAvailable({
 				host,
 				port,
 				timeoutMs: 3_000,
 			});
+			let shutdownAttempted = false;
+			let shutdownSucceeded = false;
+
 			if (!portAvailable) {
-				const message = `Port ${port} is already in use (${host}). Stop the process using it, or change the port in settings.`;
+				shutdownAttempted = true;
+				const shutdownOk = await this.requestMcpHttpServiceShutdown({
+					host,
+					port,
+					token,
+				});
+				shutdownSucceeded = shutdownOk;
+
+				if (shutdownOk) {
+					portAvailable = await waitForTcpPortToBeAvailable({
+						host,
+						port,
+						timeoutMs: 5_000,
+					});
+				}
+			}
+
+			if (!portAvailable) {
+				const baseMessage = `Port ${port} is already in use (${host}). Stop the process using it, or change the port in settings.`;
+				const shutdownMessage =
+					shutdownAttempted && !shutdownSucceeded
+						? this.mcpHttpServiceLastErrorMessage
+						: null;
+				const message = shutdownMessage
+					? `${shutdownMessage}\n\n${baseMessage}`
+					: baseMessage;
 				this.mcpHttpServiceLastErrorMessage = message;
 				new Notice(`AILSS MCP service failed: ${message}`);
 				this.updateMcpStatusBar();
@@ -473,6 +501,40 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.startMcpHttpService();
+		}
+	}
+
+	private async requestMcpHttpServiceShutdown(options: {
+		host: string;
+		port: number;
+		token: string;
+	}): Promise<boolean> {
+		const url = `http://${options.host}:${options.port}/__ailss/shutdown`;
+
+		try {
+			const res = await fetch(url, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${options.token}`,
+				},
+			});
+
+			if (res.ok) return true;
+
+			const message =
+				res.status === 401
+					? "Port is in use and shutdown was unauthorized (token mismatch)."
+					: res.status === 404
+						? "Port is in use and the service does not support remote shutdown."
+						: `Port is in use and shutdown failed (HTTP ${res.status}).`;
+			this.mcpHttpServiceLastErrorMessage = message;
+			this.updateMcpStatusBar();
+			return false;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.mcpHttpServiceLastErrorMessage = `Port is in use and shutdown request failed: ${message}`;
+			this.updateMcpStatusBar();
+			return false;
 		}
 	}
 
