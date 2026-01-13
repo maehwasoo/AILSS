@@ -84,6 +84,7 @@ This repo recommends Conventional Commits.
   - Allowed `type`: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`, `revert`
 - Body: use the existing template at `.github/pull_request_template.md` and replace all `[REPLACE ME]` placeholders.
 - Language: PR title and body must be written in English.
+- Sections: for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
 - Scope: the PR description must reflect _all_ changes in the branch (code + docs + tests).
 - Testing: include the exact validation commands you ran (or explicitly state `Not run` and why).
 - Issues: fill `Fixes #...` when applicable; otherwise write `N/A`.
