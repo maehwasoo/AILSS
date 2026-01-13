@@ -1,13 +1,13 @@
 import { FileSystemAdapter, Notice, Plugin, TFile } from "obsidian";
-import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
-import http from "node:http";
-import * as net from "node:net";
 import path from "node:path";
 
 import { registerCommands } from "./commands/registerCommands.js";
+import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
+import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
 import { AilssMcpClient } from "./mcp/ailssMcpClient.js";
+import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
 import {
 	AilssObsidianSettingTab,
 	DEFAULT_SETTINGS,
@@ -17,45 +17,18 @@ import { ConfirmModal } from "./ui/confirmModal.js";
 import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
 import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
 import { AilssMcpStatusModal } from "./ui/mcpStatusModal.js";
-import { clampDebounceMs, clampPort, clampTopK } from "./utils/clamp.js";
+import { clampPort, clampTopK } from "./utils/clamp.js";
 import { formatAilssTimestampForUi } from "./utils/dateTime.js";
-import {
-	appendLimited,
-	fileExists,
-	formatIndexerLog,
-	generateToken,
-	nowIso,
-	parseCliArgValue,
-	replaceBasename,
-} from "./utils/misc.js";
+import { fileExists, generateToken, parseCliArgValue, replaceBasename } from "./utils/misc.js";
 import {
 	nodeNotFoundMessage,
 	resolveSpawnCommandAndEnv,
-	spawnAndCapture,
 	toStringEnvRecord,
 } from "./utils/spawn.js";
 import { codexPrometheusAgentPrompt } from "./utils/codexPrompts.js";
 import { type PromptKind, promptFilename, promptTemplate } from "./utils/promptTemplates.js";
-import { normalizeVaultRelPath, shouldIndexVaultRelPath } from "./utils/vault.js";
 
-export type AilssIndexerStatusSnapshot = {
-	running: boolean;
-	startedAt: string | null;
-	lastSuccessAt: string | null;
-	lastFinishedAt: string | null;
-	lastExitCode: number | null;
-	lastErrorMessage: string | null;
-	progress: {
-		filesTotal: number | null;
-		filesProcessed: number;
-		currentFile: string | null;
-		currentMode: "index" | "meta" | null;
-		chunkCurrent: number | null;
-		chunkTotal: number | null;
-		summary: { changedFiles: number; indexedChunks: number; deletedFiles: number } | null;
-	};
-	liveLog: { stdout: string; stderr: string };
-};
+export type { AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 
 export type AilssMcpHttpServiceStatusSnapshot = {
 	enabled: boolean;
@@ -67,57 +40,34 @@ export type AilssMcpHttpServiceStatusSnapshot = {
 	lastErrorMessage: string | null;
 };
 
-type AilssObsidianPluginDataV1 = {
-	version: 1;
-	settings: Partial<AilssObsidianSettings>;
-	indexer: {
-		lastSuccessAt: string | null;
-	};
-};
-
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
 
 	private statusBarEl: HTMLElement | null = null;
 	private mcpStatusBarEl: HTMLElement | null = null;
-	private indexerStatusListeners = new Set<(snapshot: AilssIndexerStatusSnapshot) => void>();
-	private indexerUiUpdateTimer: NodeJS.Timeout | null = null;
 
-	private mcpHttpServiceProc: ChildProcess | null = null;
-	private mcpHttpServiceStopRequested = false;
-	private mcpHttpServiceLiveStdout = "";
-	private mcpHttpServiceLiveStderr = "";
-	private mcpHttpServiceStartedAt: string | null = null;
-	private mcpHttpServiceLastExitCode: number | null = null;
-	private mcpHttpServiceLastStoppedAt: string | null = null;
-	private mcpHttpServiceLastErrorMessage: string | null = null;
+	private readonly mcpHttpService = new McpHttpServiceController({
+		getSettings: () => this.settings,
+		saveSettings: async () => {
+			await this.saveSettings();
+		},
+		getVaultPath: () => this.getVaultPath(),
+		getPluginDirRealpathOrNull: () => this.getPluginDirRealpathOrNull(),
+		resolveMcpHttpArgs: () => this.resolveMcpHttpArgs(),
+		getUrl: () => this.getMcpHttpServiceUrl(),
+		onStatusChanged: () => this.updateMcpStatusBar(),
+	});
 
-	private autoIndexTimer: NodeJS.Timeout | null = null;
-	private autoIndexPendingPaths = new Set<string>();
-	private autoIndexNeedsRerun = false;
-	private indexerRunning = false;
-	private lastIndexerLog: string | null = null;
-	private lastIndexerFinishedAt: string | null = null;
-	private lastIndexerExitCode: number | null = null;
-	private lastIndexerErrorMessage: string | null = null;
-	private lastIndexerSuccessAt: string | null = null;
-
-	private indexerStartedAt: string | null = null;
-	private indexerLiveStdout = "";
-	private indexerLiveStderr = "";
-	private indexerStdoutRemainder = "";
-	private indexerPathLimitedRun = false;
-	private indexerFilesTotal: number | null = null;
-	private indexerFilesProcessed = 0;
-	private indexerCurrentFile: string | null = null;
-	private indexerCurrentMode: "index" | "meta" | null = null;
-	private indexerChunkCurrent: number | null = null;
-	private indexerChunkTotal: number | null = null;
-	private indexerSummary: {
-		changedFiles: number;
-		indexedChunks: number;
-		deletedFiles: number;
-	} | null = null;
+	private readonly indexer = new IndexerRunner({
+		getSettings: () => this.settings,
+		saveSettings: async () => {
+			await this.saveSettings();
+		},
+		getVaultPath: () => this.getVaultPath(),
+		getPluginDirRealpathOrNull: () => this.getPluginDirRealpathOrNull(),
+		resolveIndexerArgs: () => this.resolveIndexerArgs(),
+		onSnapshot: (snapshot) => this.updateStatusBar(snapshot),
+	});
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -133,7 +83,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			await this.startMcpHttpService();
 		}
 
-		this.emitIndexerStatusNow();
+		this.indexer.emitNow();
 		this.updateMcpStatusBar();
 	}
 
@@ -144,7 +94,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	async loadSettings(): Promise<void> {
 		const parsed = parseAilssPluginData(await this.loadData());
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings);
-		this.lastIndexerSuccessAt = parsed.indexer.lastSuccessAt;
+		this.indexer.setLastSuccessAt(parsed.indexer.lastSuccessAt);
 	}
 
 	async saveSettings(): Promise<void> {
@@ -152,7 +102,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			normalizeAilssPluginDataV1({
 				version: 1,
 				settings: this.settings,
-				indexer: { lastSuccessAt: this.lastIndexerSuccessAt },
+				indexer: { lastSuccessAt: this.indexer.getLastSuccessAt() },
 			}),
 		);
 	}
@@ -166,26 +116,28 @@ export default class AilssObsidianPlugin extends Plugin {
 		return {
 			enabled: this.settings.mcpHttpServiceEnabled,
 			url: this.getMcpHttpServiceUrl(),
-			running: Boolean(this.mcpHttpServiceProc),
-			startedAt: this.mcpHttpServiceStartedAt,
-			lastExitCode: this.mcpHttpServiceLastExitCode,
-			lastStoppedAt: this.mcpHttpServiceLastStoppedAt,
-			lastErrorMessage: this.mcpHttpServiceLastErrorMessage,
+			running: this.mcpHttpService.isRunning(),
+			startedAt: this.mcpHttpService.getStartedAt(),
+			lastExitCode: this.mcpHttpService.getLastExitCode(),
+			lastStoppedAt: this.mcpHttpService.getLastStoppedAt(),
+			lastErrorMessage: this.mcpHttpService.getLastErrorMessage(),
 		};
 	}
 
 	getMcpHttpServiceStatusLine(): string {
-		if (this.mcpHttpServiceProc) {
+		if (this.mcpHttpService.isRunning()) {
 			return `Status: Running (${this.getMcpHttpServiceUrl()})`;
 		}
 
-		if (this.mcpHttpServiceLastErrorMessage) {
-			return `Status: Error\n${this.mcpHttpServiceLastErrorMessage}`;
+		const errorMessage = this.mcpHttpService.getLastErrorMessage();
+		if (errorMessage) {
+			return `Status: Error\n${errorMessage}`;
 		}
 
-		if (this.mcpHttpServiceLastStoppedAt) {
-			const lastStoppedAt = formatAilssTimestampForUi(this.mcpHttpServiceLastStoppedAt);
-			return `Status: Stopped (last: ${lastStoppedAt ?? this.mcpHttpServiceLastStoppedAt})`;
+		const lastStoppedAtRaw = this.mcpHttpService.getLastStoppedAt();
+		if (lastStoppedAtRaw) {
+			const lastStoppedAt = formatAilssTimestampForUi(lastStoppedAtRaw);
+			return `Status: Stopped (last: ${lastStoppedAt ?? lastStoppedAtRaw})`;
 		}
 
 		return "Status: Stopped";
@@ -272,310 +224,22 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async startMcpHttpService(): Promise<void> {
-		if (this.mcpHttpServiceProc) return;
-
 		try {
-			this.mcpHttpServiceStopRequested = false;
 			await this.ensureMcpHttpServiceToken();
-			const token = this.settings.mcpHttpServiceToken.trim();
-			if (!token) {
-				throw new Error("Missing MCP service token.");
-			}
-
-			const vaultPath = this.getVaultPath();
-			const openaiApiKey = this.settings.openaiApiKey.trim();
-			if (!openaiApiKey) {
-				throw new Error(
-					"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
-				);
-			}
-
-			const mcpCommand = this.settings.mcpCommand.trim();
-			const mcpArgs = this.resolveMcpHttpArgs();
-			if (!mcpCommand || mcpArgs.length === 0) {
-				throw new Error(
-					"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
-				);
-			}
-
-			const port = clampPort(this.settings.mcpHttpServicePort);
-			if (port !== this.settings.mcpHttpServicePort) {
-				this.settings.mcpHttpServicePort = port;
-				await this.saveSettings();
-			}
-
-			const host = "127.0.0.1";
-			let portAvailable = await waitForTcpPortToBeAvailable({
-				host,
-				port,
-				timeoutMs: 3_000,
-			});
-			let shutdownAttempted = false;
-			let shutdownSucceeded = false;
-
-			if (!portAvailable) {
-				shutdownAttempted = true;
-				const shutdownOk = await this.requestMcpHttpServiceShutdown({
-					host,
-					port,
-					token,
-				});
-				shutdownSucceeded = shutdownOk;
-
-				if (shutdownOk) {
-					portAvailable = await waitForTcpPortToBeAvailable({
-						host,
-						port,
-						timeoutMs: 5_000,
-					});
-				}
-			}
-
-			if (!portAvailable) {
-				const baseMessage = `Port ${port} is already in use (${host}). Stop the process using it, or change the port in settings.`;
-				const shutdownMessage =
-					shutdownAttempted && !shutdownSucceeded
-						? this.mcpHttpServiceLastErrorMessage
-						: null;
-				const message = shutdownMessage
-					? `${shutdownMessage}\n\n${baseMessage}`
-					: baseMessage;
-				this.mcpHttpServiceLastErrorMessage = message;
-				new Notice(`AILSS MCP service failed: ${message}`);
-				this.updateMcpStatusBar();
-				return;
-			}
-
-			const env: Record<string, string> = {
-				OPENAI_API_KEY: openaiApiKey,
-				OPENAI_EMBEDDING_MODEL:
-					this.settings.openaiEmbeddingModel.trim() ||
-					DEFAULT_SETTINGS.openaiEmbeddingModel,
-				AILSS_VAULT_PATH: vaultPath,
-				AILSS_MCP_HTTP_HOST: host,
-				AILSS_MCP_HTTP_PORT: String(port),
-				AILSS_MCP_HTTP_PATH: "/mcp",
-				AILSS_MCP_HTTP_TOKEN: token,
-			};
-
-			if (this.settings.mcpHttpServiceEnableWriteTools) {
-				env.AILSS_ENABLE_WRITE_TOOLS = "1";
-			}
-
-			const cwd = this.getPluginDirRealpathOrNull();
-			const spawnEnv = { ...process.env, ...env };
-			const resolved = resolveSpawnCommandAndEnv(mcpCommand, spawnEnv);
-			if (resolved.command === "node") {
-				throw new Error(nodeNotFoundMessage("MCP"));
-			}
-
-			this.mcpHttpServiceLiveStdout = "";
-			this.mcpHttpServiceLiveStderr = "";
-			this.mcpHttpServiceStartedAt = nowIso();
-			this.mcpHttpServiceLastExitCode = null;
-			this.mcpHttpServiceLastStoppedAt = null;
-			this.mcpHttpServiceLastErrorMessage = null;
-
-			const child = spawn(resolved.command, mcpArgs, {
-				stdio: ["ignore", "pipe", "pipe"],
-				...(cwd ? { cwd } : {}),
-				env: resolved.env,
-			});
-
-			this.mcpHttpServiceProc = child;
-			this.updateMcpStatusBar();
-
-			child.stdout?.on("data", (chunk: unknown) => {
-				const text = typeof chunk === "string" ? chunk : String(chunk);
-				this.mcpHttpServiceLiveStdout = appendLimited(
-					this.mcpHttpServiceLiveStdout,
-					text,
-					40_000,
-				);
-			});
-
-			child.stderr?.on("data", (chunk: unknown) => {
-				const text = typeof chunk === "string" ? chunk : String(chunk);
-				this.mcpHttpServiceLiveStderr = appendLimited(
-					this.mcpHttpServiceLiveStderr,
-					text,
-					40_000,
-				);
-			});
-
-			child.on("error", (error) => {
-				const message = error instanceof Error ? error.message : String(error);
-				this.mcpHttpServiceLastErrorMessage = message;
-				this.mcpHttpServiceProc = null;
-				this.updateMcpStatusBar();
-				new Notice(`AILSS MCP service failed: ${message}`);
-			});
-
-			child.on("close", (code, signal) => {
-				this.mcpHttpServiceLastExitCode = code;
-				this.mcpHttpServiceLastStoppedAt = nowIso();
-				this.mcpHttpServiceProc = null;
-
-				const stopRequested = this.mcpHttpServiceStopRequested;
-				this.mcpHttpServiceStopRequested = false;
-
-				if (stopRequested) {
-					this.mcpHttpServiceLastErrorMessage = null;
-				} else if ((code !== null && code !== 0) || (code === null && signal)) {
-					const stderr = this.mcpHttpServiceLiveStderr.trim();
-					const stderrTail = stderr
-						? stderr.split(/\r?\n/).slice(-10).join("\n").trim()
-						: "";
-					const suffix = code === null ? `signal ${signal}` : `exit ${code}`;
-					this.mcpHttpServiceLastErrorMessage = stderrTail
-						? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}`
-						: `Unexpected stop (${suffix}).`;
-				} else {
-					this.mcpHttpServiceLastErrorMessage = null;
-				}
-
-				this.updateMcpStatusBar();
-
-				if (this.settings.mcpHttpServiceEnabled) {
-					const suffix =
-						code === null ? (signal ? ` (${signal})` : "") : ` (exit ${code})`;
-					new Notice(`AILSS MCP service stopped${suffix}.`);
-				}
-			});
-
-			new Notice(`AILSS MCP service started: ${this.getMcpHttpServiceUrl()}`);
-			this.updateMcpStatusBar();
+			await this.mcpHttpService.start();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			this.mcpHttpServiceLastErrorMessage = message;
+			this.mcpHttpService.recordError(message);
 			new Notice(`AILSS MCP service failed: ${message}`);
-			this.updateMcpStatusBar();
 		}
 	}
 
 	async stopMcpHttpService(): Promise<void> {
-		const child = this.mcpHttpServiceProc;
-		if (!child) return;
-
-		this.mcpHttpServiceStopRequested = true;
-		await new Promise<void>((resolve) => {
-			let settled = false;
-
-			const finish = () => {
-				if (settled) return;
-				settled = true;
-				clearTimeout(sigkillTimeout);
-				clearTimeout(hardTimeout);
-				resolve();
-			};
-
-			const sigkillTimeout = setTimeout(() => {
-				try {
-					child.kill("SIGKILL");
-				} catch {
-					// ignore
-				}
-			}, 2_000);
-
-			const hardTimeout = setTimeout(() => {
-				finish();
-			}, 10_000);
-
-			child.once("close", finish);
-
-			try {
-				child.kill();
-			} catch {
-				// ignore
-			}
-		});
+		await this.mcpHttpService.stop();
 	}
 
 	async restartMcpHttpService(): Promise<void> {
-		await this.stopMcpHttpService();
-		if (this.mcpHttpServiceProc) {
-			this.mcpHttpServiceLastErrorMessage =
-				"MCP service restart timed out while waiting for the previous process to stop.";
-			this.updateMcpStatusBar();
-			new Notice("AILSS MCP service restart failed (timed out waiting for stop).");
-			return;
-		}
-		if (this.settings.mcpHttpServiceEnabled) {
-			await this.startMcpHttpService();
-		}
-	}
-
-	private async requestMcpHttpServiceShutdown(options: {
-		host: string;
-		port: number;
-		token: string;
-	}): Promise<boolean> {
-		// Use Node's HTTP client instead of `fetch` to avoid CORS/preflight issues in the
-		// Obsidian renderer context.
-		return await new Promise<boolean>((resolve) => {
-			let settled = false;
-
-			const finish = (ok: boolean, errorMessage?: string) => {
-				if (settled) return;
-				settled = true;
-
-				if (errorMessage) {
-					this.mcpHttpServiceLastErrorMessage = errorMessage;
-					this.updateMcpStatusBar();
-				}
-
-				resolve(ok);
-			};
-
-			const req = http.request(
-				{
-					hostname: options.host,
-					port: options.port,
-					path: "/__ailss/shutdown",
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${options.token}`,
-					},
-				},
-				(res) => {
-					res.setEncoding("utf8");
-
-					let body = "";
-					res.on("data", (chunk) => {
-						body += chunk;
-					});
-					res.on("end", () => {
-						const status = res.statusCode ?? 0;
-						if (status >= 200 && status < 300) {
-							finish(true);
-							return;
-						}
-
-						const message =
-							status === 401
-								? "Port is in use and shutdown was unauthorized (token mismatch)."
-								: status === 404
-									? "Port is in use and the service does not support remote shutdown."
-									: `Port is in use and shutdown failed (HTTP ${status}).`;
-						const detail = body.trim();
-						finish(false, detail ? `${message}\n${detail}` : message);
-					});
-				},
-			);
-
-			req.setTimeout(1_500, () => {
-				req.destroy(new Error("Request timed out."));
-			});
-
-			req.on("error", (error) => {
-				const e = error as { message?: string; code?: string };
-				const suffix = e.code ? `${e.code}: ` : "";
-				const message = `${suffix}${e.message ?? String(error)}`;
-				finish(false, `Port is in use and shutdown request failed: ${message}`);
-			});
-
-			req.end();
-		});
+		await this.mcpHttpService.restart();
 	}
 
 	private async ensureMcpHttpServiceToken(): Promise<void> {
@@ -586,7 +250,7 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	async reindexVault(): Promise<void> {
 		const vaultPath = this.getVaultPath();
-		if (this.indexerRunning) {
+		if (this.indexer.isRunning()) {
 			new Notice("AILSS indexing is already running.");
 			this.openIndexerStatusModal();
 			return;
@@ -599,12 +263,11 @@ export default class AilssObsidianPlugin extends Plugin {
 		this.openIndexerStatusModal();
 		new Notice("AILSS indexing started…");
 		try {
-			await this.runIndexer();
+			await this.indexer.run();
 			new Notice(`AILSS indexing complete. (${vaultPath})`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const hint = this.describeIndexerFailureHint(message);
-			this.recordIndexerFailure(message);
 			new Notice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
 	}
@@ -671,16 +334,12 @@ export default class AilssObsidianPlugin extends Plugin {
 		finishedAt: string | null;
 		exitCode: number | null;
 	} {
-		return {
-			log: this.lastIndexerLog,
-			finishedAt: this.lastIndexerFinishedAt,
-			exitCode: this.lastIndexerExitCode,
-		};
+		return this.indexer.getLastLogSnapshot();
 	}
 
 	async saveLastIndexerLogToFile(): Promise<string> {
 		const vaultPath = this.getVaultPath();
-		const log = this.lastIndexerLog?.trim() ?? "";
+		const log = this.indexer.getLastLog()?.trim() ?? "";
 		if (!log) throw new Error("No indexer log available.");
 
 		const dir = path.join(vaultPath, ".ailss");
@@ -692,7 +351,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	confirmResetIndexDb(options: { reindexAfter: boolean }): void {
-		if (this.indexerRunning) {
+		if (this.indexer.isRunning()) {
 			new Notice("AILSS indexing is currently running.");
 			return;
 		}
@@ -741,184 +400,26 @@ export default class AilssObsidianPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on("create", (file: unknown) => {
 				if (!(file instanceof TFile)) return;
-				this.enqueueAutoIndexPath(file.path);
 			}),
 		);
 
 		this.registerEvent(
 			this.app.vault.on("modify", (file: unknown) => {
 				if (!(file instanceof TFile)) return;
-				this.enqueueAutoIndexPath(file.path);
 			}),
 		);
 
 		this.registerEvent(
 			this.app.vault.on("delete", (file: unknown) => {
 				if (!(file instanceof TFile)) return;
-				this.enqueueAutoIndexPath(file.path);
 			}),
 		);
 
 		this.registerEvent(
-			this.app.vault.on("rename", (file: unknown, oldPath: unknown) => {
+			this.app.vault.on("rename", (file: unknown, _oldPath: unknown) => {
 				if (!(file instanceof TFile)) return;
-				if (typeof oldPath === "string") this.enqueueAutoIndexPath(oldPath);
-				this.enqueueAutoIndexPath(file.path);
 			}),
 		);
-
-		this.register(() => this.clearAutoIndexSchedule());
-	}
-
-	private enqueueAutoIndexPath(vaultRelPath: string): void {
-		if (!this.settings.autoIndexEnabled) return;
-		const normalized = normalizeVaultRelPath(vaultRelPath);
-		if (!shouldIndexVaultRelPath(normalized)) return;
-
-		this.autoIndexPendingPaths.add(normalized);
-		this.scheduleAutoIndex();
-	}
-
-	private scheduleAutoIndex(): void {
-		this.clearAutoIndexSchedule();
-
-		const ms = clampDebounceMs(this.settings.autoIndexDebounceMs);
-		this.autoIndexTimer = setTimeout(() => void this.flushAutoIndex(), ms);
-	}
-
-	private clearAutoIndexSchedule(): void {
-		if (!this.autoIndexTimer) return;
-		clearTimeout(this.autoIndexTimer);
-		this.autoIndexTimer = null;
-	}
-
-	private async flushAutoIndex(): Promise<void> {
-		this.clearAutoIndexSchedule();
-
-		if (!this.settings.autoIndexEnabled) {
-			this.autoIndexPendingPaths.clear();
-			this.autoIndexNeedsRerun = false;
-			return;
-		}
-
-		const paths = Array.from(this.autoIndexPendingPaths);
-		this.autoIndexPendingPaths.clear();
-		if (paths.length === 0) return;
-
-		if (this.indexerRunning) {
-			for (const p of paths) this.autoIndexPendingPaths.add(p);
-			this.autoIndexNeedsRerun = true;
-			return;
-		}
-
-		try {
-			await this.runIndexer(paths);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			this.recordIndexerFailure(message);
-			new Notice(`AILSS auto-index failed: ${message}`);
-		} finally {
-			if (this.autoIndexNeedsRerun) {
-				this.autoIndexNeedsRerun = false;
-				this.scheduleAutoIndex();
-			}
-		}
-	}
-
-	private async runIndexer(paths?: string[]): Promise<void> {
-		try {
-			const vaultPath = this.getVaultPath();
-			const openaiApiKey = this.settings.openaiApiKey.trim();
-			if (!openaiApiKey) {
-				throw new Error(
-					"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
-				);
-			}
-
-			const indexerCommand = this.settings.indexerCommand.trim();
-			const indexerArgs = this.resolveIndexerArgs();
-			if (!indexerCommand || indexerArgs.length === 0) {
-				throw new Error(
-					"Missing indexer command/args. Set it in settings (e.g. command=node, args=/abs/path/to/packages/indexer/dist/cli.js).",
-				);
-			}
-
-			// Env overrides for the spawned indexer process
-			const env: Record<string, string> = {
-				OPENAI_API_KEY: openaiApiKey,
-				OPENAI_EMBEDDING_MODEL:
-					this.settings.openaiEmbeddingModel.trim() ||
-					DEFAULT_SETTINGS.openaiEmbeddingModel,
-				AILSS_VAULT_PATH: vaultPath,
-			};
-
-			const args = [...indexerArgs, "--vault", vaultPath];
-			const uniquePaths = (paths ?? [])
-				.map(normalizeVaultRelPath)
-				.filter(shouldIndexVaultRelPath);
-			if (uniquePaths.length > 0) {
-				args.push("--paths", ...Array.from(new Set(uniquePaths)));
-			}
-			const pathLimitedRun = uniquePaths.length > 0;
-
-			const cwd = this.getPluginDirRealpathOrNull();
-			const spawnEnv = { ...process.env, ...env };
-			const resolved = resolveSpawnCommandAndEnv(indexerCommand, spawnEnv);
-			if (resolved.command === "node") {
-				throw new Error(nodeNotFoundMessage("Indexer"));
-			}
-
-			this.beginIndexerRun({ pathLimitedRun });
-			const result = await spawnAndCapture(
-				resolved.command,
-				args,
-				{ ...(cwd ? { cwd } : {}), env: resolved.env },
-				{
-					onStdoutChunk: (chunk) => {
-						this.indexerLiveStdout = appendLimited(
-							this.indexerLiveStdout,
-							chunk,
-							40_000,
-						);
-						this.consumeIndexerStdout(chunk);
-						this.scheduleIndexerStatusUpdate();
-					},
-					onStderrChunk: (chunk) => {
-						this.indexerLiveStderr = appendLimited(
-							this.indexerLiveStderr,
-							chunk,
-							20_000,
-						);
-						this.scheduleIndexerStatusUpdate();
-					},
-				},
-			);
-
-			this.lastIndexerExitCode = result.code;
-			this.lastIndexerFinishedAt = nowIso();
-			this.lastIndexerLog = formatIndexerLog({
-				command: resolved.command,
-				args,
-				code: result.code,
-				signal: result.signal,
-				stdout: result.stdout,
-				stderr: result.stderr,
-			});
-
-			if (result.code !== 0) {
-				const suffix = result.stderr.trim() ? `\n${result.stderr.trim()}` : "";
-				throw new Error(`Process exited with code ${result.code}.${suffix}`);
-			}
-
-			this.lastIndexerSuccessAt = this.lastIndexerFinishedAt;
-			await this.saveSettings();
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			this.recordIndexerFailure(message);
-			throw error;
-		} finally {
-			this.endIndexerRun();
-		}
 	}
 
 	private resolveMcpArgs(): string[] {
@@ -1026,11 +527,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			}
 		}
 
-		this.lastIndexerLog = null;
-		this.lastIndexerExitCode = null;
-		this.lastIndexerFinishedAt = null;
-		this.lastIndexerErrorMessage = null;
-		this.lastIndexerSuccessAt = null;
+		this.indexer.clearHistory();
 		await this.saveSettings();
 
 		return deletedPaths.length;
@@ -1055,30 +552,11 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	getIndexerStatusSnapshot(): AilssIndexerStatusSnapshot {
-		return {
-			running: this.indexerRunning,
-			startedAt: this.indexerStartedAt,
-			lastSuccessAt: this.lastIndexerSuccessAt,
-			lastFinishedAt: this.lastIndexerFinishedAt,
-			lastExitCode: this.lastIndexerExitCode,
-			lastErrorMessage: this.lastIndexerErrorMessage,
-			progress: {
-				filesTotal: this.indexerFilesTotal,
-				filesProcessed: this.indexerFilesProcessed,
-				currentFile: this.indexerCurrentFile,
-				currentMode: this.indexerCurrentMode,
-				chunkCurrent: this.indexerChunkCurrent,
-				chunkTotal: this.indexerChunkTotal,
-				summary: this.indexerSummary,
-			},
-			liveLog: { stdout: this.indexerLiveStdout, stderr: this.indexerLiveStderr },
-		};
+		return this.indexer.getStatusSnapshot();
 	}
 
 	subscribeIndexerStatus(listener: (snapshot: AilssIndexerStatusSnapshot) => void): () => void {
-		this.indexerStatusListeners.add(listener);
-		listener(this.getIndexerStatusSnapshot());
-		return () => this.indexerStatusListeners.delete(listener);
+		return this.indexer.subscribe(listener);
 	}
 
 	private registerIndexerStatusUi(): void {
@@ -1113,7 +591,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			return;
 		}
 
-		if (this.mcpHttpServiceProc) {
+		if (this.mcpHttpService.isRunning()) {
 			el.textContent = "AILSS: MCP Running";
 			el.addClass("is-running");
 			el.setAttribute(
@@ -1123,18 +601,17 @@ export default class AilssObsidianPlugin extends Plugin {
 			return;
 		}
 
-		if (this.mcpHttpServiceLastErrorMessage) {
+		const errorMessage = this.mcpHttpService.getLastErrorMessage();
+		if (errorMessage) {
 			el.textContent = "AILSS: MCP Error";
 			el.addClass("is-error");
-			el.setAttribute(
-				"title",
-				["AILSS MCP service error", this.mcpHttpServiceLastErrorMessage].join("\n"),
-			);
+			el.setAttribute("title", ["AILSS MCP service error", errorMessage].join("\n"));
 			return;
 		}
 
 		el.textContent = "AILSS: MCP Stopped";
-		const lastStoppedAt = formatAilssTimestampForUi(this.mcpHttpServiceLastStoppedAt);
+		const lastStoppedAtRaw = this.mcpHttpService.getLastStoppedAt();
+		const lastStoppedAt = formatAilssTimestampForUi(lastStoppedAtRaw);
 		el.setAttribute(
 			"title",
 			[
@@ -1145,22 +622,6 @@ export default class AilssObsidianPlugin extends Plugin {
 				.filter(Boolean)
 				.join("\n"),
 		);
-	}
-
-	private scheduleIndexerStatusUpdate(): void {
-		if (this.indexerUiUpdateTimer) return;
-		this.indexerUiUpdateTimer = setTimeout(() => {
-			this.indexerUiUpdateTimer = null;
-			this.emitIndexerStatusNow();
-		}, 100);
-	}
-
-	private emitIndexerStatusNow(): void {
-		const snapshot = this.getIndexerStatusSnapshot();
-		this.updateStatusBar(snapshot);
-		for (const listener of this.indexerStatusListeners) {
-			listener(snapshot);
-		}
 	}
 
 	private updateStatusBar(snapshot: AilssIndexerStatusSnapshot): void {
@@ -1221,182 +682,4 @@ export default class AilssObsidianPlugin extends Plugin {
 		el.textContent = "AILSS: Not indexed";
 		el.setAttribute("title", "No successful index run recorded yet.");
 	}
-
-	private beginIndexerRun(options: { pathLimitedRun: boolean }): void {
-		this.indexerRunning = true;
-		this.indexerStartedAt = nowIso();
-		this.indexerLiveStdout = "";
-		this.indexerLiveStderr = "";
-		this.indexerStdoutRemainder = "";
-		this.indexerPathLimitedRun = options.pathLimitedRun;
-		this.indexerFilesTotal = null;
-		this.indexerFilesProcessed = 0;
-		this.indexerCurrentFile = null;
-		this.indexerCurrentMode = null;
-		this.indexerChunkCurrent = null;
-		this.indexerChunkTotal = null;
-		this.indexerSummary = null;
-		this.lastIndexerErrorMessage = null;
-		this.lastIndexerFinishedAt = null;
-		this.lastIndexerExitCode = null;
-		this.lastIndexerLog = null;
-		this.emitIndexerStatusNow();
-	}
-
-	private endIndexerRun(): void {
-		if (!this.indexerRunning) return;
-		this.indexerRunning = false;
-		this.indexerStartedAt = null;
-		this.emitIndexerStatusNow();
-	}
-
-	private recordIndexerFailure(message: string): void {
-		this.lastIndexerErrorMessage = message;
-		if (!this.lastIndexerFinishedAt) this.lastIndexerFinishedAt = nowIso();
-		this.emitIndexerStatusNow();
-	}
-
-	private consumeIndexerStdout(chunk: string): void {
-		// Indexer progress parsing
-		const chunkMatch = /\[chunks\]\s+(\d+)\/(\d+)/.exec(chunk);
-		if (chunkMatch) {
-			this.indexerChunkCurrent = Number(chunkMatch[1]);
-			this.indexerChunkTotal = Number(chunkMatch[2]);
-		}
-
-		this.indexerStdoutRemainder += chunk;
-		const lines = this.indexerStdoutRemainder.split("\n");
-		this.indexerStdoutRemainder = lines.pop() ?? "";
-		for (const rawLine of lines) {
-			const line = rawLine.replace(/\r/g, "").trimEnd();
-			this.consumeIndexerStdoutLine(line);
-		}
-	}
-
-	private consumeIndexerStdoutLine(line: string): void {
-		const filesMatch = /^\[ailss-indexer\]\s+files=(\d+)\s*$/.exec(line);
-		if (filesMatch) {
-			if (this.indexerPathLimitedRun) return;
-			this.indexerFilesTotal = Number(filesMatch[1]);
-			return;
-		}
-
-		const fileMatch = /^\[(index|meta)\]\s+(.+)\s*$/.exec(line);
-		if (fileMatch) {
-			this.indexerCurrentMode = fileMatch[1] === "index" ? "index" : "meta";
-			this.indexerCurrentFile = fileMatch[2] ?? null;
-			this.indexerFilesProcessed += 1;
-			this.indexerChunkCurrent = null;
-			this.indexerChunkTotal = null;
-			return;
-		}
-
-		const summaryMatch =
-			/^\[summary\]\s+changedFiles=(\d+),\s+indexedChunks=(\d+),\s+deletedFiles=(\d+)/.exec(
-				line,
-			);
-		if (summaryMatch) {
-			this.indexerSummary = {
-				changedFiles: Number(summaryMatch[1]),
-				indexedChunks: Number(summaryMatch[2]),
-				deletedFiles: Number(summaryMatch[3]),
-			};
-		}
-	}
-}
-
-function normalizeAilssPluginDataV1(data: AilssObsidianPluginDataV1): AilssObsidianPluginDataV1 {
-	return {
-		version: 1,
-		settings: data.settings,
-		indexer: { lastSuccessAt: data.indexer.lastSuccessAt ?? null },
-	};
-}
-
-function parseAilssPluginData(raw: unknown): {
-	settings: Partial<AilssObsidianSettings>;
-	indexer: { lastSuccessAt: string | null };
-} {
-	const empty = { settings: {}, indexer: { lastSuccessAt: null } };
-
-	if (!isRecord(raw)) return empty;
-
-	// v1 shape
-	if (raw.version === 1 && isRecord(raw.settings)) {
-		const settings = { ...(raw.settings as Record<string, unknown>) };
-
-		// Migration: renamed "Codex-only mode" -> "MCP-only mode"
-		if (
-			typeof settings.mcpOnlyMode !== "boolean" &&
-			typeof settings.codexOnlyMode === "boolean"
-		) {
-			settings.mcpOnlyMode = settings.codexOnlyMode;
-			delete settings.codexOnlyMode;
-		}
-
-		const indexer = isRecord(raw.indexer) ? raw.indexer : {};
-		return {
-			settings: settings as Partial<AilssObsidianSettings>,
-			indexer: {
-				lastSuccessAt:
-					typeof indexer.lastSuccessAt === "string" ? indexer.lastSuccessAt : null,
-			},
-		};
-	}
-
-	// Legacy shape: settings object stored at the root
-	const legacySettings = { ...(raw as Record<string, unknown>) };
-	if (
-		typeof legacySettings.mcpOnlyMode !== "boolean" &&
-		typeof legacySettings.codexOnlyMode === "boolean"
-	) {
-		legacySettings.mcpOnlyMode = legacySettings.codexOnlyMode;
-		delete legacySettings.codexOnlyMode;
-	}
-
-	return {
-		settings: legacySettings as Partial<AilssObsidianSettings>,
-		indexer: { lastSuccessAt: null },
-	};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-async function waitForTcpPortToBeAvailable(options: {
-	host: string;
-	port: number;
-	timeoutMs: number;
-}): Promise<boolean> {
-	const deadline = Date.now() + Math.max(0, options.timeoutMs);
-
-	while (Date.now() < deadline) {
-		const available = await canListenTcpPort({ host: options.host, port: options.port });
-		if (available) return true;
-		await sleep(200);
-	}
-
-	return canListenTcpPort({ host: options.host, port: options.port });
-}
-
-function canListenTcpPort(options: { host: string; port: number }): Promise<boolean> {
-	return new Promise((resolve) => {
-		const server = net.createServer();
-		server.unref();
-
-		server.once("error", () => {
-			resolve(false);
-		});
-
-		server.listen(options.port, options.host, () => {
-			server.close(() => {
-				resolve(true);
-			});
-		});
-	});
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
 }
