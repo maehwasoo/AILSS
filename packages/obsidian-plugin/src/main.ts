@@ -1,6 +1,7 @@
 import { FileSystemAdapter, Notice, Plugin, TFile } from "obsidian";
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import * as net from "node:net";
 import path from "node:path";
 
@@ -509,33 +510,72 @@ export default class AilssObsidianPlugin extends Plugin {
 		port: number;
 		token: string;
 	}): Promise<boolean> {
-		const url = `http://${options.host}:${options.port}/__ailss/shutdown`;
+		// Use Node's HTTP client instead of `fetch` to avoid CORS/preflight issues in the
+		// Obsidian renderer context.
+		return await new Promise<boolean>((resolve) => {
+			let settled = false;
 
-		try {
-			const res = await fetch(url, {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${options.token}`,
+			const finish = (ok: boolean, errorMessage?: string) => {
+				if (settled) return;
+				settled = true;
+
+				if (errorMessage) {
+					this.mcpHttpServiceLastErrorMessage = errorMessage;
+					this.updateMcpStatusBar();
+				}
+
+				resolve(ok);
+			};
+
+			const req = http.request(
+				{
+					hostname: options.host,
+					port: options.port,
+					path: "/__ailss/shutdown",
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${options.token}`,
+					},
 				},
+				(res) => {
+					res.setEncoding("utf8");
+
+					let body = "";
+					res.on("data", (chunk) => {
+						body += chunk;
+					});
+					res.on("end", () => {
+						const status = res.statusCode ?? 0;
+						if (status >= 200 && status < 300) {
+							finish(true);
+							return;
+						}
+
+						const message =
+							status === 401
+								? "Port is in use and shutdown was unauthorized (token mismatch)."
+								: status === 404
+									? "Port is in use and the service does not support remote shutdown."
+									: `Port is in use and shutdown failed (HTTP ${status}).`;
+						const detail = body.trim();
+						finish(false, detail ? `${message}\n${detail}` : message);
+					});
+				},
+			);
+
+			req.setTimeout(1_500, () => {
+				req.destroy(new Error("Request timed out."));
 			});
 
-			if (res.ok) return true;
+			req.on("error", (error) => {
+				const e = error as { message?: string; code?: string };
+				const suffix = e.code ? `${e.code}: ` : "";
+				const message = `${suffix}${e.message ?? String(error)}`;
+				finish(false, `Port is in use and shutdown request failed: ${message}`);
+			});
 
-			const message =
-				res.status === 401
-					? "Port is in use and shutdown was unauthorized (token mismatch)."
-					: res.status === 404
-						? "Port is in use and the service does not support remote shutdown."
-						: `Port is in use and shutdown failed (HTTP ${res.status}).`;
-			this.mcpHttpServiceLastErrorMessage = message;
-			this.updateMcpStatusBar();
-			return false;
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			this.mcpHttpServiceLastErrorMessage = `Port is in use and shutdown request failed: ${message}`;
-			this.updateMcpStatusBar();
-			return false;
-		}
+			req.end();
+		});
 	}
 
 	private async ensureMcpHttpServiceToken(): Promise<void> {
