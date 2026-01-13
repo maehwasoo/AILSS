@@ -14,6 +14,7 @@ import {
 import { ConfirmModal } from "./ui/confirmModal.js";
 import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
 import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
+import { AilssMcpStatusModal } from "./ui/mcpStatusModal.js";
 import { clampDebounceMs, clampPort, clampTopK } from "./utils/clamp.js";
 import { formatAilssTimestampForUi } from "./utils/dateTime.js";
 import {
@@ -52,6 +53,16 @@ export type AilssIndexerStatusSnapshot = {
 		summary: { changedFiles: number; indexedChunks: number; deletedFiles: number } | null;
 	};
 	liveLog: { stdout: string; stderr: string };
+};
+
+export type AilssMcpHttpServiceStatusSnapshot = {
+	enabled: boolean;
+	url: string;
+	running: boolean;
+	startedAt: string | null;
+	lastExitCode: number | null;
+	lastStoppedAt: string | null;
+	lastErrorMessage: string | null;
 };
 
 type AilssObsidianPluginDataV1 = {
@@ -147,6 +158,18 @@ export default class AilssObsidianPlugin extends Plugin {
 	getMcpHttpServiceUrl(): string {
 		const port = clampPort(this.settings.mcpHttpServicePort);
 		return `http://127.0.0.1:${port}/mcp`;
+	}
+
+	getMcpHttpServiceStatusSnapshot(): AilssMcpHttpServiceStatusSnapshot {
+		return {
+			enabled: this.settings.mcpHttpServiceEnabled,
+			url: this.getMcpHttpServiceUrl(),
+			running: Boolean(this.mcpHttpServiceProc),
+			startedAt: this.mcpHttpServiceStartedAt,
+			lastExitCode: this.mcpHttpServiceLastExitCode,
+			lastStoppedAt: this.mcpHttpServiceLastStoppedAt,
+			lastErrorMessage: this.mcpHttpServiceLastErrorMessage,
+		};
 	}
 
 	getMcpHttpServiceStatusLine(): string {
@@ -504,6 +527,10 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	openIndexerStatusModal(): void {
 		new AilssIndexerStatusModal(this.app, this).open();
+	}
+
+	openMcpStatusModal(): void {
+		new AilssMcpStatusModal(this.app, this).open();
 	}
 
 	getLastIndexerLogSnapshot(): {
@@ -934,6 +961,8 @@ export default class AilssObsidianPlugin extends Plugin {
 		const el = this.addStatusBarItem();
 		this.mcpStatusBarEl = el;
 		el.addClass("ailss-obsidian-mcp-statusbar");
+		el.setAttribute("role", "button");
+		el.addEventListener("click", () => this.openMcpStatusModal());
 		this.register(() => el.remove());
 		this.updateMcpStatusBar();
 	}

@@ -66,5 +66,5 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 - `AILSS: Reindex vault`: runs the indexer to update `<Vault>/.ailss/index.sqlite`
 - `AILSS: Indexing status`: shows indexing progress + last successful indexing time
 
-The plugin also adds status bar items that show indexing progress (and last success time) and whether the MCP service is running.
+The plugin also adds status bar items that show indexing progress (and last success time) and the MCP service status (click for details + one-click restart).
 Times shown in the UI are displayed in your system timezone (local time).
