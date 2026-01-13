@@ -69,6 +69,7 @@ Explicit write tools (apply, implemented):
 
 - `capture_note`: capture a new inbox note with required frontmatter (default folder: `100. Inbox`; supports dry-run)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
+  - Example: `ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }]`
 - `improve_frontmatter`: normalize/add required frontmatter keys for a note (supports dry-run; can optionally fix identity mismatches)
 - `relocate_note`: move/rename a note within the vault (supports dry-run; updates frontmatter `updated` when present)
 

@@ -188,6 +188,7 @@ Write tools are disabled by default and require `AILSS_ENABLE_WRITE_TOOLS=1`. Th
 - `edit_note`: applies line-based patch ops to an existing note.  
   Required: `path`, `ops` (insert/delete/replace).  
   Options: `expected_sha256`, `apply` (default false), `reindex_after_apply` (default true).
+  Example: `ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }]`.
 - `improve_frontmatter`: normalizes/adds required frontmatter keys (and typed-link key normalization).  
   Required: `path`.  
   Options: `expected_sha256`, `apply` (default false), `reindex_after_apply` (default true), `fix_identity` (default false).

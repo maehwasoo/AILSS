@@ -10,11 +10,91 @@ import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
 import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
-import { applyLinePatchOps } from "../lib/textPatch.js";
+import { applyLinePatchOps, type LinePatchOp } from "../lib/textPatch.js";
 import { readVaultFileFullText, writeVaultFileText } from "../lib/vaultFs.js";
 
 function sha256HexUtf8(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+const linePatchOpSchema = z
+  .object({
+    op: z.enum(["insert_lines", "delete_lines", "replace_lines"]),
+    at_line: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe(
+        "For insert_lines: 1-based line number to insert before (max = lineCount+1; use lineCount+1 to append)",
+      ),
+    from_line: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe("For delete/replace: 1-based start line"),
+    to_line: z.number().int().min(1).optional().describe("For delete/replace: 1-based end line"),
+    text: z.string().optional().describe("For insert/replace: text payload (may contain newlines)"),
+  })
+  .superRefine((op, ctx) => {
+    if (op.op === "insert_lines") {
+      if (typeof op.at_line !== "number") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["at_line"],
+          message: 'insert_lines requires "at_line".',
+        });
+      }
+      if (typeof op.text !== "string") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["text"],
+          message: 'insert_lines requires "text".',
+        });
+      }
+      return;
+    }
+
+    if (typeof op.from_line !== "number") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["from_line"],
+        message: `${op.op} requires "from_line".`,
+      });
+    }
+    if (typeof op.to_line !== "number") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to_line"],
+        message: `${op.op} requires "to_line".`,
+      });
+    }
+    if (op.op === "replace_lines" && typeof op.text !== "string") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["text"],
+        message: 'replace_lines requires "text".',
+      });
+    }
+  });
+
+type LinePatchOpInput = z.infer<typeof linePatchOpSchema>;
+
+function normalizeLinePatchOp(op: LinePatchOpInput): LinePatchOp {
+  switch (op.op) {
+    case "insert_lines":
+      return { op: "insert_lines", at_line: op.at_line!, text: op.text! };
+    case "delete_lines":
+      return { op: "delete_lines", from_line: op.from_line!, to_line: op.to_line! };
+    case "replace_lines":
+      return {
+        op: "replace_lines",
+        from_line: op.from_line!,
+        to_line: op.to_line!,
+        text: op.text!,
+      };
+  }
 }
 
 export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void {
@@ -43,36 +123,17 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
           .default(true)
           .describe("If apply=true and content changed, also reindex this path into the DB"),
         ops: z
-          .array(
-            z.union([
-              z.object({
-                op: z.literal("insert_lines"),
-                at_line: z
-                  .number()
-                  .int()
-                  .min(1)
-                  .describe(
-                    "1-based line number to insert before (max = lineCount+1; use lineCount+1 to append)",
-                  ),
-                text: z
-                  .string()
-                  .describe("Text to insert as a single string (may contain newlines)"),
-              }),
-              z.object({
-                op: z.literal("delete_lines"),
-                from_line: z.number().int().min(1).describe("1-based start line (inclusive)"),
-                to_line: z.number().int().min(1).describe("1-based end line (inclusive)"),
-              }),
-              z.object({
-                op: z.literal("replace_lines"),
-                from_line: z.number().int().min(1).describe("1-based start line (inclusive)"),
-                to_line: z.number().int().min(1).describe("1-based end line (inclusive)"),
-                text: z.string().describe("Replacement text (may contain newlines)"),
-              }),
-            ]),
-          )
+          .array(linePatchOpSchema)
           .min(1)
-          .describe("Patch ops applied in order (use apply=false for a dry-run)"),
+          .describe(
+            [
+              "Patch ops applied in order (use apply=false for a dry-run).",
+              "Each op is an object with op ∈ {insert_lines, delete_lines, replace_lines}.",
+              "insert_lines requires: at_line, text.",
+              "delete_lines requires: from_line, to_line.",
+              "replace_lines requires: from_line, to_line, text.",
+            ].join(" "),
+          ),
       },
       outputSchema: z.object({
         path: z.string(),
@@ -119,7 +180,8 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
           );
         }
 
-        const { text: afterText } = applyLinePatchOps(beforeText, args.ops);
+        const normalizedOps = args.ops.map(normalizeLinePatchOp);
+        const { text: afterText } = applyLinePatchOps(beforeText, normalizedOps);
         const afterSha256 = sha256HexUtf8(afterText);
         const changed = afterSha256 !== beforeSha256;
 
