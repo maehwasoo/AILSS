@@ -50,6 +50,10 @@ If your plugin does not need CSS, delete this file.
 	cursor: pointer;
 }
 
+.ailss-obsidian-mcp-statusbar {
+	cursor: pointer;
+}
+
 .ailss-obsidian-statusbar.is-running {
 	color: var(--text-accent);
 }
