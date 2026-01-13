@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { registerCommands } from "./commands/registerCommands.js";
+import { AutoIndexScheduler } from "./indexer/autoIndexScheduler.js";
 import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
@@ -67,6 +68,17 @@ export default class AilssObsidianPlugin extends Plugin {
 		getPluginDirRealpathOrNull: () => this.getPluginDirRealpathOrNull(),
 		resolveIndexerArgs: () => this.resolveIndexerArgs(),
 		onSnapshot: (snapshot) => this.updateStatusBar(snapshot),
+	});
+
+	private readonly autoIndex = new AutoIndexScheduler({
+		getSettings: () => this.settings,
+		isIndexerRunning: () => this.indexer.isRunning(),
+		runIndexer: async (paths) => {
+			await this.indexer.run(paths);
+		},
+		onError: (message) => {
+			new Notice(`AILSS auto-index failed: ${message}`);
+		},
 	});
 
 	async onload(): Promise<void> {
@@ -256,9 +268,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			return;
 		}
 
-		this.clearAutoIndexSchedule();
-		this.autoIndexPendingPaths.clear();
-		this.autoIndexNeedsRerun = false;
+		this.autoIndex.reset();
 
 		this.openIndexerStatusModal();
 		new Notice("AILSS indexing started…");
@@ -400,26 +410,33 @@ export default class AilssObsidianPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on("create", (file: unknown) => {
 				if (!(file instanceof TFile)) return;
+				this.autoIndex.enqueue(file.path);
 			}),
 		);
 
 		this.registerEvent(
 			this.app.vault.on("modify", (file: unknown) => {
 				if (!(file instanceof TFile)) return;
+				this.autoIndex.enqueue(file.path);
 			}),
 		);
 
 		this.registerEvent(
 			this.app.vault.on("delete", (file: unknown) => {
 				if (!(file instanceof TFile)) return;
+				this.autoIndex.enqueue(file.path);
 			}),
 		);
 
 		this.registerEvent(
-			this.app.vault.on("rename", (file: unknown, _oldPath: unknown) => {
+			this.app.vault.on("rename", (file: unknown, oldPath: unknown) => {
 				if (!(file instanceof TFile)) return;
+				if (typeof oldPath === "string") this.autoIndex.enqueue(oldPath);
+				this.autoIndex.enqueue(file.path);
 			}),
 		);
+
+		this.register(() => this.autoIndex.dispose());
 	}
 
 	private resolveMcpArgs(): string[] {
