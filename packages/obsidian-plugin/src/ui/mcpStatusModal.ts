@@ -8,6 +8,7 @@ export class AilssMcpStatusModal extends Modal {
 	private statusTextEl: HTMLElement | null = null;
 	private metaTextEl: HTMLElement | null = null;
 	private errorTextEl: HTMLElement | null = null;
+	private copyErrorButton: ButtonComponent | null = null;
 	private restartButton: ButtonComponent | null = null;
 	private restarting = false;
 
@@ -29,12 +30,28 @@ export class AilssMcpStatusModal extends Modal {
 		this.metaTextEl = contentEl.createDiv({ cls: "ailss-status" });
 		this.errorTextEl = contentEl.createDiv({ cls: "ailss-modal-message" });
 
-		new Setting(contentEl).setName("Actions").addButton((button) => {
-			this.restartButton = button;
-			button.setButtonText("Restart service");
-			button.setCta();
-			button.onClick(() => void this.restartService());
-		});
+		new Setting(contentEl)
+			.setName("Actions")
+			.addButton((button) => {
+				this.copyErrorButton = button;
+				button.setButtonText("Copy error message");
+				button.onClick(
+					() =>
+						void this.copyToClipboard(
+							this.plugin.getMcpHttpServiceStatusSnapshot().lastErrorMessage ?? "",
+							{
+								emptyNotice: "No error message to copy.",
+								successNotice: "Copied error message to clipboard.",
+							},
+						),
+				);
+			})
+			.addButton((button) => {
+				this.restartButton = button;
+				button.setButtonText("Restart service");
+				button.setCta();
+				button.onClick(() => void this.restartService());
+			});
 
 		this.refresh();
 	}
@@ -43,6 +60,7 @@ export class AilssMcpStatusModal extends Modal {
 		this.statusTextEl = null;
 		this.metaTextEl = null;
 		this.errorTextEl = null;
+		this.copyErrorButton = null;
 		this.restartButton = null;
 		this.contentEl.empty();
 	}
@@ -82,8 +100,39 @@ export class AilssMcpStatusModal extends Modal {
 			}
 		}
 
+		if (this.copyErrorButton) {
+			this.copyErrorButton.setDisabled(this.restarting || !snapshot.lastErrorMessage?.trim());
+		}
+
 		if (this.restartButton) {
 			this.restartButton.setDisabled(this.restarting || !snapshot.enabled);
+		}
+	}
+
+	private async copyToClipboard(
+		text: string,
+		notices: { emptyNotice: string; successNotice: string },
+	): Promise<void> {
+		if (!text.trim()) {
+			new Notice(notices.emptyNotice);
+			return;
+		}
+
+		try {
+			// Clipboard API availability varies across Obsidian/Electron contexts.
+			// TODO plugin clipboard abstraction
+			const clipboard = (
+				navigator as unknown as { clipboard?: { writeText?: (v: string) => Promise<void> } }
+			).clipboard;
+			if (!clipboard?.writeText) {
+				new Notice("Clipboard not available.");
+				return;
+			}
+
+			await clipboard.writeText(text);
+			new Notice(notices.successNotice);
+		} catch {
+			new Notice("Copy failed.");
 		}
 	}
 
