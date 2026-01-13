@@ -26,6 +26,10 @@ export type StartHttpServerOptions = {
   config: HttpConfig;
   maxSessions?: number;
   idleTtlMs?: number;
+  shutdown?: {
+    path?: string;
+    exitProcess?: boolean;
+  };
 };
 
 type McpSession = {
@@ -251,6 +255,26 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
   const sessions = new Map<string, McpSession>();
   const maxSessions = options.maxSessions ?? parseMaxSessionsFromEnv();
   const idleTtlMs = options.idleTtlMs ?? parseIdleTtlMsFromEnv();
+  const shutdownPathRaw = options.shutdown?.path ?? "/__ailss/shutdown";
+  const shutdownPath = shutdownPathRaw.startsWith("/") ? shutdownPathRaw : `/${shutdownPathRaw}`;
+  const exitProcessOnShutdown = options.shutdown?.exitProcess ?? false;
+
+  let shuttingDown = false;
+  let closePromise: Promise<void> | null = null;
+
+  const close = async (): Promise<void> => {
+    if (closePromise) return await closePromise;
+
+    closePromise = (async () => {
+      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+      await Promise.allSettled(
+        Array.from(sessions.values()).flatMap((s) => [s.transport.close(), s.server.close()]),
+      );
+      sessions.clear();
+    })();
+
+    return await closePromise;
+  };
 
   const httpServer = http.createServer(async (req, res) => {
     try {
@@ -258,6 +282,31 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
 
       if (url.pathname === "/health") {
         sendText(res, 200, "ok");
+        return;
+      }
+
+      if (url.pathname === shutdownPath) {
+        if (req.method !== "POST") {
+          sendText(res, 405, "method not allowed");
+          return;
+        }
+
+        const token = extractBearerToken(req, url);
+        if (token !== config.token) {
+          sendText(res, 401, "unauthorized");
+          return;
+        }
+
+        if (shuttingDown) {
+          sendText(res, 200, "shutting down");
+          return;
+        }
+
+        shuttingDown = true;
+        sendText(res, 200, "shutting down");
+        void close().finally(() => {
+          if (exitProcessOnShutdown) process.exit(0);
+        });
         return;
       }
 
@@ -352,14 +401,6 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
       : config.port;
   const url = `http://${config.host}:${actualPort}${config.path}`;
 
-  const close = async (): Promise<void> => {
-    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
-    await Promise.allSettled(
-      Array.from(sessions.values()).flatMap((s) => [s.transport.close(), s.server.close()]),
-    );
-    sessions.clear();
-  };
-
   return { httpServer, url, close };
 }
 
@@ -370,5 +411,5 @@ export async function startAilssMcpHttpServerFromEnv(): Promise<{
 }> {
   const config = parseHttpConfigFromEnv();
   const runtime = await createAilssMcpRuntimeFromEnv();
-  return await startAilssMcpHttpServer({ config, runtime });
+  return await startAilssMcpHttpServer({ config, runtime, shutdown: { exitProcess: true } });
 }
