@@ -44,7 +44,7 @@ Read-first tools (implemented in this repo):
 
 Client guidance (Codex):
 
-- For Codex CLI, steer tool usage via workspace `AGENTS.md` and/or Codex skills (`docs/ops/codex-skills/`).
+- For Codex CLI, steer tool usage via the vault-root prompt installer (Obsidian) and/or Codex skills (`docs/ops/codex-skills/`). Avoid per-project/workspace `AGENTS.md` prompts so guidance stays centralized and consistent.
 
 Transport / client integration:
 
