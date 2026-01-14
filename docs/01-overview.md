@@ -53,6 +53,9 @@ Transport / client integration:
   - The plugin remains the only writer (vault DB writes + gated note edits via MCP write tools).
   - Supports multiple concurrent MCP sessions (multiple Codex CLI processes), each with its own `Mcp-Session-Id`.
 - Local dev still supports running the MCP server over stdio (CLI).
+- Optional shutdown endpoint (disabled by default):
+  - If `AILSS_MCP_HTTP_SHUTDOWN_TOKEN` is set (or `startAilssMcpHttpServer({ shutdown: { token } })` is used), the server exposes `POST /__ailss/shutdown`.
+  - This endpoint requires the shutdown token (separate from the normal MCP request token) and shuts down the HTTP server + all MCP sessions.
 
 Frontmatter query support (current):
 

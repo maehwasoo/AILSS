@@ -26,6 +26,11 @@ export type StartHttpServerOptions = {
   config: HttpConfig;
   maxSessions?: number;
   idleTtlMs?: number;
+  shutdown?: {
+    path?: string;
+    token: string;
+    exitProcess?: boolean;
+  };
 };
 
 type McpSession = {
@@ -251,6 +256,66 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
   const sessions = new Map<string, McpSession>();
   const maxSessions = options.maxSessions ?? parseMaxSessionsFromEnv();
   const idleTtlMs = options.idleTtlMs ?? parseIdleTtlMsFromEnv();
+  const shutdown =
+    options.shutdown && options.shutdown.token.trim()
+      ? {
+          path: (options.shutdown.path ?? "/__ailss/shutdown").startsWith("/")
+            ? (options.shutdown.path ?? "/__ailss/shutdown")
+            : `/${options.shutdown.path ?? "/__ailss/shutdown"}`,
+          token: options.shutdown.token.trim(),
+          exitProcess: options.shutdown.exitProcess ?? false,
+        }
+      : null;
+
+  let shuttingDown = false;
+  let closePromise: Promise<void> | null = null;
+
+  const close = async (): Promise<void> => {
+    if (closePromise) return await closePromise;
+
+    shuttingDown = true;
+    closePromise = (async () => {
+      const closeServer = new Promise<void>((resolve, reject) => {
+        const onError = (error: unknown) => reject(error);
+        httpServer.once("error", onError);
+        httpServer.close(() => {
+          httpServer.off("error", onError);
+          resolve();
+        });
+      });
+
+      const sessionClose = Promise.allSettled(
+        Array.from(sessions.values()).flatMap((s) => [s.transport.close(), s.server.close()]),
+      );
+      sessions.clear();
+
+      // Close keep-alive sockets so the port is actually released.
+      httpServer.closeIdleConnections();
+
+      // If a streaming/SSE connection is still active, close it forcefully to guarantee shutdown.
+      const forceCloseTimeout = setTimeout(() => {
+        httpServer.closeAllConnections();
+        httpServer.closeIdleConnections();
+      }, 2_000);
+      forceCloseTimeout.unref?.();
+
+      try {
+        // Don't let shutdown hang indefinitely if a transport refuses to close.
+        await Promise.race([
+          sessionClose.then(() => undefined),
+          new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+        ]);
+
+        // Some connections become idle only after transports close.
+        httpServer.closeIdleConnections();
+        await closeServer;
+      } finally {
+        clearTimeout(forceCloseTimeout);
+      }
+    })();
+
+    return await closePromise;
+  };
 
   const httpServer = http.createServer(async (req, res) => {
     try {
@@ -258,6 +323,38 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
 
       if (url.pathname === "/health") {
         sendText(res, 200, "ok");
+        return;
+      }
+
+      if (shutdown && url.pathname === shutdown.path) {
+        if (req.method !== "POST") {
+          sendText(res, 405, "method not allowed");
+          return;
+        }
+
+        const token = extractBearerToken(req, url);
+        if (token !== shutdown.token) {
+          sendText(res, 401, "unauthorized");
+          return;
+        }
+
+        if (shuttingDown) {
+          sendText(res, 200, "shutting down");
+          return;
+        }
+
+        shuttingDown = true;
+        sendText(res, 200, "shutting down");
+        setImmediate(() => {
+          void close().finally(() => {
+            if (shutdown.exitProcess) process.exit(0);
+          });
+        });
+        return;
+      }
+
+      if (shuttingDown) {
+        sendText(res, 503, "shutting down");
         return;
       }
 
@@ -352,14 +449,6 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
       : config.port;
   const url = `http://${config.host}:${actualPort}${config.path}`;
 
-  const close = async (): Promise<void> => {
-    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
-    await Promise.allSettled(
-      Array.from(sessions.values()).flatMap((s) => [s.transport.close(), s.server.close()]),
-    );
-    sessions.clear();
-  };
-
   return { httpServer, url, close };
 }
 
@@ -370,5 +459,11 @@ export async function startAilssMcpHttpServerFromEnv(): Promise<{
 }> {
   const config = parseHttpConfigFromEnv();
   const runtime = await createAilssMcpRuntimeFromEnv();
-  return await startAilssMcpHttpServer({ config, runtime });
+  const shutdownToken = (process.env.AILSS_MCP_HTTP_SHUTDOWN_TOKEN ?? "").trim();
+  const options: StartHttpServerOptions = {
+    config,
+    runtime,
+    ...(shutdownToken ? { shutdown: { token: shutdownToken, exitProcess: true } } : {}),
+  };
+  return await startAilssMcpHttpServer(options);
 }

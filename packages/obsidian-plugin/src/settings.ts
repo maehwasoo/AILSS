@@ -13,6 +13,7 @@ export interface AilssObsidianSettings {
 	mcpHttpServiceEnabled: boolean;
 	mcpHttpServicePort: number;
 	mcpHttpServiceToken: string;
+	mcpHttpServiceShutdownToken: string;
 	mcpHttpServiceEnableWriteTools: boolean;
 	indexerCommand: string;
 	indexerArgs: string[];
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	mcpHttpServiceEnabled: false,
 	mcpHttpServicePort: 31415,
 	mcpHttpServiceToken: "",
+	mcpHttpServiceShutdownToken: "",
 	mcpHttpServiceEnableWriteTools: false,
 	indexerCommand: "node",
 	indexerArgs: [],

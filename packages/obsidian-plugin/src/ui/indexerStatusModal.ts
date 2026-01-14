@@ -1,7 +1,7 @@
 import { Modal, Notice, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "../main.js";
-import type { AilssIndexerStatusSnapshot } from "../main.js";
+import type { AilssIndexerStatusSnapshot } from "../indexer/indexerRunner.js";
 import { formatAilssTimestampForUi } from "../utils/dateTime.js";
 
 export class AilssIndexerStatusModal extends Modal {

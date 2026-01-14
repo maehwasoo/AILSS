@@ -305,6 +305,7 @@ Status (implemented):
 - Defaults:
   - `AILSS_MCP_HTTP_MAX_SESSIONS=10`
   - `AILSS_MCP_HTTP_IDLE_TTL_MS=3600000` (1 hour)
+  - `AILSS_MCP_HTTP_SHUTDOWN_TOKEN=<token>` (optional; enables `POST /__ailss/shutdown`; use a separate admin token)
 
 Why this needs explicit design:
 

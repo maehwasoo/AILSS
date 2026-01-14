@@ -59,6 +59,7 @@ export type McpHttpServerTestOptions = {
   vaultPath?: string;
   enableWriteTools?: boolean;
   token?: string;
+  shutdownToken?: string;
   maxSessions?: number;
   idleTtlMs?: number;
   beforeStart?: (runtime: AilssMcpRuntime) => void | Promise<void>;
@@ -102,9 +103,15 @@ function envForMcpRuntime(
 
 export async function withMcpHttpServer<T>(
   options: McpHttpServerTestOptions,
-  fn: (ctx: { url: string; token: string; runtime: AilssMcpRuntime }) => Promise<T>,
+  fn: (ctx: {
+    url: string;
+    token: string;
+    shutdownToken: string | null;
+    runtime: AilssMcpRuntime;
+  }) => Promise<T>,
 ): Promise<T> {
   const token = options.token ?? "test-token";
+  const shutdownToken = options.shutdownToken ?? null;
   const maxSessions = options.maxSessions ?? 5;
   const idleTtlMs = options.idleTtlMs ?? 60_000;
 
@@ -117,10 +124,11 @@ export async function withMcpHttpServer<T>(
       config: { host: "127.0.0.1", port: 0, path: "/mcp", token },
       maxSessions,
       idleTtlMs,
+      ...(shutdownToken ? { shutdown: { token: shutdownToken } } : {}),
     });
 
     try {
-      return await fn({ url, token, runtime });
+      return await fn({ url, token, shutdownToken, runtime });
     } finally {
       await close();
       runtime.deps.db.close();

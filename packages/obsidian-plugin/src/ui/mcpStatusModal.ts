@@ -1,7 +1,7 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "../main.js";
-import type { AilssMcpHttpServiceStatusSnapshot } from "../main.js";
+import type { AilssMcpHttpServiceStatusSnapshot } from "../mcp/mcpHttpServiceTypes.js";
 import { formatAilssTimestampForUi } from "../utils/dateTime.js";
 
 export class AilssMcpStatusModal extends Modal {
