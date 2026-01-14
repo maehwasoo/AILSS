@@ -71,16 +71,14 @@ In the Obsidian plugin settings, use **Prompt installer (vault root)** to write 
 - The prompt is meant to keep assistants aligned with your vault rules (frontmatter schema, typed links, and safe workflows).
 - Note: prompt contents are bundled at build time; changes require plugin rebuild + reload.
 
-### Workspace guidance snippet (optional)
-
-For a ready-to-paste `AGENTS.md` snippet focused on AILSS MCP usage, see `docs/ops/agents-snippet.md`.
-
-### Codex skill (optional, recommended)
+### Codex skill (recommended)
 
 In the Obsidian plugin settings, use **Copy Prometheus Agent skill (Codex)** and install it under your Codex skills folder:
 
 - Recommended path: `~/.codex/skills/ailss-prometheus-agent/SKILL.md`
 - Snapshot reference: `docs/ops/codex-skills/prometheus-agent/SKILL.md`
+
+We intentionally avoid per-project/workspace `AGENTS.md` prompts and keep guidance in these two channels only: vault-root prompt + Codex skill.
 
 If you skip prompts/skills, assistants are more likely to guess instead of querying MCP tools, and may create notes with incomplete or inconsistent frontmatter/typed links.
 
@@ -95,7 +93,13 @@ AILSS treats your vault as a **knowledge graph**:
 
 - YAML frontmatter is the structured “note metadata”.
 - Frontmatter “typed links” are the structured graph edges (semantic relations).
-- Body `[[wikilinks]]` are still useful and are also extracted, but they are treated as **non-semantic navigation** by default.
+- Body wikilinks are still useful and are also extracted, but they are treated as **non-semantic navigation** by default.
+
+Example body wikilink:
+
+```md
+[[wikilinks]]
+```
 
 The indexer normalizes frontmatter and stores it in SQLite (including a `typed_links` table) so tools can build context without guessing.
 For the full rules/templates, see `docs/standards/vault/README.md`.
@@ -132,7 +136,7 @@ Typed links are optional frontmatter keys used to record semantic edges as wikil
 - `authored_by`: authorship / attribution
 - `same_as`, `supersedes`: equivalence / replacement
 
-Note: AILSS also extracts body `[[wikilinks]]` and stores them as `typed_links` edges with `rel: links_to`.
+Note: AILSS also extracts body wikilinks and stores them as `typed_links` edges with `rel: links_to`.
 You should not write `links_to` in frontmatter.
 
 ## MCP tools
@@ -213,7 +217,6 @@ Write tools are disabled by default and require `AILSS_ENABLE_WRITE_TOOLS=1`. Th
 - `docs/ops/codex-cli.md`: Codex CLI setup and sandbox troubleshooting
 - `docs/ops/local-dev.md`: local development and plugin build instructions
 - `docs/ops/testing.md`: testing commands and guidance
-- `docs/ops/agents-snippet.md`: AGENTS.md prompt snippet for AILSS MCP usage
 - `docs/ops/codex-skills/README.md`: Codex skill snapshots (reference)
 - `docs/standards/vault/README.md`: vault rules and frontmatter requirements
 - `docs/architecture/packages.md`: package structure and dependency direction

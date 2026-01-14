@@ -15,22 +15,30 @@ This document summarizes the AILSS vault structure, naming, and linking conventi
 
 ## Naming and asset placement
 
-- Filenames should use a Korean title with optional English in parentheses (example: `도메인 주도 설계(Domain-Driven Design).md`).
+- Filenames: default to an English title (example: `Domain-Driven Design.md`). Avoid adding translations in parentheses (e.g. `한글(English)`); use parentheses only for disambiguation.
+  - If you want searchable alternate titles/translations (e.g. Korean), put them in frontmatter `aliases` instead.
 - Filenames (cross-device safe): avoid characters/sequences that can break links or Sync on other OSes.
-  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / Obsidian wikilink brackets.
   - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
 - Keep assets in a note-adjacent `assets/` folder and embed via relative paths (example: `20. Areas/50. AILSS/assets/diagram.png`).
 - After moving a path/file, check for broken links via `rg "\\[\\[" -n`.
 
 ### Folder creation and naming rules
 
-- Folder naming: two-digit prefix + space + Korean title + optional English in parentheses (example: `12. 데이터 품질(Data Quality)`).
+- Folder naming: two-digit prefix + space + English title (example: `12. Data Quality`). Avoid adding translations in parentheses (e.g. `한글(English)`); use parentheses only for disambiguation.
 - Apply the same rule to subfolders, but keep the maximum depth to 3 levels from the top-level folder.
-  - Example: `12. 데이터 품질/20. 모니터링(Monitoring)`
+  - Example: `12. Data Quality/20. Monitoring`
 - When creating a new folder, also create an `assets/` subfolder, and embed assets only via relative paths.
 - The first note in a folder should be a hub note, and the filename should match the folder name.
-  - Suggested frontmatter: `entity: hub`, `layer: logical`, `instance_of: ['[[hub]]']`, `part_of: ['[[parent hub]]']`
+  - Suggested frontmatter (example below)
 - After folder moves/creation, re-check broken links and update child notes’ `part_of` to the new hub note.
+
+```yaml
+entity: hub
+layer: logical
+instance_of: ["[[hub]]"]
+part_of: ["[[parent hub]]"]
+```
 
 ## Folder roles (vault structure principles)
 
@@ -51,11 +59,21 @@ This document summarizes the AILSS vault structure, naming, and linking conventi
 
 ## Wikilinks, anchors, and footnotes
 
-- Wikilinks: use `[[Note title]]` by default; use `[[Note title|Display text]]` when display text should differ.
-- In these rules docs, prefer explicit display text and hide the path by using `[[path/to/note|Title]]`.
-  - Example: `[[20. Areas/30. SOPT/코드 리뷰/PROMPT|PROMPT]]`
-  - Example: `[[20. Areas/70. Claude Code/Commands/write-pr|write-pr]]`
-- Heading anchors: use `[[Note#Section]]`; if section names change, update links too.
-- Block references: attach `^id` to the smallest quote-worthy block and reference via `[[Note#^id]]`.
+- Wikilinks: use the note title by default; use display text when it should differ.
+- In these rules docs, prefer explicit display text and hide the path via display text.
+- Heading anchors: use note + heading; if section names change, update links too.
+- Block references: attach `^id` to the smallest quote-worthy block and reference it.
 - Footnotes: use `[^key]` in the body and define at the bottom as `[^key]: ...` (use short meaningful keys).
 - Link checking: before/after work, check broken wikilinks via `rg "\\[\\[" -n`.
+
+Examples:
+
+```md
+[[Note title]]
+[[Note title|Display text]]
+[[path/to/note|Title]]
+[[20. Areas/30. SOPT/코드 리뷰/PROMPT|PROMPT]]
+[[20. Areas/70. Claude Code/Commands/write-pr|write-pr]]
+[[Note#Section]]
+[[Note#^id]]
+```
