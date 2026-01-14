@@ -93,7 +93,7 @@ AILSS treats your vault as a **knowledge graph**:
 
 - YAML frontmatter is the structured “note metadata”.
 - Frontmatter “typed links” are the structured graph edges (semantic relations).
-- Body `[[wikilinks]]` are still useful and are also extracted, but they are treated as **non-semantic navigation** by default.
+- Body `\[\[wikilinks]]` are still useful and are also extracted, but they are treated as **non-semantic navigation** by default.
 
 The indexer normalizes frontmatter and stores it in SQLite (including a `typed_links` table) so tools can build context without guessing.
 For the full rules/templates, see `docs/standards/vault/README.md`.
@@ -130,7 +130,7 @@ Typed links are optional frontmatter keys used to record semantic edges as wikil
 - `authored_by`: authorship / attribution
 - `same_as`, `supersedes`: equivalence / replacement
 
-Note: AILSS also extracts body `[[wikilinks]]` and stores them as `typed_links` edges with `rel: links_to`.
+Note: AILSS also extracts body `\[\[wikilinks]]` and stores them as `typed_links` edges with `rel: links_to`.
 You should not write `links_to` in frontmatter.
 
 ## MCP tools
