@@ -7,11 +7,35 @@ import net from "node:net";
 import { withMcpHttpServer, withTempDir } from "./httpTestUtils.js";
 
 describe("MCP HTTP server (shutdown endpoint)", () => {
+  it("is disabled unless explicitly enabled", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath }, async ({ url, token }) => {
+        const u = new URL(url);
+        u.pathname = "/__ailss/shutdown";
+        u.search = "";
+
+        const res = await fetch(u.toString(), {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        expect(res.status).toBe(404);
+        expect(await res.text()).toBe("not found");
+
+        u.pathname = "/health";
+        const health = await fetch(u.toString());
+        expect(health.status).toBe(200);
+        expect(await health.text()).toBe("ok");
+      });
+    });
+  });
+
   it("rejects unauthenticated shutdown requests", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
-      await withMcpHttpServer({ dbPath }, async ({ url }) => {
+      await withMcpHttpServer({ dbPath, shutdownToken: "shutdown-token" }, async ({ url }) => {
         const u = new URL(url);
         u.pathname = "/__ailss/shutdown";
         u.search = "";
@@ -28,11 +52,33 @@ describe("MCP HTTP server (shutdown endpoint)", () => {
     });
   });
 
+  it("rejects shutdown requests using the regular MCP token", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer(
+        { dbPath, token: "mcp-token", shutdownToken: "shutdown-token" },
+        async ({ url, token }) => {
+          const u = new URL(url);
+          u.pathname = "/__ailss/shutdown";
+          u.search = "";
+
+          const res = await fetch(u.toString(), {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          expect(res.status).toBe(401);
+          expect(await res.text()).toBe("unauthorized");
+        },
+      );
+    });
+  });
+
   it("shuts down when authenticated and frees the port", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
-      await withMcpHttpServer({ dbPath }, async ({ url, token }) => {
+      await withMcpHttpServer({ dbPath, shutdownToken: "shutdown-token" }, async ({ url }) => {
         const u = new URL(url);
         const host = u.hostname;
         const port = Number.parseInt(u.port, 10);
@@ -42,7 +88,7 @@ describe("MCP HTTP server (shutdown endpoint)", () => {
         u.search = "";
         const shutdown = await fetch(u.toString(), {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: "Bearer shutdown-token" },
         });
         expect(shutdown.status).toBe(200);
         expect(await shutdown.text()).toBe("shutting down");
@@ -58,7 +104,7 @@ describe("MCP HTTP server (shutdown endpoint)", () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
-      await withMcpHttpServer({ dbPath }, async ({ url, token }) => {
+      await withMcpHttpServer({ dbPath, shutdownToken: "shutdown-token" }, async ({ url }) => {
         const u = new URL(url);
         const host = u.hostname;
         const port = Number.parseInt(u.port, 10);
@@ -72,7 +118,7 @@ describe("MCP HTTP server (shutdown endpoint)", () => {
           u.search = "";
           const shutdown = await fetch(u.toString(), {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: "Bearer shutdown-token" },
           });
           expect(shutdown.status).toBe(200);
           expect(await shutdown.text()).toBe("shutting down");
