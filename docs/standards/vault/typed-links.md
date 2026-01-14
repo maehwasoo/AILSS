@@ -58,7 +58,7 @@ Notes:
    - “S is same as ?” (synonyms/duplicates) → `same_as` candidates
    - “S supersedes ?” → `supersedes` candidates
 4. Literal verification: use `read_note` to read the actual note text (and confirm you are linking the right target).
-5. Normalize: prefer stable titles and keep Korean titles with English parentheses when that is the vault convention (example: `[[클라우드플레어(Cloudflare)]]`).
+5. Normalize: prefer stable English titles (vault default). Avoid adding translations in parentheses; use frontmatter `aliases` for alternate spellings/translations. Parentheses are OK only for disambiguation (example: `[[Python (programming language)]]`).
 6. Select and limit: for each category, record only the highest-confidence 1–5 items (avoid over-linking).
 7. Order and deduplicate: keep a stable ordering; resolve duplicates via `same_as`.
 8. Validate: check for obvious omissions via the coverage checklist below.
@@ -112,11 +112,11 @@ part_of:
   - "[[WorldAce]]"
 depends_on:
   - "[[Vite]]"
-  - "[[클라우드플레어(Cloudflare)]]"
+  - "[[Cloudflare]]"
 uses:
   - "[[Obsidian]]"
 implements:
-  - "[[CI 파이프라인(CI Pipeline)]]"
+  - "[[CI Pipeline]]"
 cites:
-  - "[[문헌 제목(Reference Title)]]"
+  - "[[Reference Title]]"
 ```

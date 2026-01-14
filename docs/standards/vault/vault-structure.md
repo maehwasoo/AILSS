@@ -15,7 +15,8 @@ This document summarizes the AILSS vault structure, naming, and linking conventi
 
 ## Naming and asset placement
 
-- Filenames should use a Korean title with optional English in parentheses (example: `도메인 주도 설계(Domain-Driven Design).md`).
+- Filenames: default to an English title (example: `Domain-Driven Design.md`). Avoid adding translations in parentheses (e.g. `한글(English)`); use parentheses only for disambiguation.
+  - If you want searchable alternate titles/translations (e.g. Korean), put them in frontmatter `aliases` instead.
 - Filenames (cross-device safe): avoid characters/sequences that can break links or Sync on other OSes.
   - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
   - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
@@ -24,9 +25,9 @@ This document summarizes the AILSS vault structure, naming, and linking conventi
 
 ### Folder creation and naming rules
 
-- Folder naming: two-digit prefix + space + Korean title + optional English in parentheses (example: `12. 데이터 품질(Data Quality)`).
+- Folder naming: two-digit prefix + space + English title (example: `12. Data Quality`). Avoid adding translations in parentheses (e.g. `한글(English)`); use parentheses only for disambiguation.
 - Apply the same rule to subfolders, but keep the maximum depth to 3 levels from the top-level folder.
-  - Example: `12. 데이터 품질/20. 모니터링(Monitoring)`
+  - Example: `12. Data Quality/20. Monitoring`
 - When creating a new folder, also create an `assets/` subfolder, and embed assets only via relative paths.
 - The first note in a folder should be a hub note, and the filename should match the folder name.
   - Suggested frontmatter: `entity: hub`, `layer: logical`, `instance_of: ['[[hub]]']`, `part_of: ['[[parent hub]]']`

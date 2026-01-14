@@ -186,9 +186,9 @@ The `entity` candidates are grouped into: interface, action, and object.
 ---
 id: {{date:YYYYMMDDHHmmss}}
 created: {{date:YYYY-MM-DDTHH:mm:ss}}
-title: 도메인 주도 설계(Domain-Driven Design)
+title: Domain-Driven Design
 summary: Summary of core concepts and patterns
-aliases: [DDD]
+aliases: ["도메인 주도 설계", "DDD"]
 entity: concept
 layer: conceptual
 tags: ['architecture']
@@ -197,7 +197,7 @@ status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 source: []
 instance_of: ['[[concept]]']
-see_also: ['[[유비쿼터스 언어(Ubiquitous Language)]]']
+see_also: ['[[Ubiquitous Language]]']
 ---
 ```
 
@@ -207,9 +207,9 @@ see_also: ['[[유비쿼터스 언어(Ubiquitous Language)]]']
 ---
 id: {{date:YYYYMMDDHHmmss}}
 created: {{date:YYYY-MM-DDTHH:mm:ss}}
-title: WorldAce v2 로드맵(WorldAce v2 Roadmap)
+title: WorldAce v2 Roadmap
 summary: Summary of quarterly goals and milestones
-aliases: []
+aliases: ["WorldAce v2 로드맵"]
 entity: project
 layer: strategic
 tags: []
@@ -228,9 +228,9 @@ depends_on: ['[[Vite]]', '[[Cloudflare]]']
 ---
 id: {{date:YYYYMMDDHHmmss}}
 created: {{date:YYYY-MM-DDTHH:mm:ss}}
-title: 배포 절차(Deployment Procedure)
+title: Deployment Procedure
 summary: Deployment steps (staging → production) and verification criteria
-aliases: []
+aliases: ["배포 절차"]
 entity: procedure
 layer: operational
 tags: []
@@ -238,6 +238,6 @@ keywords: []
 status: active
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 source: []
-implements: ['[[CI 파이프라인(CI Pipeline)]]']
+implements: ['[[CI Pipeline]]']
 ---
 ```
