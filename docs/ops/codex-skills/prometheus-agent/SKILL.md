@@ -50,7 +50,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
   - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
   - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
 - If you need the full path in a wikilink (disambiguation), hide it with display text:
-  - Example: `[[20. Areas/50. AILSS/20. 운영(Operations)/20. 운영(Operations)|20. 운영(Operations)]]`
+  - Example: `[[20. Areas/50. AILSS/20. Operations/20. Operations|20. Operations]]`
 
 ## Safe writes (when enabled)
 
