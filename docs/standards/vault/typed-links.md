@@ -34,14 +34,14 @@ To introduce a new typed-link key, update **all** of the above in the same chang
 
 Notes:
 
-- AILSS also extracts **body** `\[\[wikilinks]]` and stores them as edges with `rel: links_to`.
+- AILSS also extracts **body** wikilinks and stores them as edges with `rel: links_to`.
   - `links_to` is **not** a frontmatter relation key you should write yourself; it is reserved for body-link extraction and navigation/backrefs.
 
 ### How AILSS uses typed links (implementation notes)
 
 - Typed links are extracted from frontmatter into a structured edge list (stored as `typed_links` in the index DB).
 - The `get_typed_links` tool reads those edges and expands outgoing links into a bounded graph (metadata only).
-- Body `\[\[wikilinks]]` are also extracted and stored as `typed_links` edges with `rel: links_to` for non-semantic navigation and backrefs.
+- Body wikilinks are also extracted and stored as `typed_links` edges with `rel: links_to` for non-semantic navigation and backrefs.
   - Use frontmatter typed links when the relationship is semantic (so queries/graphs can distinguish it from `links_to`).
 
 ### Workflow: derive relationships from semantic analysis
@@ -58,7 +58,7 @@ Notes:
    - “S is same as ?” (synonyms/duplicates) → `same_as` candidates
    - “S supersedes ?” → `supersedes` candidates
 4. Literal verification: use `read_note` to read the actual note text (and confirm you are linking the right target).
-5. Normalize: prefer stable English titles (vault default). Avoid adding translations in parentheses; use frontmatter `aliases` for alternate spellings/translations. Parentheses are OK only for disambiguation (example: `\[\[Python (programming language)]]`).
+5. Normalize: prefer stable English titles (vault default). Avoid adding translations in parentheses; use frontmatter `aliases` for alternate spellings/translations. Parentheses are OK only for disambiguation (example: Python (programming language)).
 6. Select and limit: for each category, record only the highest-confidence 1–5 items (avoid over-linking).
 7. Order and deduplicate: keep a stable ordering; resolve duplicates via `same_as`.
 8. Validate: check for obvious omissions via the coverage checklist below.
@@ -66,7 +66,7 @@ Notes:
 ### Recommended coverage matrix (by entity)
 
 - Concept (`entity: concept`)
-  - Required: `instance_of: ['\[\[concept]]']`
+  - Required: `instance_of` (concept wikilink; see example snippet below)
   - Recommended: `see_also`, `cites`
 - Document (`entity: document`)
   - Required: `part_of`
@@ -98,10 +98,17 @@ The matrix is a baseline. If more links are justified, add them, but stay within
 ### Writing rules
 
 - Store values as arrays, and omit the key when you have no values (do not keep empty arrays).
-- Wikilink forms are all acceptable: `\[\[Title]]`, `\[\[Folder/Note]]`, `\[\[Folder/Note|Title]]` (and anchors like `\[\[Note#Heading]]`).
-- Prefer `\[\[path|title]]` when you want stable storage but title-only display.
+- Wikilink forms are all acceptable (title, folder path, display text, and anchors); see examples below.
+- Prefer path + display text when you want stable storage but title-only display.
 - Tools may emit JSON-style inline arrays (for example `[]` and `["inbox"]`); multi-line YAML arrays are also accepted.
 - Use only the keys defined in this doc (or the canonical list in code). Do not invent new relationship keys ad hoc.
+
+```md
+[[Title]]
+[[Folder/Note]]
+[[Folder/Note|Title]]
+[[Note#Heading]]
+```
 
 ### Example frontmatter snippet
 
