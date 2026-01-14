@@ -19,6 +19,14 @@ export default tseslint.config(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		rules: {
+			"obsidianmd/ui/sentence-case": [
+				"error",
+				{ brands: ["AILSS"], acronyms: ["MCP"], enforceCamelCaseLower: true },
+			],
+		},
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",

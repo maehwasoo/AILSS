@@ -128,8 +128,10 @@ export default class AilssObsidianPlugin extends Plugin {
 		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
 	}
 
-	async onunload(): Promise<void> {
-		await this.stopMcpHttpService();
+	onunload(): void {
+		void this.stopMcpHttpService().catch((error) => {
+			console.error("AILSS MCP service stop failed", error);
+		});
 	}
 
 	async loadSettings(): Promise<void> {

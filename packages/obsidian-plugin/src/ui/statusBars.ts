@@ -33,26 +33,26 @@ export function renderMcpStatusBar(
 	el.removeClass("is-error");
 
 	if (!snapshot.enabled) {
-		el.textContent = "AILSS: MCP Off";
+		el.textContent = "AILSS: MCP off";
 		el.setAttribute("title", "AILSS MCP service is disabled.");
 		return;
 	}
 
 	if (snapshot.running) {
-		el.textContent = "AILSS: MCP Running";
+		el.textContent = "AILSS: MCP running";
 		el.addClass("is-running");
 		el.setAttribute("title", ["AILSS MCP service running", snapshot.url].join("\n"));
 		return;
 	}
 
 	if (snapshot.lastErrorMessage) {
-		el.textContent = "AILSS: MCP Error";
+		el.textContent = "AILSS: MCP error";
 		el.addClass("is-error");
 		el.setAttribute("title", ["AILSS MCP service error", snapshot.lastErrorMessage].join("\n"));
 		return;
 	}
 
-	el.textContent = "AILSS: MCP Stopped";
+	el.textContent = "AILSS: MCP stopped";
 	const lastStoppedAt = formatAilssTimestampForUi(snapshot.lastStoppedAt);
 	el.setAttribute(
 		"title",
@@ -96,7 +96,7 @@ export function renderIndexerStatusBar(
 	if (snapshot.lastErrorMessage) {
 		const lastFinishedAt = formatAilssTimestampForUi(snapshot.lastFinishedAt);
 		const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
-		el.textContent = "AILSS: Index error";
+		el.textContent = "AILSS: index error";
 		el.addClass("is-error");
 		el.setAttribute(
 			"title",
@@ -114,11 +114,11 @@ export function renderIndexerStatusBar(
 
 	if (snapshot.lastSuccessAt) {
 		const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
-		el.textContent = "AILSS: Ready";
+		el.textContent = "AILSS: ready";
 		el.setAttribute("title", `Last success: ${lastSuccessAt ?? snapshot.lastSuccessAt}`);
 		return;
 	}
 
-	el.textContent = "AILSS: Not indexed";
+	el.textContent = "AILSS: not indexed";
 	el.setAttribute("title", "No successful index run recorded yet.");
 }
