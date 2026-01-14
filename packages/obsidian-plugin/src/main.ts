@@ -1,10 +1,9 @@
 import { Notice, Plugin, TFile } from "obsidian";
-import fs from "node:fs";
-import path from "node:path";
 
 import { registerCommands } from "./commands/registerCommands.js";
 import { AutoIndexScheduler } from "./indexer/autoIndexScheduler.js";
 import { resetIndexDb, resolveIndexerDbPathForReset } from "./indexer/indexDbReset.js";
+import { saveLastIndexerLogToFile as saveLastIndexerLogToFileInVault } from "./indexer/indexerLogFile.js";
 import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
@@ -21,6 +20,11 @@ import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
 import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
 import { AilssMcpStatusModal } from "./ui/mcpStatusModal.js";
 import { clampPort } from "./utils/clamp.js";
+import {
+	buildCodexMcpConfigBlock,
+	copyCodexMcpConfigBlockToClipboard as copyCodexMcpConfigBlockToClipboardImpl,
+	copyCodexPrometheusAgentPromptToClipboard as copyCodexPrometheusAgentPromptToClipboardImpl,
+} from "./utils/codexClipboardService.js";
 import { formatAilssTimestampForUi } from "./utils/dateTime.js";
 import { generateToken } from "./utils/misc.js";
 import {
@@ -30,8 +34,8 @@ import {
 	resolveMcpArgs,
 	resolveMcpHttpArgs,
 } from "./utils/pluginPaths.js";
-import { codexPrometheusAgentPrompt } from "./utils/codexPrompts.js";
-import { type PromptKind, promptFilename, promptTemplate } from "./utils/promptTemplates.js";
+import { type PromptKind } from "./utils/promptTemplates.js";
+import { installVaultRootPromptAtVaultRoot } from "./utils/vaultRootPromptInstaller.js";
 
 export type { AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 export type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
@@ -161,13 +165,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	getCodexMcpConfigBlock(): string {
 		const url = this.getMcpHttpServiceUrl();
 		const token = this.settings.mcpHttpServiceToken.trim();
-
-		return [
-			"[mcp_servers.ailss]",
-			`url = ${JSON.stringify(url)}`,
-			`http_headers = { Authorization = ${JSON.stringify(`Bearer ${token}`)} }`,
-			"",
-		].join("\n");
+		return buildCodexMcpConfigBlock({ url, token });
 	}
 
 	async copyCodexMcpConfigBlockToClipboard(): Promise<void> {
@@ -178,15 +176,10 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		try {
-			const clipboard = (
-				navigator as unknown as { clipboard?: { writeText?: (v: string) => Promise<void> } }
-			).clipboard;
-			if (!clipboard?.writeText) {
-				new Notice("Clipboard not available.");
-				return;
-			}
-
-			await clipboard.writeText(this.getCodexMcpConfigBlock());
+			await copyCodexMcpConfigBlockToClipboardImpl({
+				url: this.getMcpHttpServiceUrl(),
+				token,
+			});
 			new Notice("Copied Codex MCP config block.");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -196,15 +189,7 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	async copyCodexPrometheusAgentPromptToClipboard(): Promise<void> {
 		try {
-			const clipboard = (
-				navigator as unknown as { clipboard?: { writeText?: (v: string) => Promise<void> } }
-			).clipboard;
-			if (!clipboard?.writeText) {
-				new Notice("Clipboard not available.");
-				return;
-			}
-
-			await clipboard.writeText(codexPrometheusAgentPrompt());
+			await copyCodexPrometheusAgentPromptToClipboardImpl();
 			new Notice("Copied Prometheus Agent skill.");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -223,19 +208,15 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async installVaultRootPrompt(options: { kind: PromptKind; overwrite: boolean }): Promise<void> {
-		const fileName = promptFilename(options.kind);
-		const adapter = this.app.vault.adapter;
-
-		const exists = await adapter.exists(fileName);
-		if (exists && !options.overwrite) {
+		const result = await installVaultRootPromptAtVaultRoot(this.app.vault.adapter, options);
+		if (result.status === "exists") {
 			new Notice(
-				`${fileName} already exists at the vault root. Enable overwrite to replace it.`,
+				`${result.fileName} already exists at the vault root. Enable overwrite to replace it.`,
 			);
 			return;
 		}
 
-		await adapter.write(fileName, promptTemplate(options.kind));
-		new Notice(`Installed ${fileName} at the vault root.`);
+		new Notice(`Installed ${result.fileName} at the vault root.`);
 	}
 
 	async startMcpHttpService(): Promise<void> {
@@ -326,16 +307,10 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async saveLastIndexerLogToFile(): Promise<string> {
-		const vaultPath = getVaultPath(this.app);
-		const log = this.indexer.getLastLog()?.trim() ?? "";
-		if (!log) throw new Error("No indexer log available.");
-
-		const dir = path.join(vaultPath, ".ailss");
-		await fs.promises.mkdir(dir, { recursive: true });
-
-		const filePath = path.join(dir, "ailss-indexer-last.log");
-		await fs.promises.writeFile(filePath, log + "\n", "utf8");
-		return filePath;
+		return saveLastIndexerLogToFileInVault({
+			vaultPath: getVaultPath(this.app),
+			log: this.indexer.getLastLog() ?? "",
+		});
 	}
 
 	confirmResetIndexDb(options: { reindexAfter: boolean }): void {
