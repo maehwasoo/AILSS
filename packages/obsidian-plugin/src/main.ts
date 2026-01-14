@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile } from "obsidian";
+import { Plugin, TFile } from "obsidian";
 
 import { registerCommands } from "./commands/registerCommands.js";
 import { AutoIndexScheduler } from "./indexer/autoIndexScheduler.js";
@@ -16,9 +16,18 @@ import {
 	type AilssObsidianSettings,
 } from "./settings.js";
 import { ConfirmModal } from "./ui/confirmModal.js";
-import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
-import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
-import { AilssMcpStatusModal } from "./ui/mcpStatusModal.js";
+import {
+	openIndexerStatusModal as openIndexerStatusModalUi,
+	openLastIndexerLogModal as openLastIndexerLogModalUi,
+	openMcpStatusModal as openMcpStatusModalUi,
+} from "./ui/pluginModals.js";
+import { showErrorNotice, showNotice } from "./ui/pluginNotices.js";
+import {
+	mountIndexerStatusBar,
+	mountMcpStatusBar,
+	renderIndexerStatusBar,
+	renderMcpStatusBar,
+} from "./ui/statusBars.js";
 import { clampPort } from "./utils/clamp.js";
 import {
 	buildCodexMcpConfigBlock,
@@ -59,7 +68,10 @@ export default class AilssObsidianPlugin extends Plugin {
 				pluginDirRealpathOrNull: getPluginDirRealpathOrNull(this.app, this.manifest.id),
 			}),
 		getUrl: () => this.getMcpHttpServiceUrl(),
-		onStatusChanged: () => this.updateMcpStatusBar(),
+		onStatusChanged: () => {
+			if (!this.mcpStatusBarEl) return;
+			renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
+		},
 	});
 
 	private readonly indexer = new IndexerRunner({
@@ -74,7 +86,10 @@ export default class AilssObsidianPlugin extends Plugin {
 				settings: this.settings,
 				pluginDirRealpathOrNull: getPluginDirRealpathOrNull(this.app, this.manifest.id),
 			}),
-		onSnapshot: (snapshot) => this.updateStatusBar(snapshot),
+		onSnapshot: (snapshot) => {
+			if (!this.statusBarEl) return;
+			renderIndexerStatusBar(this.statusBarEl, snapshot);
+		},
 	});
 
 	private readonly autoIndex = new AutoIndexScheduler({
@@ -84,7 +99,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			await this.indexer.run(paths);
 		},
 		onError: (message) => {
-			new Notice(`AILSS auto-index failed: ${message}`);
+			showNotice(`AILSS auto-index failed: ${message}`);
 		},
 	});
 
@@ -92,8 +107,14 @@ export default class AilssObsidianPlugin extends Plugin {
 		await this.loadSettings();
 		await this.ensureMcpHttpServiceToken();
 
-		this.registerIndexerStatusUi();
-		this.registerMcpStatusUi();
+		this.statusBarEl = mountIndexerStatusBar(this, {
+			onClick: () => this.openIndexerStatusModal(),
+		});
+		this.mcpStatusBarEl = mountMcpStatusBar(this, {
+			onClick: () => this.openMcpStatusModal(),
+		});
+		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
+
 		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
 		registerCommands(this);
 		this.registerAutoIndexEvents();
@@ -103,7 +124,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		}
 
 		this.indexer.emitNow();
-		this.updateMcpStatusBar();
+		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
 	}
 
 	async onunload(): Promise<void> {
@@ -171,7 +192,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	async copyCodexMcpConfigBlockToClipboard(): Promise<void> {
 		const token = this.settings.mcpHttpServiceToken.trim();
 		if (!token) {
-			new Notice("Missing MCP service token. Generate a token first.");
+			showNotice("Missing MCP service token. Generate a token first.");
 			return;
 		}
 
@@ -180,27 +201,25 @@ export default class AilssObsidianPlugin extends Plugin {
 				url: this.getMcpHttpServiceUrl(),
 				token,
 			});
-			new Notice("Copied Codex MCP config block.");
+			showNotice("Copied Codex MCP config block.");
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			new Notice(`Copy failed: ${message}`);
+			showErrorNotice("Copy failed", error);
 		}
 	}
 
 	async copyCodexPrometheusAgentPromptToClipboard(): Promise<void> {
 		try {
 			await copyCodexPrometheusAgentPromptToClipboardImpl();
-			new Notice("Copied Prometheus Agent skill.");
+			showNotice("Copied Prometheus Agent skill.");
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			new Notice(`Copy failed: ${message}`);
+			showErrorNotice("Copy failed", error);
 		}
 	}
 
 	async regenerateMcpHttpServiceToken(): Promise<void> {
 		this.settings.mcpHttpServiceToken = generateToken();
 		await this.saveSettings();
-		new Notice("Generated a new MCP service token.");
+		showNotice("Generated a new MCP service token.");
 
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.restartMcpHttpService();
@@ -210,13 +229,13 @@ export default class AilssObsidianPlugin extends Plugin {
 	async installVaultRootPrompt(options: { kind: PromptKind; overwrite: boolean }): Promise<void> {
 		const result = await installVaultRootPromptAtVaultRoot(this.app.vault.adapter, options);
 		if (result.status === "exists") {
-			new Notice(
+			showNotice(
 				`${result.fileName} already exists at the vault root. Enable overwrite to replace it.`,
 			);
 			return;
 		}
 
-		new Notice(`Installed ${result.fileName} at the vault root.`);
+		showNotice(`Installed ${result.fileName} at the vault root.`);
 	}
 
 	async startMcpHttpService(): Promise<void> {
@@ -226,7 +245,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			this.mcpHttpService.recordError(message);
-			new Notice(`AILSS MCP service failed: ${message}`);
+			showErrorNotice("AILSS MCP service failed", error);
 		}
 	}
 
@@ -247,7 +266,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	async reindexVault(): Promise<void> {
 		const vaultPath = getVaultPath(this.app);
 		if (this.indexer.isRunning()) {
-			new Notice("AILSS indexing is already running.");
+			showNotice("AILSS indexing is already running.");
 			this.openIndexerStatusModal();
 			return;
 		}
@@ -255,14 +274,14 @@ export default class AilssObsidianPlugin extends Plugin {
 		this.autoIndex.reset();
 
 		this.openIndexerStatusModal();
-		new Notice("AILSS indexing started…");
+		showNotice("AILSS indexing started…");
 		try {
 			await this.indexer.run();
-			new Notice(`AILSS indexing complete. (${vaultPath})`);
+			showNotice(`AILSS indexing complete. (${vaultPath})`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const hint = this.describeIndexerFailureHint(message);
-			new Notice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
+			showNotice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
 	}
 
@@ -287,15 +306,15 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	openLastIndexerLogModal(): void {
-		new AilssIndexerLogModal(this.app, this).open();
+		openLastIndexerLogModalUi(this);
 	}
 
 	openIndexerStatusModal(): void {
-		new AilssIndexerStatusModal(this.app, this).open();
+		openIndexerStatusModalUi(this);
 	}
 
 	openMcpStatusModal(): void {
-		new AilssMcpStatusModal(this.app, this).open();
+		openMcpStatusModalUi(this);
 	}
 
 	getLastIndexerLogSnapshot(): {
@@ -315,7 +334,7 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	confirmResetIndexDb(options: { reindexAfter: boolean }): void {
 		if (this.indexer.isRunning()) {
-			new Notice("AILSS indexing is currently running.");
+			showNotice("AILSS indexing is currently running.");
 			return;
 		}
 
@@ -361,7 +380,7 @@ export default class AilssObsidianPlugin extends Plugin {
 						await this.saveSettings();
 					},
 				});
-				new Notice(
+				showNotice(
 					deletedCount > 0
 						? `AILSS index DB reset. (deleted ${deletedCount} file${deletedCount === 1 ? "" : "s"})`
 						: "No index DB files found to delete.",
@@ -430,129 +449,5 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	subscribeIndexerStatus(listener: (snapshot: AilssIndexerStatusSnapshot) => void): () => void {
 		return this.indexer.subscribe(listener);
-	}
-
-	private registerIndexerStatusUi(): void {
-		const el = this.addStatusBarItem();
-		this.statusBarEl = el;
-		el.addClass("ailss-obsidian-statusbar");
-		el.setAttribute("role", "button");
-		el.addEventListener("click", () => this.openIndexerStatusModal());
-		this.register(() => el.remove());
-	}
-
-	private registerMcpStatusUi(): void {
-		const el = this.addStatusBarItem();
-		this.mcpStatusBarEl = el;
-		el.addClass("ailss-obsidian-mcp-statusbar");
-		el.setAttribute("role", "button");
-		el.addEventListener("click", () => this.openMcpStatusModal());
-		this.register(() => el.remove());
-		this.updateMcpStatusBar();
-	}
-
-	private updateMcpStatusBar(): void {
-		const el = this.mcpStatusBarEl;
-		if (!el) return;
-
-		el.removeClass("is-running");
-		el.removeClass("is-error");
-
-		if (!this.settings.mcpHttpServiceEnabled) {
-			el.textContent = "AILSS: MCP Off";
-			el.setAttribute("title", "AILSS MCP service is disabled.");
-			return;
-		}
-
-		if (this.mcpHttpService.isRunning()) {
-			el.textContent = "AILSS: MCP Running";
-			el.addClass("is-running");
-			el.setAttribute(
-				"title",
-				["AILSS MCP service running", this.getMcpHttpServiceUrl()].join("\n"),
-			);
-			return;
-		}
-
-		const errorMessage = this.mcpHttpService.getLastErrorMessage();
-		if (errorMessage) {
-			el.textContent = "AILSS: MCP Error";
-			el.addClass("is-error");
-			el.setAttribute("title", ["AILSS MCP service error", errorMessage].join("\n"));
-			return;
-		}
-
-		el.textContent = "AILSS: MCP Stopped";
-		const lastStoppedAtRaw = this.mcpHttpService.getLastStoppedAt();
-		const lastStoppedAt = formatAilssTimestampForUi(lastStoppedAtRaw);
-		el.setAttribute(
-			"title",
-			[
-				"AILSS MCP service stopped",
-				lastStoppedAt ? `Last stopped: ${lastStoppedAt}` : "",
-				this.getMcpHttpServiceUrl(),
-			]
-				.filter(Boolean)
-				.join("\n"),
-		);
-	}
-
-	private updateStatusBar(snapshot: AilssIndexerStatusSnapshot): void {
-		const el = this.statusBarEl;
-		if (!el) return;
-
-		el.removeClass("is-running");
-		el.removeClass("is-error");
-
-		if (snapshot.running) {
-			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
-			const total = snapshot.progress.filesTotal;
-			const done = snapshot.progress.filesProcessed;
-			const suffix = total ? ` ${Math.min(done, total)}/${total}` : "";
-			el.textContent = `AILSS: Indexing${suffix}`;
-			el.addClass("is-running");
-			el.setAttribute(
-				"title",
-				[
-					"AILSS indexing in progress",
-					snapshot.progress.currentFile
-						? `Current: ${snapshot.progress.currentFile}`
-						: "",
-					lastSuccessAt ? `Last success: ${lastSuccessAt}` : "",
-				]
-					.filter(Boolean)
-					.join("\n"),
-			);
-			return;
-		}
-
-		if (snapshot.lastErrorMessage) {
-			const lastFinishedAt = formatAilssTimestampForUi(snapshot.lastFinishedAt);
-			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
-			el.textContent = "AILSS: Index error";
-			el.addClass("is-error");
-			el.setAttribute(
-				"title",
-				[
-					"AILSS indexing error",
-					lastFinishedAt ? `Last attempt: ${lastFinishedAt}` : "",
-					lastSuccessAt ? `Last success: ${lastSuccessAt}` : "",
-					snapshot.lastErrorMessage,
-				]
-					.filter(Boolean)
-					.join("\n"),
-			);
-			return;
-		}
-
-		if (snapshot.lastSuccessAt) {
-			const lastSuccessAt = formatAilssTimestampForUi(snapshot.lastSuccessAt);
-			el.textContent = "AILSS: Ready";
-			el.setAttribute("title", `Last success: ${lastSuccessAt ?? snapshot.lastSuccessAt}`);
-			return;
-		}
-
-		el.textContent = "AILSS: Not indexed";
-		el.setAttribute("title", "No successful index run recorded yet.");
 	}
 }
