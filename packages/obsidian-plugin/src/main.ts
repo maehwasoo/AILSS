@@ -1,9 +1,10 @@
-import { Plugin, TFile } from "obsidian";
+import { Plugin } from "obsidian";
 
 import { registerCommands } from "./commands/registerCommands.js";
 import { AutoIndexScheduler } from "./indexer/autoIndexScheduler.js";
-import { resetIndexDb, resolveIndexerDbPathForReset } from "./indexer/indexDbReset.js";
+import { registerAutoIndexEvents } from "./indexer/autoIndexEvents.js";
 import { saveLastIndexerLogToFile as saveLastIndexerLogToFileInVault } from "./indexer/indexerLogFile.js";
+import { getIndexerFailureHint } from "./indexer/indexerFailureHints.js";
 import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
@@ -15,7 +16,7 @@ import {
 	DEFAULT_SETTINGS,
 	type AilssObsidianSettings,
 } from "./settings.js";
-import { ConfirmModal } from "./ui/confirmModal.js";
+import { openResetIndexDbConfirmModal } from "./ui/indexDbResetFlow.js";
 import {
 	openIndexerStatusModal as openIndexerStatusModalUi,
 	openLastIndexerLogModal as openLastIndexerLogModalUi,
@@ -117,7 +118,7 @@ export default class AilssObsidianPlugin extends Plugin {
 
 		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
 		registerCommands(this);
-		this.registerAutoIndexEvents();
+		registerAutoIndexEvents(this, this.autoIndex);
 
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.startMcpHttpService();
@@ -280,7 +281,7 @@ export default class AilssObsidianPlugin extends Plugin {
 			showNotice(`AILSS indexing complete. (${vaultPath})`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			const hint = this.describeIndexerFailureHint(message);
+			const hint = getIndexerFailureHint(message);
 			showNotice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
 	}
@@ -333,114 +334,22 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	confirmResetIndexDb(options: { reindexAfter: boolean }): void {
-		if (this.indexer.isRunning()) {
-			showNotice("AILSS indexing is currently running.");
-			return;
-		}
-
-		const pluginDirRealpathOrNull = getPluginDirRealpathOrNull(this.app, this.manifest.id);
-		const dbPath = resolveIndexerDbPathForReset({
-			vaultPath: getVaultPath(this.app),
-			pluginDirRealpathOrNull,
-			indexerArgs: resolveIndexerArgs({
-				settings: this.settings,
-				pluginDirRealpathOrNull,
-			}),
-		});
-		const message = options.reindexAfter
-			? [
-					"This will delete the AILSS index database and immediately rebuild it.",
-					"",
-					`DB: ${dbPath}`,
-					"(including SQLite sidecar files like -wal/-shm)",
-					"",
-					"Your Markdown notes are not modified.",
-					"Reindexing will call the OpenAI embeddings API (costs money) and may take time depending on vault size.",
-				].join("\n")
-			: [
-					"This will delete the AILSS index database used for AILSS search and recommendations.",
-					"",
-					`DB: ${dbPath}`,
-					"(including SQLite sidecar files like -wal/-shm)",
-					"",
-					"Your Markdown notes are not modified.",
-					"After reset, AILSS search will return no results until you run “AILSS: Reindex vault”.",
-					"This will also clear the “Last success” timestamp shown in the status bar until you reindex.",
-				].join("\n");
-
-		new ConfirmModal(this.app, {
-			title: "Reset AILSS index DB",
-			message,
-			confirmText: options.reindexAfter ? "Reset and reindex" : "Reset",
-			onConfirm: async () => {
-				const deletedCount = await resetIndexDb({
-					dbPath,
-					clearIndexerHistory: () => this.indexer.clearHistory(),
-					saveSettings: async () => {
-						await this.saveSettings();
-					},
-				});
-				showNotice(
-					deletedCount > 0
-						? `AILSS index DB reset. (deleted ${deletedCount} file${deletedCount === 1 ? "" : "s"})`
-						: "No index DB files found to delete.",
-				);
-				if (options.reindexAfter) {
+		openResetIndexDbConfirmModal(
+			{
+				app: this.app,
+				manifestId: this.manifest.id,
+				getSettings: () => this.settings,
+				isIndexerRunning: () => this.indexer.isRunning(),
+				clearIndexerHistory: () => this.indexer.clearHistory(),
+				saveSettings: async () => {
+					await this.saveSettings();
+				},
+				reindexVault: async () => {
 					await this.reindexVault();
-				}
+				},
 			},
-		}).open();
-	}
-
-	private registerAutoIndexEvents(): void {
-		this.registerEvent(
-			this.app.vault.on("create", (file: unknown) => {
-				if (!(file instanceof TFile)) return;
-				this.autoIndex.enqueue(file.path);
-			}),
+			options,
 		);
-
-		this.registerEvent(
-			this.app.vault.on("modify", (file: unknown) => {
-				if (!(file instanceof TFile)) return;
-				this.autoIndex.enqueue(file.path);
-			}),
-		);
-
-		this.registerEvent(
-			this.app.vault.on("delete", (file: unknown) => {
-				if (!(file instanceof TFile)) return;
-				this.autoIndex.enqueue(file.path);
-			}),
-		);
-
-		this.registerEvent(
-			this.app.vault.on("rename", (file: unknown, oldPath: unknown) => {
-				if (!(file instanceof TFile)) return;
-				if (typeof oldPath === "string") this.autoIndex.enqueue(oldPath);
-				this.autoIndex.enqueue(file.path);
-			}),
-		);
-
-		this.register(() => this.autoIndex.dispose());
-	}
-
-	private describeIndexerFailureHint(message: string): string | null {
-		const msg = message.toLowerCase();
-
-		if (msg.includes("sqlite_cantopen") || msg.includes("unable to open database file")) {
-			return "SQLite DB open failed: ensure <vault>/.ailss/ is writable and not locked. Fix: Settings → AILSS Obsidian → Index maintenance → Reset index DB (then reindex).";
-		}
-
-		if (msg.includes("dimension mismatch") && msg.includes("embedding")) {
-			return "Embedding model mismatch: reset the index DB (Settings → AILSS Obsidian → Index maintenance) or switch the embedding model back to the one used when the DB was created.";
-		}
-
-		if (msg.includes("missed comma between flow collection entries")) {
-			return 'YAML frontmatter parse error: if you have unquoted Obsidian wikilinks in frontmatter lists (e.g. `- [[Some Note]]`), quote them: `- "[[Some Note]]"`. Use the indexer log to see which file was being indexed.';
-		}
-
-		return null;
 	}
 
 	getIndexerStatusSnapshot(): AilssIndexerStatusSnapshot {
