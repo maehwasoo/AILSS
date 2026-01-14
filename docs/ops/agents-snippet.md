@@ -29,10 +29,14 @@ When the `ailss` MCP server is available:
    - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
      - When capturing, set non-default frontmatter via `frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
      - Frontmatter quick reference (avoid inventing new enum values):
+       - Required keys (minimum): `id`, `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`
+       - Formats: `id` must be 14 digits (`YYYYMMDDHHmmss`) and match the first 14 digits of `created` (`YYYY-MM-DDTHH:mm:ss`)
+       - `source` is always an array (example: `source: []`)
        - `layer`: `strategic` | `conceptual` | `logical` | `physical` | `operational`
        - `status`: `draft` | `in-review` | `active` | `archived`
        - `entity` candidates: `concept` | `document` | `project` | `artifact` | `person` | `organization` | `place` | `event` | `task` | `method` | `tool` | `idea` | `principle` | `heuristic` | `pattern` | `definition` | `question` | `software` | `dataset` | `pipeline` | `procedure` | `dashboard` | `checklist` | `workflow` | `decide` | `review` | `plan` | `implement` | `approve` | `reject` | `observe` | `measure` | `test` | `verify` | `learn` | `research` | `summarize` | `publish` | `meet` | `audit` | `deploy` | `rollback` | `refactor` | `design` | `delete` | `update` | `create` | `schedule` | `migrate` | `reference` | `hub`
        - Typed-link keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `see_also`, `cites`, `authored_by`, `supersedes`, `same_as`
+       - External vs internal sources: use `source: ['https://…']` for URLs/docs/tickets, and `cites: ['[[Some Note]]']` for citations to other vault notes
      - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
      - Write the note body to be readable later
    - Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
