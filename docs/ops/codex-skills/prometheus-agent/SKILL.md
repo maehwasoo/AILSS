@@ -36,7 +36,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 5. Use `search_notes` for metadata filtering (entity/layer/status/tags/keywords/source/date ranges) without embeddings calls.
 6. Keep relationships in frontmatter only:
    - Record semantic relations as typed-link keys in YAML frontmatter (not a `## Links` section at the end of the note).
-   - Avoid adding wikilinks to tool names or input keys (e.g. `[[sequentialthinking]]`, `[[session_note_id]]`) unless there is an actual vault note with that title.
+   - Avoid adding wikilinks to tool names or input keys (e.g. `\[\[sequentialthinking]]`, `\[\[session_note_id]]`) unless there is an actual vault note with that title.
 
 ## Extended workflow (AGENTS.md-level detail)
 
@@ -89,7 +89,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
   - `concept` | `document` | `project` | `artifact` | `person` | `organization` | `place` | `event` | `task` | `method` | `tool` | `idea` | `principle` | `heuristic` | `pattern` | `definition` | `question` | `software` | `dataset` | `pipeline` | `procedure` | `dashboard` | `checklist` | `workflow` | `decide` | `review` | `plan` | `implement` | `approve` | `reject` | `observe` | `measure` | `test` | `verify` | `learn` | `research` | `summarize` | `publish` | `meet` | `audit` | `deploy` | `rollback` | `refactor` | `design` | `delete` | `update` | `create` | `schedule` | `migrate` | `reference` | `hub` | `interface` | `guide` | `log` | `structure` | `architecture` | `analyze`
 - External vs internal sources:
   - Use `source: ['https://…']` for external URLs/docs/tickets
-  - Use `cites: ['[[Some Note]]']` for citations to other vault notes
+  - Use `cites: ['\[\[Some Note]]']` for citations to other vault notes
 
 ## Tool availability (important)
 
@@ -100,11 +100,11 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 ## Obsidian grammar (titles + links)
 
 - Titles are filenames: keep them cross-device safe (especially for Sync).
-  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `[[` / `]]`.
+  - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / `\[\[` / `\]\]`.
   - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
 - Default to English titles. Avoid translation parentheses (e.g. `한글(English)`); use frontmatter `aliases` for translations/alternate titles instead.
 - If you need the full path in a wikilink (disambiguation), hide it with display text:
-  - Example: `[[20. Areas/50. AILSS/20. Operations/20. Operations|20. Operations]]`
+  - Example: `\[\[20. Areas/50. AILSS/20. Operations/20. Operations|20. Operations]]`
 
 ## Safe writes (when enabled)
 

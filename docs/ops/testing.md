@@ -23,7 +23,7 @@ Tests live under each package:
 
 File: `packages/core/test/frontmatter.test.ts`
 
-- Typed link normalization into stable `[[wikilink]]` form
+- Typed link normalization into stable `\[\[wikilink]]` form
 - YAML scalar coercion (`id` as number, `created`/`updated` as Date → string)
 - `source` normalization (trim + dedupe) into a stable string list
 
