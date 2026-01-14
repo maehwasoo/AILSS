@@ -265,12 +265,45 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
   const close = async (): Promise<void> => {
     if (closePromise) return await closePromise;
 
+    shuttingDown = true;
     closePromise = (async () => {
-      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
-      await Promise.allSettled(
+      const closeServer = new Promise<void>((resolve, reject) => {
+        const onError = (error: unknown) => reject(error);
+        httpServer.once("error", onError);
+        httpServer.close(() => {
+          httpServer.off("error", onError);
+          resolve();
+        });
+      });
+
+      const sessionClose = Promise.allSettled(
         Array.from(sessions.values()).flatMap((s) => [s.transport.close(), s.server.close()]),
       );
       sessions.clear();
+
+      // Close keep-alive sockets so the port is actually released.
+      httpServer.closeIdleConnections();
+
+      // If a streaming/SSE connection is still active, close it forcefully to guarantee shutdown.
+      const forceCloseTimeout = setTimeout(() => {
+        httpServer.closeAllConnections();
+        httpServer.closeIdleConnections();
+      }, 2_000);
+      forceCloseTimeout.unref?.();
+
+      try {
+        // Don't let shutdown hang indefinitely if a transport refuses to close.
+        await Promise.race([
+          sessionClose.then(() => undefined),
+          new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+        ]);
+
+        // Some connections become idle only after transports close.
+        httpServer.closeIdleConnections();
+        await closeServer;
+      } finally {
+        clearTimeout(forceCloseTimeout);
+      }
     })();
 
     return await closePromise;
@@ -304,9 +337,16 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
 
         shuttingDown = true;
         sendText(res, 200, "shutting down");
-        void close().finally(() => {
-          if (exitProcessOnShutdown) process.exit(0);
+        setImmediate(() => {
+          void close().finally(() => {
+            if (exitProcessOnShutdown) process.exit(0);
+          });
         });
+        return;
+      }
+
+      if (shuttingDown) {
+        sendText(res, 503, "shutting down");
         return;
       }
 

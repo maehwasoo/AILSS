@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import path from "node:path";
+import http from "node:http";
 import net from "node:net";
 
 import { withMcpHttpServer, withTempDir } from "./httpTestUtils.js";
@@ -52,7 +53,69 @@ describe("MCP HTTP server (shutdown endpoint)", () => {
       });
     });
   });
+
+  it("shuts down even with keep-alive connections (port is released)", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath }, async ({ url, token }) => {
+        const u = new URL(url);
+        const host = u.hostname;
+        const port = Number.parseInt(u.port, 10);
+        expect(Number.isFinite(port)).toBe(true);
+
+        const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+        try {
+          await requestKeepAliveHealthCheck({ host, port, agent });
+
+          u.pathname = "/__ailss/shutdown";
+          u.search = "";
+          const shutdown = await fetch(u.toString(), {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          expect(shutdown.status).toBe(200);
+          expect(await shutdown.text()).toBe("shutting down");
+
+          await expect(waitForTcpPortToBeAvailable({ host, port, timeoutMs: 5_000 })).resolves.toBe(
+            true,
+          );
+        } finally {
+          agent.destroy();
+        }
+      });
+    });
+  });
 });
+
+function requestKeepAliveHealthCheck(options: {
+  host: string;
+  port: number;
+  agent: http.Agent;
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: options.host,
+        port: options.port,
+        path: "/health",
+        method: "GET",
+        agent: options.agent,
+        headers: {
+          Connection: "keep-alive",
+        },
+      },
+      (res) => {
+        res.once("error", reject);
+        res.resume();
+        res.once("end", () => resolve());
+      },
+    );
+
+    req.once("error", reject);
+    req.end();
+  });
+}
 
 async function waitForTcpPortToBeAvailable(options: {
   host: string;
