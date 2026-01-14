@@ -25,7 +25,9 @@ This directory contains the **Obsidian community plugin** for AILSS.
 - Indexer orchestration: `packages/obsidian-plugin/src/indexer/*`
     - Runtime wrapper: `packages/obsidian-plugin/src/indexer/indexerRunner.ts`
     - Auto-index scheduling: `packages/obsidian-plugin/src/indexer/autoIndexScheduler.ts`
+    - Auto-index event wiring: `packages/obsidian-plugin/src/indexer/autoIndexEvents.ts`
     - Index DB maintenance: `packages/obsidian-plugin/src/indexer/indexDbReset.ts`
+    - Failure hint mapping: `packages/obsidian-plugin/src/indexer/indexerFailureHints.ts`
     - Log snapshot file export: `packages/obsidian-plugin/src/indexer/indexerLogFile.ts`
 - MCP HTTP service: `packages/obsidian-plugin/src/mcp/*`
     - Lifecycle: `packages/obsidian-plugin/src/mcp/mcpHttpServiceController.ts`
@@ -33,6 +35,7 @@ This directory contains the **Obsidian community plugin** for AILSS.
 - UI helpers (keep `main.ts` thin): `packages/obsidian-plugin/src/ui/*`
     - Modal open helpers: `packages/obsidian-plugin/src/ui/pluginModals.ts`
     - Status bar mounting/rendering: `packages/obsidian-plugin/src/ui/statusBars.ts`
+    - Index DB reset confirm flow: `packages/obsidian-plugin/src/ui/indexDbResetFlow.ts`
     - Notifications (Obsidian `Notice`): `packages/obsidian-plugin/src/ui/pluginNotices.ts`
 - Path/arg resolution + misc utils: `packages/obsidian-plugin/src/utils/*`
     - Vault/plugin paths + child process args: `packages/obsidian-plugin/src/utils/pluginPaths.ts`
