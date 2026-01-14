@@ -460,9 +460,10 @@ export async function startAilssMcpHttpServerFromEnv(): Promise<{
   const config = parseHttpConfigFromEnv();
   const runtime = await createAilssMcpRuntimeFromEnv();
   const shutdownToken = (process.env.AILSS_MCP_HTTP_SHUTDOWN_TOKEN ?? "").trim();
-  return await startAilssMcpHttpServer({
+  const options: StartHttpServerOptions = {
     config,
     runtime,
-    shutdown: shutdownToken ? { token: shutdownToken, exitProcess: true } : undefined,
-  });
+    ...(shutdownToken ? { shutdown: { token: shutdownToken, exitProcess: true } } : {}),
+  };
+  return await startAilssMcpHttpServer(options);
 }

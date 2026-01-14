@@ -124,7 +124,7 @@ export async function withMcpHttpServer<T>(
       config: { host: "127.0.0.1", port: 0, path: "/mcp", token },
       maxSessions,
       idleTtlMs,
-      shutdown: shutdownToken ? { token: shutdownToken } : undefined,
+      ...(shutdownToken ? { shutdown: { token: shutdownToken } } : {}),
     });
 
     try {
