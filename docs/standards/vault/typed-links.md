@@ -6,7 +6,7 @@
 - Record them only in the forward direction. Incoming/back-references are derived by queries/graphs.
 - In the note body, use wikilinks freely, but if a relationship is semantic, promote it into frontmatter as a typed link.
 - Don’t stop at “what already exists”. After semantic analysis, consider which links _should_ exist and add the missing ones.
-- The relationship fields are optional to _fill_ (empty arrays are fine), but if the note implies a relationship, use typed links so the graph is queryable.
+- The relationship fields are optional to _fill_, but omit the key when you have no values (do not keep empty arrays). If the note implies a relationship, use typed links so the graph is queryable.
 
 ### Relation keys (supported)
 
