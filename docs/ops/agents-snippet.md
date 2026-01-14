@@ -31,8 +31,8 @@ When the `ailss` MCP server is available:
      - Frontmatter quick reference (avoid inventing new enum values):
        - `layer`: `strategic` | `conceptual` | `logical` | `physical` | `operational`
        - `status`: `draft` | `in-review` | `active` | `archived`
+       - `entity` candidates: `concept` | `document` | `project` | `artifact` | `person` | `organization` | `place` | `event` | `task` | `method` | `tool` | `idea` | `principle` | `heuristic` | `pattern` | `definition` | `question` | `software` | `dataset` | `pipeline` | `procedure` | `dashboard` | `checklist` | `workflow` | `decide` | `review` | `plan` | `implement` | `approve` | `reject` | `observe` | `measure` | `test` | `verify` | `learn` | `research` | `summarize` | `publish` | `meet` | `audit` | `deploy` | `rollback` | `refactor` | `design` | `delete` | `update` | `create` | `schedule` | `migrate` | `reference` | `hub`
        - Typed-link keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `see_also`, `cites`, `authored_by`, `supersedes`, `same_as`
-       - Full schema + `entity` candidates: `docs/standards/vault/frontmatter-schema.md`
      - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
      - Write the note body to be readable later
    - Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
