@@ -1,14 +1,15 @@
-import { FileSystemAdapter, Notice, Plugin, TFile } from "obsidian";
+import { Notice, Plugin, TFile } from "obsidian";
 import fs from "node:fs";
 import path from "node:path";
 
 import { registerCommands } from "./commands/registerCommands.js";
 import { AutoIndexScheduler } from "./indexer/autoIndexScheduler.js";
+import { resetIndexDb, resolveIndexerDbPathForReset } from "./indexer/indexDbReset.js";
 import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
-import { AilssMcpClient } from "./mcp/ailssMcpClient.js";
 import type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
+import { semanticSearchWithMcp } from "./mcp/semanticSearchService.js";
 import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
 import {
 	AilssObsidianSettingTab,
@@ -19,14 +20,16 @@ import { ConfirmModal } from "./ui/confirmModal.js";
 import { AilssIndexerLogModal } from "./ui/indexerLogModal.js";
 import { AilssIndexerStatusModal } from "./ui/indexerStatusModal.js";
 import { AilssMcpStatusModal } from "./ui/mcpStatusModal.js";
-import { clampPort, clampTopK } from "./utils/clamp.js";
+import { clampPort } from "./utils/clamp.js";
 import { formatAilssTimestampForUi } from "./utils/dateTime.js";
-import { fileExists, generateToken, parseCliArgValue, replaceBasename } from "./utils/misc.js";
+import { generateToken } from "./utils/misc.js";
 import {
-	nodeNotFoundMessage,
-	resolveSpawnCommandAndEnv,
-	toStringEnvRecord,
-} from "./utils/spawn.js";
+	getPluginDirRealpathOrNull,
+	getVaultPath,
+	resolveIndexerArgs,
+	resolveMcpArgs,
+	resolveMcpHttpArgs,
+} from "./utils/pluginPaths.js";
 import { codexPrometheusAgentPrompt } from "./utils/codexPrompts.js";
 import { type PromptKind, promptFilename, promptTemplate } from "./utils/promptTemplates.js";
 
@@ -44,9 +47,13 @@ export default class AilssObsidianPlugin extends Plugin {
 		saveSettings: async () => {
 			await this.saveSettings();
 		},
-		getVaultPath: () => this.getVaultPath(),
-		getPluginDirRealpathOrNull: () => this.getPluginDirRealpathOrNull(),
-		resolveMcpHttpArgs: () => this.resolveMcpHttpArgs(),
+		getVaultPath: () => getVaultPath(this.app),
+		getPluginDirRealpathOrNull: () => getPluginDirRealpathOrNull(this.app, this.manifest.id),
+		resolveMcpHttpArgs: () =>
+			resolveMcpHttpArgs({
+				settings: this.settings,
+				pluginDirRealpathOrNull: getPluginDirRealpathOrNull(this.app, this.manifest.id),
+			}),
 		getUrl: () => this.getMcpHttpServiceUrl(),
 		onStatusChanged: () => this.updateMcpStatusBar(),
 	});
@@ -56,9 +63,13 @@ export default class AilssObsidianPlugin extends Plugin {
 		saveSettings: async () => {
 			await this.saveSettings();
 		},
-		getVaultPath: () => this.getVaultPath(),
-		getPluginDirRealpathOrNull: () => this.getPluginDirRealpathOrNull(),
-		resolveIndexerArgs: () => this.resolveIndexerArgs(),
+		getVaultPath: () => getVaultPath(this.app),
+		getPluginDirRealpathOrNull: () => getPluginDirRealpathOrNull(this.app, this.manifest.id),
+		resolveIndexerArgs: () =>
+			resolveIndexerArgs({
+				settings: this.settings,
+				pluginDirRealpathOrNull: getPluginDirRealpathOrNull(this.app, this.manifest.id),
+			}),
 		onSnapshot: (snapshot) => this.updateStatusBar(snapshot),
 	});
 
@@ -253,7 +264,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async reindexVault(): Promise<void> {
-		const vaultPath = this.getVaultPath();
+		const vaultPath = getVaultPath(this.app);
 		if (this.indexer.isRunning()) {
 			new Notice("AILSS indexing is already running.");
 			this.openIndexerStatusModal();
@@ -275,48 +286,23 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async semanticSearch(query: string): Promise<AilssSemanticSearchHit[]> {
-		const vaultPath = this.getVaultPath();
-		const openaiApiKey = this.settings.openaiApiKey.trim();
-		if (!openaiApiKey) {
-			throw new Error(
-				"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
-			);
-		}
-
-		const mcpCommand = this.settings.mcpCommand.trim();
-		const mcpArgs = this.resolveMcpArgs();
-		if (!mcpCommand || mcpArgs.length === 0) {
-			throw new Error(
-				"Missing MCP server command/args. Set it in settings (e.g. command=node, args=/abs/path/to/packages/mcp/dist/stdio.js).",
-			);
-		}
-
-		// Env overrides for the spawned MCP server process
-		const env: Record<string, string> = {
-			OPENAI_API_KEY: openaiApiKey,
-			OPENAI_EMBEDDING_MODEL:
-				this.settings.openaiEmbeddingModel.trim() || DEFAULT_SETTINGS.openaiEmbeddingModel,
-			AILSS_VAULT_PATH: vaultPath,
-		};
-
-		const cwd = this.getPluginDirRealpathOrNull();
-		const spawnEnv = { ...process.env, ...env };
-		const resolved = resolveSpawnCommandAndEnv(mcpCommand, spawnEnv);
-		if (resolved.command === "node") {
-			throw new Error(nodeNotFoundMessage("MCP"));
-		}
-		const client = new AilssMcpClient({
-			command: resolved.command,
-			args: mcpArgs,
-			env: toStringEnvRecord(resolved.env),
-			...(cwd ? { cwd } : {}),
-		});
-
-		try {
-			return await client.semanticSearch(query, clampTopK(this.settings.topK));
-		} finally {
-			await client.close();
-		}
+		return semanticSearchWithMcp(
+			{
+				getSettings: () => this.settings,
+				getVaultPath: () => getVaultPath(this.app),
+				getPluginDirRealpathOrNull: () =>
+					getPluginDirRealpathOrNull(this.app, this.manifest.id),
+				resolveMcpArgs: () =>
+					resolveMcpArgs({
+						settings: this.settings,
+						pluginDirRealpathOrNull: getPluginDirRealpathOrNull(
+							this.app,
+							this.manifest.id,
+						),
+					}),
+			},
+			query,
+		);
 	}
 
 	openLastIndexerLogModal(): void {
@@ -340,7 +326,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async saveLastIndexerLogToFile(): Promise<string> {
-		const vaultPath = this.getVaultPath();
+		const vaultPath = getVaultPath(this.app);
 		const log = this.indexer.getLastLog()?.trim() ?? "";
 		if (!log) throw new Error("No indexer log available.");
 
@@ -358,7 +344,15 @@ export default class AilssObsidianPlugin extends Plugin {
 			return;
 		}
 
-		const dbPath = this.resolveIndexerDbPathForReset();
+		const pluginDirRealpathOrNull = getPluginDirRealpathOrNull(this.app, this.manifest.id);
+		const dbPath = resolveIndexerDbPathForReset({
+			vaultPath: getVaultPath(this.app),
+			pluginDirRealpathOrNull,
+			indexerArgs: resolveIndexerArgs({
+				settings: this.settings,
+				pluginDirRealpathOrNull,
+			}),
+		});
 		const message = options.reindexAfter
 			? [
 					"This will delete the AILSS index database and immediately rebuild it.",
@@ -385,7 +379,13 @@ export default class AilssObsidianPlugin extends Plugin {
 			message,
 			confirmText: options.reindexAfter ? "Reset and reindex" : "Reset",
 			onConfirm: async () => {
-				const deletedCount = await this.resetIndexDb(dbPath);
+				const deletedCount = await resetIndexDb({
+					dbPath,
+					clearIndexerHistory: () => this.indexer.clearHistory(),
+					saveSettings: async () => {
+						await this.saveSettings();
+					},
+				});
 				new Notice(
 					deletedCount > 0
 						? `AILSS index DB reset. (deleted ${deletedCount} file${deletedCount === 1 ? "" : "s"})`
@@ -429,117 +429,6 @@ export default class AilssObsidianPlugin extends Plugin {
 		);
 
 		this.register(() => this.autoIndex.dispose());
-	}
-
-	private resolveMcpArgs(): string[] {
-		if (this.settings.mcpArgs.length > 0) return this.settings.mcpArgs;
-
-		const pluginDir = this.getPluginDirRealpathOrNull();
-		if (!pluginDir) return [];
-
-		const candidate = path.resolve(pluginDir, "../mcp/dist/stdio.js");
-		if (!fs.existsSync(candidate)) return [];
-
-		return [candidate];
-	}
-
-	private resolveMcpHttpArgs(): string[] {
-		const base = this.resolveMcpArgs();
-		const first = base[0];
-		if (typeof first === "string" && first.trim()) {
-			const resolvedFirst = this.resolvePathFromPluginDir(first);
-			const candidate = replaceBasename(resolvedFirst, "stdio.js", "http.js");
-			if (candidate && fs.existsSync(candidate)) {
-				return [candidate, ...base.slice(1)];
-			}
-		}
-
-		const pluginDir = this.getPluginDirRealpathOrNull();
-		if (!pluginDir) return [];
-
-		const candidate = path.resolve(pluginDir, "../mcp/dist/http.js");
-		if (!fs.existsSync(candidate)) return [];
-
-		return [candidate];
-	}
-
-	private resolvePathFromPluginDir(maybePath: string): string {
-		const trimmed = maybePath.trim();
-		if (!trimmed) return trimmed;
-		if (path.isAbsolute(trimmed)) return trimmed;
-
-		const pluginDir = this.getPluginDirRealpathOrNull();
-		if (!pluginDir) return path.resolve(trimmed);
-		return path.resolve(pluginDir, trimmed);
-	}
-
-	private resolveIndexerArgs(): string[] {
-		if (this.settings.indexerArgs.length > 0) return this.settings.indexerArgs;
-
-		const pluginDir = this.getPluginDirRealpathOrNull();
-		if (!pluginDir) return [];
-
-		const candidate = path.resolve(pluginDir, "../indexer/dist/cli.js");
-		if (!fs.existsSync(candidate)) return [];
-
-		return [candidate];
-	}
-
-	private getVaultPath(): string {
-		const adapter = this.app.vault.adapter;
-		if (!(adapter instanceof FileSystemAdapter)) {
-			throw new Error("Vault adapter is not FileSystemAdapter. This plugin is desktop-only.");
-		}
-
-		return adapter.getBasePath();
-	}
-
-	private getPluginDirRealpathOrNull(): string | null {
-		// Realpath resolution
-		// - supports symlink installs during development
-		try {
-			const vaultPath = this.getVaultPath();
-			const configDir = this.app.vault.configDir;
-			const pluginDir = path.join(vaultPath, configDir, "plugins", this.manifest.id);
-			return fs.realpathSync(pluginDir);
-		} catch {
-			return null;
-		}
-	}
-
-	private resolveIndexerDbPathForReset(): string {
-		const vaultPath = this.getVaultPath();
-		const pluginDir = this.getPluginDirRealpathOrNull();
-		const args = this.resolveIndexerArgs();
-
-		const fromArgs = parseCliArgValue(args, "--db");
-		if (fromArgs) {
-			if (path.isAbsolute(fromArgs)) return fromArgs;
-			if (pluginDir) return path.resolve(pluginDir, fromArgs);
-			return path.resolve(fromArgs);
-		}
-
-		return path.join(vaultPath, ".ailss", "index.sqlite");
-	}
-
-	private async resetIndexDb(dbPath: string): Promise<number> {
-		const candidates = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`];
-		const deletedPaths: string[] = [];
-
-		for (const filePath of candidates) {
-			try {
-				if (!(await fileExists(filePath))) continue;
-				await fs.promises.rm(filePath, { force: true });
-				deletedPaths.push(filePath);
-			} catch {
-				// ignore
-			}
-		}
-
-		this.indexer.clearHistory();
-		await this.saveSettings();
-
-		return deletedPaths.length;
 	}
 
 	private describeIndexerFailureHint(message: string): string | null {
