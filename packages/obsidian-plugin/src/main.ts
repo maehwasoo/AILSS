@@ -8,6 +8,7 @@ import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexe
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
 import { AilssMcpClient } from "./mcp/ailssMcpClient.js";
+import type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
 import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
 import {
 	AilssObsidianSettingTab,
@@ -30,16 +31,7 @@ import { codexPrometheusAgentPrompt } from "./utils/codexPrompts.js";
 import { type PromptKind, promptFilename, promptTemplate } from "./utils/promptTemplates.js";
 
 export type { AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
-
-export type AilssMcpHttpServiceStatusSnapshot = {
-	enabled: boolean;
-	url: string;
-	running: boolean;
-	startedAt: string | null;
-	lastExitCode: number | null;
-	lastStoppedAt: string | null;
-	lastErrorMessage: string | null;
-};
+export type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
 
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
