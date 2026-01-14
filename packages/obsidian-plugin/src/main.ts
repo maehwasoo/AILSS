@@ -107,6 +107,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 		await this.ensureMcpHttpServiceToken();
+		await this.ensureMcpHttpServiceShutdownToken();
 
 		this.statusBarEl = mountIndexerStatusBar(this, {
 			onClick: () => this.openIndexerStatusModal(),
@@ -244,6 +245,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	async startMcpHttpService(): Promise<void> {
 		try {
 			await this.ensureMcpHttpServiceToken();
+			await this.ensureMcpHttpServiceShutdownToken();
 			await this.mcpHttpService.start();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -263,6 +265,12 @@ export default class AilssObsidianPlugin extends Plugin {
 	private async ensureMcpHttpServiceToken(): Promise<void> {
 		if (this.settings.mcpHttpServiceToken.trim()) return;
 		this.settings.mcpHttpServiceToken = generateToken();
+		await this.saveSettings();
+	}
+
+	private async ensureMcpHttpServiceShutdownToken(): Promise<void> {
+		if (this.settings.mcpHttpServiceShutdownToken.trim()) return;
+		this.settings.mcpHttpServiceShutdownToken = generateToken();
 		await this.saveSettings();
 	}
 

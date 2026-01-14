@@ -65,6 +65,10 @@ export class McpHttpServiceController {
 			if (!token) {
 				throw new Error("Missing MCP service token.");
 			}
+			const shutdownToken = settings.mcpHttpServiceShutdownToken.trim();
+			if (!shutdownToken) {
+				throw new Error("Missing MCP shutdown token.");
+			}
 
 			const vaultPath = this.deps.getVaultPath();
 			const openaiApiKey = settings.openaiApiKey.trim();
@@ -99,7 +103,11 @@ export class McpHttpServiceController {
 
 			if (!portAvailable) {
 				shutdownAttempted = true;
-				const shutdownOk = await this.requestShutdown({ host, port, token });
+				const shutdownOk = await this.requestShutdown({
+					host,
+					port,
+					tokens: [shutdownToken, token],
+				});
 				shutdownSucceeded = shutdownOk;
 
 				if (shutdownOk) {
@@ -133,6 +141,7 @@ export class McpHttpServiceController {
 				AILSS_MCP_HTTP_PORT: String(port),
 				AILSS_MCP_HTTP_PATH: "/mcp",
 				AILSS_MCP_HTTP_TOKEN: token,
+				AILSS_MCP_HTTP_SHUTDOWN_TOKEN: shutdownToken,
 			};
 
 			if (settings.mcpHttpServiceEnableWriteTools) {
@@ -278,14 +287,42 @@ export class McpHttpServiceController {
 	private async requestShutdown(options: {
 		host: string;
 		port: number;
-		token: string;
+		tokens: string[];
 	}): Promise<boolean> {
+		const tokens = Array.from(
+			new Set(options.tokens.map((t) => t.trim()).filter((t) => t.length > 0)),
+		);
+		if (tokens.length === 0) return false;
+
+		for (let i = 0; i < tokens.length; i++) {
+			const token = tokens[i];
+			if (!token) continue;
+
+			const res = await this.requestShutdownOnce({
+				host: options.host,
+				port: options.port,
+				token,
+			});
+
+			if (res.ok) return true;
+			if (res.status === 401 && i < tokens.length - 1) continue;
+			return false;
+		}
+
+		return false;
+	}
+
+	private async requestShutdownOnce(options: {
+		host: string;
+		port: number;
+		token: string;
+	}): Promise<{ ok: boolean; status: number | null }> {
 		// Use Node's HTTP client instead of `fetch` to avoid CORS/preflight issues in the
 		// Obsidian renderer context.
-		return await new Promise<boolean>((resolve) => {
+		return await new Promise<{ ok: boolean; status: number | null }>((resolve) => {
 			let settled = false;
 
-			const finish = (ok: boolean, errorMessage?: string) => {
+			const finish = (ok: boolean, status: number | null, errorMessage?: string) => {
 				if (settled) return;
 				settled = true;
 
@@ -294,7 +331,7 @@ export class McpHttpServiceController {
 					this.deps.onStatusChanged();
 				}
 
-				resolve(ok);
+				resolve({ ok, status });
 			};
 
 			const req = http.request(
@@ -317,7 +354,7 @@ export class McpHttpServiceController {
 					res.on("end", () => {
 						const status = res.statusCode ?? 0;
 						if (status >= 200 && status < 300) {
-							finish(true);
+							finish(true, status);
 							return;
 						}
 
@@ -328,7 +365,7 @@ export class McpHttpServiceController {
 									? "Port is in use and the service does not support remote shutdown."
 									: `Port is in use and shutdown failed (HTTP ${status}).`;
 						const detail = body.trim();
-						finish(false, detail ? `${message}\n${detail}` : message);
+						finish(false, status, detail ? `${message}\n${detail}` : message);
 					});
 				},
 			);
@@ -341,7 +378,7 @@ export class McpHttpServiceController {
 				const e = error as { message?: string; code?: string };
 				const suffix = e.code ? `${e.code}: ` : "";
 				const message = `${suffix}${e.message ?? String(error)}`;
-				finish(false, `Port is in use and shutdown request failed: ${message}`);
+				finish(false, null, `Port is in use and shutdown request failed: ${message}`);
 			});
 
 			req.end();
