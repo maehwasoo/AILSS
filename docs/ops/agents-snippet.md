@@ -28,6 +28,11 @@ When the `ailss` MCP server is available:
    - Prefer `apply=false` first to preview changes.
    - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
      - When capturing, set non-default frontmatter via `frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
+     - Frontmatter quick reference (avoid inventing new enum values):
+       - `layer`: `strategic` | `conceptual` | `logical` | `physical` | `operational`
+       - `status`: `draft` | `in-review` | `active` | `archived`
+       - Typed-link keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `see_also`, `cites`, `authored_by`, `supersedes`, `same_as`
+       - Full schema + `entity` candidates: `docs/standards/vault/frontmatter-schema.md`
      - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
      - Write the note body to be readable later
    - Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
