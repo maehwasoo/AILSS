@@ -20,6 +20,7 @@ import {
 } from "./httpTestUtils.js";
 
 const TEST_TOKEN = "test-token";
+const DEFAULT_TOP_K_ENV_KEY = "AILSS_GET_CONTEXT_DEFAULT_TOP_K";
 
 function getCallToolResult(payload: unknown): Record<string, unknown> {
   assertRecord(payload, "JSON-RPC payload");
@@ -39,6 +40,28 @@ function throwIfToolCallFailed(payload: unknown): void {
   const text = first["type"] === "text" ? first["text"] : JSON.stringify(first);
   assertString(text, "result.content[0].text");
   throw new Error(`get_context failed: ${text}`);
+}
+
+async function withGetContextDefaultTopKEnv(
+  value: string | undefined,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const prev = process.env[DEFAULT_TOP_K_ENV_KEY];
+  if (value === undefined) {
+    delete process.env[DEFAULT_TOP_K_ENV_KEY];
+  } else {
+    process.env[DEFAULT_TOP_K_ENV_KEY] = value;
+  }
+
+  try {
+    await fn();
+  } finally {
+    if (prev === undefined) {
+      delete process.env[DEFAULT_TOP_K_ENV_KEY];
+    } else {
+      process.env[DEFAULT_TOP_K_ENV_KEY] = prev;
+    }
+  }
 }
 
 describe("MCP HTTP server (get_context)", () => {
@@ -143,6 +166,62 @@ describe("MCP HTTP server (get_context)", () => {
         await close();
         db.close();
       }
+    });
+  });
+
+  it.each([
+    { env: undefined, expected: 10 },
+    { env: "not-a-number", expected: 10 },
+    { env: "3", expected: 3 },
+    { env: "0", expected: 1 },
+    { env: "999", expected: 50 },
+  ])("uses env default top_k (env=$env -> $expected)", async ({ env, expected }) => {
+    await withGetContextDefaultTopKEnv(env, async () => {
+      await withTempDir("ailss-mcp-http-", async (dir) => {
+        const dbPath = path.join(dir, "index.sqlite");
+        const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+        const queryEmbedding = [0, 0, 0];
+        const openaiStub = {
+          embeddings: {
+            create: async () => ({ data: [{ embedding: queryEmbedding }] }),
+          },
+        } as unknown as AilssMcpRuntime["deps"]["openai"];
+
+        const runtime: AilssMcpRuntime = {
+          deps: {
+            db,
+            dbPath,
+            vaultPath: undefined,
+            openai: openaiStub,
+            embeddingModel: "test-embeddings",
+            writeLock: new AsyncMutex(),
+          },
+          enableWriteTools: false,
+        };
+
+        const { close, url } = await startAilssMcpHttpServer({
+          runtime,
+          config: { host: "127.0.0.1", port: 0, path: "/mcp", token: TEST_TOKEN },
+          maxSessions: 1,
+          idleTtlMs: 60_000,
+        });
+
+        try {
+          const sessionId = await mcpInitialize(url, TEST_TOKEN, "client-a");
+          const res = await mcpToolsCall(url, TEST_TOKEN, sessionId, "get_context", {
+            query: "query",
+            max_chars_per_note: 200,
+          });
+
+          throwIfToolCallFailed(res);
+          const structured = getStructuredContent(res);
+          expect(structured["top_k"]).toBe(expected);
+        } finally {
+          await close();
+          db.close();
+        }
+      });
     });
   });
 });
