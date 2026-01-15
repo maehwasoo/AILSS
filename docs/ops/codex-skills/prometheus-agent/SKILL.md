@@ -111,7 +111,7 @@ cites: ["[[Some Note]]"]
 - Titles are filenames: keep them cross-device safe (especially for Sync).
   - Avoid: `\\` `/` `:` `*` `?` `"` `<` `>` `|` `#` `^` and `%%` / Obsidian wikilink brackets.
   - Prefer using only letters/numbers/spaces plus `-` and `_` when in doubt.
-- Default to English titles. Avoid translation parentheses (e.g. `한글(English)`); use frontmatter `aliases` for translations/alternate titles instead.
+- Default to English titles. Avoid translation parentheses (e.g. `Korean(English)`); use frontmatter `aliases` for translations/alternate titles instead.
 - If you need the full path in a wikilink (disambiguation), hide it with display text:
   - Example below
 
