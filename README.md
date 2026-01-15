@@ -159,7 +159,9 @@ The list below reflects the current MCP tool surface. For broader architecture d
   Options: `rel`, `to_target`, `limit` (default 100, 1–1000).
 - `read_note`: reads a vault Markdown note by path (filesystem).  
   Required: `path`.  
-  Options: `max_chars` (default 20,000; 200–200,000).
+  Options: `start_index` (default 0; ≥0), `max_chars` (default 20,000; 200–200,000).  
+  Pagination: when `truncated` is true, call again with `start_index = next_start_index`.  
+  Note: if the note changes between calls, concatenated chunks may be inconsistent.
 - `get_vault_tree`: renders a folder tree of vault markdown files.  
   Required: none.  
   Options: `path_prefix`, `include_files` (default false), `max_depth` (default 8, 1–50), `max_nodes` (default 2000, 1–20,000).
