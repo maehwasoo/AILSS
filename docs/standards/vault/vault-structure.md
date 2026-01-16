@@ -47,7 +47,7 @@ This document summarizes the AILSS vault structure, naming, and linking conventi
 - Folder naming: two-digit prefix + space + English title (example: `12. Data Quality`). Avoid adding translations in parentheses (e.g. `Korean(English)`); use parentheses only for disambiguation.
 - Apply the same rule to subfolders, but keep the maximum depth to 3 levels from the top-level folder.
   - Example: `12. Data Quality/20. Monitoring`
-- When creating a new folder, also create an `assets/` subfolder, and embed assets only via relative paths.
+- `assets/` subfolder: create it only when the folder contains local assets (images, PDFs, diagrams, etc.); avoid creating empty `assets/` folders. Embed assets only via relative paths.
 - The first note in a folder should be a hub note, and the filename should match the folder name.
   - Suggested frontmatter (example below)
 - After folder moves/creation, re-check broken links and update child notes’ `part_of` to the new hub note.
