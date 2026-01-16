@@ -6,7 +6,7 @@
 
 [REPLACE ME]
 
-- Fixes #<issue-number> (optional; delete if N/A)
+- Fixes #<issue-number> (optional; delete if not applicable)
 
 ## How
 
