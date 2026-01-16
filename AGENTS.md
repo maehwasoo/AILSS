@@ -87,7 +87,7 @@ This repo recommends Conventional Commits.
 - Sections: for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
 - Scope: the PR description must reflect _all_ changes in the branch (code + docs + tests).
 - Testing: include the exact validation commands you ran (or explicitly state `Not run` and why).
-- Issues: fill `Fixes #...` when applicable; otherwise write `N/A`.
+- Issues: include `Fixes #...` when applicable; omit the line otherwise.
 
 ---
 
