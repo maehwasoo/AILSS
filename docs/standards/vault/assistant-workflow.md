@@ -9,7 +9,7 @@ Global working rules for the AILSS Obsidian vault.
 - Split notes into frontmatter (metadata) and body (content), and record semantic relations only as typed links in frontmatter.
 - After semantic analysis, review and add any typed links that should exist (don’t stop at the existing ones).
 - Use wikilinks freely in the body, but check for broken links before and after work.
-- Keep assets in a note-adjacent `assets/` folder and embed them via relative paths.
+- When you have local assets (images, PDFs, diagrams, etc.), keep them in a note-adjacent `assets/` folder and embed them via relative paths.
 - MCP tool usage is mandatory: before summarizing/classifying/reviewing, query MCP tools to retrieve authoritative note text/metadata.
 
 ## Curation and PR hygiene
@@ -80,7 +80,7 @@ Global working rules for the AILSS Obsidian vault.
 - Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `same_as`, `supersedes`).
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
 - Links: run `find_broken_links` (preferred) and fix unresolved targets; fall back to `rg "\\[\\[" -n` if needed.
-- Assets: ensure a note-adjacent `assets/` folder exists; avoid absolute/external file paths.
+- Assets: if a folder contains local assets, ensure a note-adjacent `assets/` folder exists (create it when adding the first asset); avoid absolute/external file paths.
 - MCP: keep a log of MCP calls before summarizing/classifying/reviewing.
 - After: record changed file paths and entity/layer changes.
 - Rationale: confirm rationale was explained in chat (not inserted into note bodies).
