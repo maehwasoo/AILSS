@@ -4,15 +4,13 @@
 
 Canonical top-level folders (English, prompt-safe):
 
-| Folder          | Required | Role                                                     |
-| --------------- | -------- | -------------------------------------------------------- |
-| `10. Projects`  | Yes      | time-bounded projects and decisions                      |
-| `20. Areas`     | Yes      | long-lived responsibility areas                          |
-| `30. Resources` | Yes      | reference material and external summaries                |
-| `40. Archives`  | Yes      | inactive/finished material                               |
-| `100. Inbox`    | Yes      | capture inbox; triage regularly                          |
-| `0. System`     | No       | system rules, templates, scripts, and operational guides |
-| `1. Main`       | No       | top-level hubs and navigation indexes                    |
+| Folder          | Required | Role                                      |
+| --------------- | -------- | ----------------------------------------- |
+| `10. Projects`  | Yes      | time-bounded projects and decisions       |
+| `20. Areas`     | Yes      | long-lived responsibility areas           |
+| `30. Resources` | Yes      | reference material and external summaries |
+| `40. Archives`  | Yes      | inactive/finished material                |
+| `100. Inbox`    | Yes      | capture inbox; triage regularly           |
 
 Notes:
 
@@ -63,8 +61,6 @@ part_of: ["[[parent hub]]"]
 
 ## Folder roles (vault structure principles)
 
-- `0. System` (optional) — system rules, templates, scripts, and operational guides (mostly physical).
-- `1. Main` (optional) — top-level hubs and navigation indexes.
 - `10. Projects` — time-bounded projects and decisions (strategic/logical notes may coexist).
 - `20. Areas` — long-lived responsibility areas (conceptual + operational mix is normal).
 - `30. Resources` — reference material and external summaries (mostly conceptual).
