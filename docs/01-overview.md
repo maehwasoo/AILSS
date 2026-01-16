@@ -30,6 +30,7 @@ Example tools:
 Read-first tools (implemented in this repo):
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
+  - Default `top_k` can be set via `AILSS_GET_CONTEXT_DEFAULT_TOP_K` (applies only when the caller omits `top_k`; clamped to 1–50; default: 10)
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
 - `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges; includes `links_to`)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)

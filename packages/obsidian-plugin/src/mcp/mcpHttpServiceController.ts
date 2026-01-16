@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import http from "node:http";
 
 import { DEFAULT_SETTINGS, type AilssObsidianSettings } from "../settings.js";
-import { clampPort } from "../utils/clamp.js";
+import { clampPort, clampTopK } from "../utils/clamp.js";
 import { appendLimited, nowIso } from "../utils/misc.js";
 import { nodeNotFoundMessage, resolveSpawnCommandAndEnv } from "../utils/spawn.js";
 import { waitForTcpPortToBeAvailable } from "../utils/tcp.js";
@@ -92,6 +92,12 @@ export class McpHttpServiceController {
 				await this.deps.saveSettings();
 			}
 
+			const topK = clampTopK(settings.topK);
+			if (topK !== settings.topK) {
+				settings.topK = topK;
+				await this.deps.saveSettings();
+			}
+
 			const host = "127.0.0.1";
 			let portAvailable = await waitForTcpPortToBeAvailable({
 				host,
@@ -142,6 +148,7 @@ export class McpHttpServiceController {
 				AILSS_MCP_HTTP_PATH: "/mcp",
 				AILSS_MCP_HTTP_TOKEN: token,
 				AILSS_MCP_HTTP_SHUTDOWN_TOKEN: shutdownToken,
+				AILSS_GET_CONTEXT_DEFAULT_TOP_K: String(topK),
 			};
 
 			if (settings.mcpHttpServiceEnableWriteTools) {
