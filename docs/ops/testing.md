@@ -29,7 +29,7 @@ File: `packages/core/test/frontmatter.test.ts`
 
 ### MCP: frontmatter_validate behavior
 
-File: `packages/mcp/test/httpTools.readTools.test.ts`
+File: `packages/mcp/test/httpTools.frontmatterValidate.test.ts`
 
 - Valid notes count as ok when required keys exist
 - Notes without frontmatter are reported as issues

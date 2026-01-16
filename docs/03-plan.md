@@ -141,6 +141,11 @@ Notes on queryability (current):
 Planned:
 
 - Extend `frontmatter_validate` to validate the full vault schema/rules (types, allowed values) beyond required-key presence and `id`/`created` consistency.
+- `read_note` pagination follow-ups:
+  - Add a stable change token (e.g. `mtime_ms` / `sha256`) to detect note edits across paginated reads (and optionally accept an `expected_*` guard).
+  - Improve performance for large notes (avoid full-file reads per page; consider caching or a different read strategy).
+    - Example: in-process LRU cache for recently-read note text (watch memory footprint and invalidation).
+    - Example: byte-offset partial reads (would require a contract change because `start_index` is a string index today).
 
 TODO (to expand structured queries):
 
