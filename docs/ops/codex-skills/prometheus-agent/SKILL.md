@@ -1,6 +1,6 @@
 ---
 name: ailss-prometheus-agent
-description: Retrieval-first AILSS vault workflow for Codex CLI (MCP read tools first; explicit gated writes)
+description: "Obsidian vault notes (AILSS): search/summarize/edit (frontmatter, tags/keywords, typed links/backlinks, broken links; retrieval-first MCP; gated writes)"
 mcp_tools:
   # Always available (read tools)
   - get_context
