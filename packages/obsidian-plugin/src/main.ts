@@ -303,6 +303,7 @@ export default class AilssObsidianPlugin extends Plugin {
 				getVaultPath: () => getVaultPath(this.app),
 				getPluginDirRealpathOrNull: () =>
 					getPluginDirRealpathOrNull(this.app, this.manifest.id),
+				getClientVersion: () => this.manifest.version,
 				resolveMcpArgs: () =>
 					resolveMcpArgs({
 						settings: this.settings,
