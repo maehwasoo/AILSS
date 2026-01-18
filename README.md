@@ -77,6 +77,7 @@ In the Obsidian plugin settings, use **Copy Prometheus Agent skill (Codex)** and
 
 - Recommended path: `~/.codex/skills/ailss-prometheus-agent/SKILL.md`
 - Snapshot reference: `docs/ops/codex-skills/prometheus-agent/SKILL.md`
+- Tip: the skill description includes Obsidian/vault/frontmatter keywords to improve implicit skill selection for note-related requests.
 
 We intentionally avoid per-project/workspace `AGENTS.md` prompts and keep guidance in these two channels only: vault-root prompt + Codex skill.
 
