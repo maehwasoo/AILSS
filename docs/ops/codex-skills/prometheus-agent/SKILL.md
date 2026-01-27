@@ -30,7 +30,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 
 1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
 2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
-   - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements/see_also; do not add reciprocal links unless explicitly requested.
+   - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements; do not add reciprocal links unless explicitly requested.
 3. Use `resolve_note` when you only have `id`/`title`/a wikilink target and need a vault-relative path for `read_note`/`edit_note`.
 4. Use `read_note` to confirm exact wording and frontmatter before making claims.
 5. Use `search_notes` for metadata filtering (entity/layer/status/tags/keywords/source/date ranges) without embeddings calls.
@@ -56,7 +56,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 - For metadata filtering (entity/layer/status/tags/keywords/source/date ranges), use `search_notes` (DB-only; no embeddings).
 - Before adding new tags/keywords, prefer reusing existing vocabulary via `list_tags` / `list_keywords`.
 - If you need typed-link navigation starting from a specific note path, call `get_typed_links` (outgoing only; bounded graph).
-- Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements/see_also; do not add reciprocal links unless explicitly requested.
+- Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements; do not add reciprocal links unless explicitly requested.
 - If you are unsure what tools exist or what arguments they require, call `tools/list` and follow the returned schemas exactly.
 
 ### Structure + validation
@@ -89,7 +89,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
   - `source` is always an array (example: `source: []`)
 - `layer`: `strategic` | `conceptual` | `logical` | `physical` | `operational`
 - `status`: `draft` | `in-review` | `active` | `archived`
-- Typed-link keys (only include when non-empty; omit key when you have no values): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `see_also`, `cites`, `authored_by`, `supersedes`, `same_as`
+- Typed-link keys (only include when non-empty; omit key when you have no values): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `supersedes`, `same_as`
 - `entity` candidates (use one of these; do not invent new values):
   - `concept` | `document` | `project` | `artifact` | `person` | `organization` | `place` | `event` | `task` | `method` | `tool` | `idea` | `principle` | `heuristic` | `pattern` | `definition` | `question` | `software` | `dataset` | `pipeline` | `procedure` | `dashboard` | `checklist` | `workflow` | `decide` | `review` | `plan` | `implement` | `approve` | `reject` | `observe` | `measure` | `test` | `verify` | `learn` | `research` | `summarize` | `publish` | `meet` | `audit` | `deploy` | `rollback` | `refactor` | `design` | `delete` | `update` | `create` | `schedule` | `migrate` | `reference` | `hub` | `interface` | `guide` | `log` | `structure` | `architecture` | `analyze`
 - External vs internal sources:
