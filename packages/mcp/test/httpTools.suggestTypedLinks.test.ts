@@ -93,20 +93,14 @@ describe("MCP HTTP server (suggest_typed_links)", () => {
 
           const suggestions = structured["suggestions"];
           assertArray(suggestions, "suggestions");
-          expect(suggestions.length).toBe(2);
+          expect(suggestions.length).toBe(1);
 
           const s0 = suggestions[0];
-          const s1 = suggestions[1];
           assertRecord(s0, "suggestions[0]");
-          assertRecord(s1, "suggestions[1]");
 
           expect(s0["rel"]).toBe("uses");
           expect(s0["target"]).toBe("Tool");
           expect(String(s0["suggested_wikilink"])).toBe("[[Tool|Tool Title]]");
-
-          expect(s1["rel"]).toBe("see_also");
-          expect(s1["target"]).toBe("Concept");
-          expect(String(s1["suggested_wikilink"])).toBe("[[Concept]]");
         },
       );
     });

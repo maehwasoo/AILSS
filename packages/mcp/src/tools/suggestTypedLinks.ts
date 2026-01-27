@@ -164,7 +164,8 @@ export function registerSuggestTypedLinksTool(server: McpServer, deps: McpToolDe
 
         const targetMeta = getMetaCached(resolvedPath);
         const targetEntity = (targetMeta?.entity ?? "").trim().toLowerCase();
-        const rel = ENTITY_HINT_USES.has(targetEntity) ? "uses" : "see_also";
+        if (!ENTITY_HINT_USES.has(targetEntity)) continue;
+        const rel = "uses";
 
         const existingSet = existingByRel.get(rel);
         if (existingSet && existingSet.has(target)) {
@@ -187,10 +188,9 @@ export function registerSuggestTypedLinksTool(server: McpServer, deps: McpToolDe
             title: r.title,
             matched_by: r.matchedBy,
           })),
-          reason:
-            rel === "uses" && targetMeta?.entity
-              ? `target entity=${JSON.stringify(targetMeta.entity)}`
-              : "default see_also from body wikilink",
+          reason: targetMeta?.entity
+            ? `target entity=${JSON.stringify(targetMeta.entity)}`
+            : "target entity missing",
         });
       }
 
