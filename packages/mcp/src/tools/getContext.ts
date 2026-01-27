@@ -10,6 +10,8 @@ import { embedQuery } from "../lib/openaiEmbeddings.js";
 import { readVaultFileText } from "../lib/vaultFs.js";
 
 export function registerGetContextTool(server: McpServer, deps: McpToolDeps): void {
+  const defaultTopK = parseDefaultTopKFromEnv(process.env.AILSS_GET_CONTEXT_DEFAULT_TOP_K);
+
   server.registerTool(
     "get_context",
     {
@@ -23,7 +25,7 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
           .int()
           .min(1)
           .max(50)
-          .default(10)
+          .default(defaultTopK)
           .describe("Maximum number of note results to return (1–50)"),
         max_chars_per_note: z
           .number()
@@ -125,4 +127,19 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
       };
     },
   );
+}
+
+function parseDefaultTopKFromEnv(raw: string | undefined): number {
+  const defaultTopK = 10;
+  if (!raw) return defaultTopK;
+  const trimmed = raw.trim();
+  if (!trimmed) return defaultTopK;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return defaultTopK;
+
+  const n = Math.floor(parsed);
+  if (n < 1) return 1;
+  if (n > 50) return 50;
+  return n;
 }
