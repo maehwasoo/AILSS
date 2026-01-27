@@ -59,7 +59,6 @@ Supported keys:
 - `part_of` (composition)
 - `depends_on`, `uses` (dependencies)
 - `implements` (implementation)
-- `see_also` (related, non-directional)
 - `cites` (citation to other vault notes)
 - `authored_by` (authorship/attribution)
 - `supersedes` (replacement/versioning)
@@ -197,7 +196,6 @@ status: draft
 updated: {{date:YYYY-MM-DDTHH:mm:ss}}
 source: []
 instance_of: ['[[concept]]']
-see_also: ['[[Ubiquitous Language]]']
 ---
 ```
 

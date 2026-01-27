@@ -16,7 +16,6 @@ AILSS indexes and queries typed links by these frontmatter keys:
 - Composition (part/whole): `part_of`
 - Dependency: `depends_on`, `uses`
 - Implementation: `implements`
-- Related: `see_also`
 - Citation: `cites`
 - Authorship / attribution: `authored_by`
 - Equivalence / versioning: `same_as`, `supersedes`
@@ -67,7 +66,7 @@ Notes:
 
 - Concept (`entity: concept`)
   - Required: `instance_of` (concept wikilink; see example snippet below)
-  - Recommended: `see_also`, `cites`
+  - Recommended: `cites`
 - Document (`entity: document`)
   - Required: `part_of`
   - Recommended: `cites`, and optionally `same_as` (duplicates), `supersedes` (newer replacement)
@@ -78,7 +77,7 @@ Notes:
   - Required: `implements` (pipeline/policy), `uses` (tools)
   - Recommended: `cites` (reference docs)
 - Software / tool (`entity: software` or `entity: tool`)
-  - Recommended: `part_of` (ecosystem/hub), `depends_on` (runtime/framework), `see_also`
+  - Recommended: `part_of` (ecosystem/hub), `depends_on` (runtime/framework)
 - Dataset (`entity: dataset`)
   - Recommended: `part_of` (domain), `depends_on` (schema/source), `cites` (origin)
 
