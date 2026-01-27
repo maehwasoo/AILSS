@@ -41,7 +41,7 @@ Read-first tools (implemented in this repo):
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
-- `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
+- `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed `links_to` edges (typically derived from body wikilinks, if present) (DB-backed)
 
 Client guidance (Codex):
 
