@@ -4,7 +4,7 @@
 
 - Record semantic relations only as typed links in YAML frontmatter.
 - Record them only in the forward direction. Incoming/back-references are derived by queries/graphs.
-- In the note body, use wikilinks freely, but if a relationship is semantic, promote it into frontmatter as a typed link.
+- Avoid adding new body wikilinks as part of the standard workflow; record semantic relations as typed links in YAML frontmatter.
 - Don’t stop at “what already exists”. After semantic analysis, consider which links _should_ exist and add the missing ones.
 - The relationship fields are optional to _fill_, but omit the key when you have no values (do not keep empty arrays). If the note implies a relationship, use typed links so the graph is queryable.
 
@@ -34,20 +34,21 @@ To introduce a new typed-link key, update **all** of the above in the same chang
 
 Notes:
 
-- AILSS also extracts **body** wikilinks and stores them as edges with `rel: links_to`.
+- AILSS also extracts **body** wikilinks (if present) and stores them as edges with `rel: links_to` for non-semantic navigation/backrefs.
+  - This is optional and not part of the recommended authoring workflow; prefer frontmatter typed links for semantic relations.
   - `links_to` is **not** a frontmatter relation key you should write yourself; it is reserved for body-link extraction and navigation/backrefs.
 
 ### How AILSS uses typed links (implementation notes)
 
 - Typed links are extracted from frontmatter into a structured edge list (stored as `typed_links` in the index DB).
 - The `get_typed_links` tool reads those edges and expands outgoing links into a bounded graph (metadata only).
-- Body wikilinks are also extracted and stored as `typed_links` edges with `rel: links_to` for non-semantic navigation and backrefs.
+- Body wikilinks (if present) are also extracted and stored as `typed_links` edges with `rel: links_to` for non-semantic navigation and backrefs.
   - Use frontmatter typed links when the relationship is semantic (so queries/graphs can distinguish it from `links_to`).
 
 ### Workflow: derive relationships from semantic analysis
 
 1. Identify the target note **S** (identity): confirm `title`, `entity`, `layer`, `summary` first.
-2. Collect candidates: extract noun phrases from the body wikilinks, file path, and existing frontmatter.
+2. Collect candidates: extract noun phrases from the body text, file path, and existing frontmatter.
 3. Semantic retrieval: use `get_context` with the following question templates (to gather candidates):
    - “S is a kind of ?” → `instance_of` candidates
    - “S is part of ?” → `part_of` candidates
