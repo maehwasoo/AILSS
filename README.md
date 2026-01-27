@@ -137,7 +137,8 @@ Typed links are optional frontmatter keys used to record semantic edges as wikil
 - `authored_by`: authorship / attribution
 - `same_as`, `supersedes`: equivalence / replacement
 
-Note: AILSS also extracts body wikilinks and stores them as `typed_links` edges with `rel: links_to`.
+Note: AILSS also extracts body wikilinks (if present) and stores them as `typed_links` edges with `rel: links_to` for non-semantic navigation/backrefs.
+This is optional and not part of the recommended authoring workflow.
 You should not write `links_to` in frontmatter.
 
 ## MCP tools
@@ -181,7 +182,7 @@ The list below reflects the current MCP tool surface. For broader architecture d
 - `list_keywords`: lists indexed keywords with usage counts (helps reuse existing vocabulary).  
   Required: none.  
   Options: `limit` (default 200, 1–5000).
-- `suggest_typed_links`: proposes frontmatter typed-link candidates from body wikilinks (DB-only).  
+- `suggest_typed_links`: proposes frontmatter typed-link candidates from already-indexed `links_to` edges (typically derived from body wikilinks, if present) (DB-only).  
   Required: `path`.  
   Options: `max_links_to_consider` (default 500), `max_suggestions` (default 100), `max_resolutions_per_target` (default 5).
 
