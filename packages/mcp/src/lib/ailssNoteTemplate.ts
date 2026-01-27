@@ -161,7 +161,6 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "uses",
     "depends_on",
     "implements",
-    "see_also",
     "cites",
     "authored_by",
     "supersedes",

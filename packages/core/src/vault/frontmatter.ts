@@ -7,7 +7,6 @@ export const AILSS_TYPED_LINK_KEYS = [
   "depends_on",
   "uses",
   "implements",
-  "see_also",
   "cites",
   "authored_by",
   "supersedes",

@@ -132,7 +132,6 @@ Typed links are optional frontmatter keys used to record semantic edges as wikil
 - `part_of`: composition / parent hub (“is part of”)
 - `depends_on`, `uses`: dependencies (“needs/uses”)
 - `implements`: implementation of a spec/standard/procedure
-- `see_also`: related notes
 - `cites`: citation to other vault notes (use `source` for external sources)
 - `authored_by`: authorship / attribution
 - `same_as`, `supersedes`: equivalence / replacement
