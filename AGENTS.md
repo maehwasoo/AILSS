@@ -90,6 +90,26 @@ This repo recommends Conventional Commits.
 - Testing: include the exact validation commands you ran (or explicitly state `Not run` and why).
 - Issues: include `Fixes #...` when applicable; omit the line otherwise.
 
+### 2.9 GitHub issue conventions (required)
+
+When filing an issue, optimize for fast, high-confidence triage.
+
+- Title: concise, specific, and action-oriented (avoid vague titles like “It doesn’t work”).
+- Problem statement: what you were trying to do and why.
+- Reproduction: numbered steps starting from a clean state; include minimal config/snippets when possible.
+- Expected vs actual: explicit “Expected:” and “Actual:” sections.
+- Evidence: exact error messages/stack traces; screenshots only when text is insufficient.
+- Environment (redact secrets):
+  - OS + version
+  - Node + pnpm versions
+  - Obsidian version (if plugin-related)
+  - AILSS package versions (plugin/mcp/indexer/core) and how installed (release vs local build)
+  - Relevant env vars (names + non-secret values), especially `AILSS_*` (never include tokens/keys)
+- Component tagging: clearly state which component(s) are involved (`indexer`, `mcp`, `plugin`, `core`, `docs`).
+- MCP HTTP issues: include HTTP status, endpoint/path, whether `Mcp-Session-Id` was present, and which `AILSS_MCP_HTTP_*` settings were used (token redacted).
+- Proposed solution (optional): if you have a hypothesis or fix direction, add it as a separate bullet list.
+- Security: if the issue involves secrets or an exploitable vulnerability, do **not** file a public issue; report privately.
+
 ---
 
 ## 3. Agent working rules: accuracy / scope
