@@ -101,6 +101,7 @@ Copy these files into:
   - `main.js`
   - `manifest.json`
   - `styles.css`
+  - `versions.json` (release metadata; optional)
 
 ### Install (dev-friendly symlink)
 
@@ -118,6 +119,9 @@ Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at y
 ### Configure (inside Obsidian)
 
 - **OpenAI API key**
+- If you installed from the GitHub Release zip, the plugin bundle includes `ailss-service/` (prebuilt `core`/`mcp`/`indexer`). Install dependencies once:
+  - `cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service" && pnpm install --prod`
+  - Then you can leave **MCP/Indexer args** empty (the plugin resolves the bundled scripts automatically).
 - **MCP command/args** (stdio)
   - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
 - **Indexer command/args** (optional; enables reindex + auto-index)
