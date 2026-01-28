@@ -148,7 +148,7 @@ The list below reflects the current MCP tool surface. For broader architecture d
 
 - `get_context`: semantic retrieval over the index DB with optional vault previews.  
   Required: `query` (string).  
-  Options: `top_k` (default 10, 1–50), `max_chars_per_note` (default 2000, 200–50,000).
+  Options: `top_k` (default 10, 1–50), `max_chars_per_note` (default 800, 200–50,000).
 - `get_typed_links`: expands outgoing typed-link graph from a seed note (DB-only; no note body reads).  
   Required: `path`.  
   Options: `max_notes` (default 50, 1–200), `max_edges` (default 2000, 1–10,000), `max_links_per_note` (default 40), `max_resolutions_per_target` (default 5).

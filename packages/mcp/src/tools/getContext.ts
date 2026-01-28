@@ -32,7 +32,7 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
           .int()
           .min(200)
           .max(50_000)
-          .default(2000)
+          .default(800)
           .describe("Preview size per note (characters)"),
       },
       outputSchema: z.object({
