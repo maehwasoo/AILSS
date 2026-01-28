@@ -189,14 +189,6 @@ Write tools are disabled by default and require `AILSS_ENABLE_WRITE_TOOLS=1`. Th
   Required: `from_path`, `to_path`.  
   Options: `apply` (default false), `overwrite` (default false), `reindex_after_apply` (default true).
 
-## Safety and costs
-
-- The MCP service binds to `127.0.0.1` and requires a bearer token.
-- The MCP HTTP server evicts sessions when `AILSS_MCP_HTTP_MAX_SESSIONS` is exceeded (default: 20; override by setting `AILSS_MCP_HTTP_MAX_SESSIONS=<n>`).
-- Index-time embeddings and query-time vectors (`get_context`) use the OpenAI embeddings API and can incur costs.
-- Metadata tools (`search_notes`, `list_tags`, `list_keywords`, typed-link graph/backrefs) are DB-only and do not call embeddings APIs.
-- Write tools are disabled by default and require both `AILSS_ENABLE_WRITE_TOOLS=1` and an explicit request with `apply=true`.
-
 ## Docs
 
 - `docs/README.md`: documentation index
