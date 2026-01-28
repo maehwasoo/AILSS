@@ -6,7 +6,7 @@ changelog:
     - title: Obsidian Plugin
       labels:
         - plugin
-    - title: MCP Server
+    - title: MCP
       labels:
         - mcp
     - title: Indexer CLI
