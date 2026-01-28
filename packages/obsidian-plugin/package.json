@@ -1,7 +1,7 @@
 {
 	"name": "ailss-obsidian",
 	"version": "0.1.0-beta.3",
-	"description": "AILSS semantic search + recommendations for Obsidian",
+	"description": "AILSS indexing + localhost MCP service for Codex (Obsidian)",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

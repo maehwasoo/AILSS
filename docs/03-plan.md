@@ -28,7 +28,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
-  - UI: semantic search modal that opens a selected note
+  - UI: status modals for indexing and the localhost MCP service
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
@@ -52,9 +52,9 @@ It also records a few **hard decisions** so code and docs stay consistent.
 - Provide `get_typed_links` for typed-link navigation from a note path (outgoing only; bounded graph)
 - Include enough evidence in results (note path + snippet + optional preview)
 
-## 4) Obsidian plugin MVP (UI)
+## 4) Obsidian plugin MVP
 
-- Semantic search modal UI (opens the selected note)
+- No in-vault semantic search UI; Codex connects via the localhost MCP service.
 - No “Apply” UI for note edits yet; vault writes happen via gated MCP write tools (`apply=true`).
 
 ## 5) Obsidian-managed indexing (background)

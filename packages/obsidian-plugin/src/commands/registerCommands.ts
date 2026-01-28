@@ -1,17 +1,6 @@
 import type AilssObsidianPlugin from "../main.js";
-import { AilssSemanticSearchModal } from "../ui/semanticSearchModal.js";
 
 export function registerCommands(plugin: AilssObsidianPlugin): void {
-	if (!plugin.settings.mcpOnlyMode) {
-		plugin.addCommand({
-			id: "semantic-search",
-			name: "AILSS: Semantic search",
-			callback: () => {
-				new AilssSemanticSearchModal(plugin.app, plugin).open();
-			},
-		});
-	}
-
 	plugin.addCommand({
 		id: "reindex-vault",
 		name: "AILSS: Reindex vault",
@@ -23,10 +12,4 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 		name: "AILSS: Indexing status",
 		callback: () => plugin.openIndexerStatusModal(),
 	});
-
-	if (!plugin.settings.mcpOnlyMode) {
-		plugin.addRibbonIcon("search", "AILSS semantic search", () => {
-			new AilssSemanticSearchModal(plugin.app, plugin).open();
-		});
-	}
 }

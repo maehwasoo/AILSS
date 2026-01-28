@@ -1,13 +1,11 @@
 # AILSS Obsidian Plugin (`ailss-obsidian`)
 
-This plugin provides an Obsidian UI for AILSS semantic search and recommendations.
+This plugin manages AILSS indexing and hosts a localhost MCP service for Codex.
 
 Current MVP:
 
-- Command + ribbon icon to open **AILSS semantic search**
-- Modal UI to query the AILSS index
-- Results list that opens the selected note
 - Command to reindex the vault (writes `<Vault>/.ailss/index.sqlite`)
+- Status bar items + modals for indexer/service status
 - Optional localhost MCP service for Codex (streamable HTTP; URL + token)
 
 The plugin is **desktop-only** right now because it spawns local Node processes (indexer + MCP server/service).
@@ -45,8 +43,8 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 
 4. Configure settings inside Obsidian
 
-- **OpenAI API key**: required for query embeddings
-- **MCP-only mode** (optional): hides Obsidian semantic-search UI/commands and focuses on the MCP service + indexing
+- **OpenAI API key**: required for indexing and MCP query embeddings
+- **Top K**: default `get_context.top_k` when the caller omits `top_k` (Codex)
 - **MCP command/args**: how to run the AILSS MCP server (stdio)
     - Example for monorepo dev:
         - command: `node`
@@ -62,7 +60,6 @@ When symlinked from the monorepo, you can usually leave MCP/indexer args empty a
 
 ## Commands
 
-- `AILSS: Semantic search`: opens the search modal (hidden when **MCP-only mode** is enabled)
 - `AILSS: Reindex vault`: runs the indexer to update `<Vault>/.ailss/index.sqlite`
 - `AILSS: Indexing status`: shows indexing progress + last successful indexing time
 

@@ -4,7 +4,6 @@ import type AilssObsidianPlugin from "./main.js";
 import { type PromptKind } from "./utils/promptTemplates.js";
 
 export interface AilssObsidianSettings {
-	mcpOnlyMode: boolean;
 	openaiApiKey: string;
 	openaiEmbeddingModel: string;
 	topK: number;
@@ -22,7 +21,6 @@ export interface AilssObsidianSettings {
 }
 
 export const DEFAULT_SETTINGS: AilssObsidianSettings = {
-	mcpOnlyMode: false,
 	openaiApiKey: "",
 	openaiEmbeddingModel: "text-embedding-3-large",
 	topK: 10,
@@ -52,28 +50,6 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "AILSS Obsidian" });
-
-		containerEl.createEl("h3", { text: "UI mode" });
-
-		new Setting(containerEl)
-			.setName("MCP-only mode")
-			.setDesc(
-				[
-					"Hides Obsidian semantic search UI/commands and focuses on MCP service + indexing.",
-					"Note: commands and ribbon icons require an Obsidian reload (or disable/enable the plugin) to fully apply.",
-				].join("\n"),
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.mcpOnlyMode);
-				toggle.onChange(async (value) => {
-					this.plugin.settings.mcpOnlyMode = value;
-					await this.plugin.saveSettings();
-					new Notice(
-						"Saved. Reload Obsidian (or disable/enable the plugin) to fully apply MCP-only mode.",
-					);
-					this.display();
-				});
-			});
 
 		containerEl.createEl("h3", { text: "Prompt installer (vault root)" });
 
@@ -140,7 +116,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("OpenAI API key")
-			.setDesc("Stored locally in Obsidian settings. Required for semantic search.")
+			.setDesc("Stored locally in Obsidian settings. Required for indexing and MCP queries.")
 			.addText((text) => {
 				text.inputEl.type = "password";
 				text.setPlaceholder("sk-…");
@@ -180,22 +156,20 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		if (!this.plugin.settings.mcpOnlyMode) {
-			new Setting(containerEl)
-				.setName("Top K")
-				.setDesc("How many results to return (1–50).")
-				.addText((text) => {
-					text.setPlaceholder("10");
-					text.setValue(String(this.plugin.settings.topK));
-					text.onChange(async (value) => {
-						const parsed = Number(value);
-						this.plugin.settings.topK = Number.isFinite(parsed)
-							? parsed
-							: DEFAULT_SETTINGS.topK;
-						await this.plugin.saveSettings();
-					});
+		new Setting(containerEl)
+			.setName("Top K")
+			.setDesc("Default get_context.top_k when the caller omits top_k (1–50).")
+			.addText((text) => {
+				text.setPlaceholder("10");
+				text.setValue(String(this.plugin.settings.topK));
+				text.onChange(async (value) => {
+					const parsed = Number(value);
+					this.plugin.settings.topK = Number.isFinite(parsed)
+						? parsed
+						: DEFAULT_SETTINGS.topK;
+					await this.plugin.saveSettings();
 				});
-		}
+			});
 
 		containerEl.createEl("h3", { text: "MCP service (Codex, localhost)" });
 
@@ -362,20 +336,12 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		const advancedContainer = this.plugin.settings.mcpOnlyMode
-			? (() => {
-					containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
-					const details = containerEl.createEl("details");
-					details.createEl("summary", {
-						text: "Show advanced settings (server/indexer command + args)",
-					});
-					return details.createDiv();
-				})()
-			: containerEl;
-
-		if (!this.plugin.settings.mcpOnlyMode) {
-			containerEl.createEl("h3", { text: "MCP server (local)" });
-		}
+		containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
+		const details = containerEl.createEl("details");
+		details.createEl("summary", {
+			text: "Show advanced settings (server/indexer command + args)",
+		});
+		const advancedContainer = details.createDiv();
 
 		new Setting(advancedContainer)
 			.setName("Command")
@@ -406,10 +372,6 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
-
-		if (!this.plugin.settings.mcpOnlyMode) {
-			containerEl.createEl("h3", { text: "Indexer (local)" });
-		}
 
 		new Setting(advancedContainer)
 			.setName("Command")

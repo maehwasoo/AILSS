@@ -29,15 +29,8 @@ export function parseAilssPluginData(raw: unknown): {
 	// v1 shape
 	if (raw.version === 1 && isRecord(raw.settings)) {
 		const settings = { ...(raw.settings as Record<string, unknown>) };
-
-		// Migration: renamed "Codex-only mode" -> "MCP-only mode"
-		if (
-			typeof settings.mcpOnlyMode !== "boolean" &&
-			typeof settings.codexOnlyMode === "boolean"
-		) {
-			settings.mcpOnlyMode = settings.codexOnlyMode;
-			delete settings.codexOnlyMode;
-		}
+		delete settings.mcpOnlyMode;
+		delete settings.codexOnlyMode;
 
 		const indexer = isRecord(raw.indexer) ? raw.indexer : {};
 		return {
@@ -51,13 +44,8 @@ export function parseAilssPluginData(raw: unknown): {
 
 	// Legacy shape: settings object stored at the root
 	const legacySettings = { ...(raw as Record<string, unknown>) };
-	if (
-		typeof legacySettings.mcpOnlyMode !== "boolean" &&
-		typeof legacySettings.codexOnlyMode === "boolean"
-	) {
-		legacySettings.mcpOnlyMode = legacySettings.codexOnlyMode;
-		delete legacySettings.codexOnlyMode;
-	}
+	delete legacySettings.mcpOnlyMode;
+	delete legacySettings.codexOnlyMode;
 
 	return {
 		settings: legacySettings as Partial<AilssObsidianSettings>,
