@@ -11,11 +11,11 @@ AILSS connects AI tooling to an Obsidian vault by building a local index databas
 
 1. Build and install the Obsidian plugin from `packages/obsidian-plugin/`.
 2. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
-3. Enable the “MCP service (Codex, localhost)” setting and copy the Codex config block.
+3. Enable the “MCP service (Codex, localhost)” setting and copy the token.
 
-### codex
+### Codex
 
-4. Paste the config into `~/.codex/config.toml` and replace `<token>` with the value shown by the plugin.
+4. Paste the config block into `~/.codex/config.toml` and replace `<token>` with that token.
 
 ```toml
 [mcp_servers.ailss]
@@ -23,9 +23,9 @@ url = "http://127.0.0.1:31415/mcp"
 http_headers = { Authorization = "Bearer <token>" }
 ```
 
-## Claude Code
+### Claude Code
 
-4. Add the MCP server in Claude Code
+4. Add the MCP server in Claude Code (use `AILSS_MCP_BEARER_TOKEN` to avoid committing the token):
 
 ```json
 {
