@@ -16,6 +16,10 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 - Coding conventions: [standards/coding.md](./standards/coding.md)
 - Quality gates: [standards/quality-gates.md](./standards/quality-gates.md)
 
+## Reference
+
+- MCP tools (inputs/params): [reference/mcp-tools.md](./reference/mcp-tools.md)
+
 ## Architecture
 
 - Package structure: [architecture/packages.md](./architecture/packages.md)
