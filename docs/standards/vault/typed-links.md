@@ -4,7 +4,7 @@
 
 - Record semantic relations only as typed links in YAML frontmatter.
 - Record them only in the forward direction. Incoming/back-references are derived by queries/graphs.
-- In the note body, use wikilinks freely, but if a relationship is semantic, promote it into frontmatter as a typed link.
+- Avoid adding new body wikilinks as part of the standard workflow; record semantic relations as typed links in YAML frontmatter.
 - Don’t stop at “what already exists”. After semantic analysis, consider which links _should_ exist and add the missing ones.
 - The relationship fields are optional to _fill_, but omit the key when you have no values (do not keep empty arrays). If the note implies a relationship, use typed links so the graph is queryable.
 
@@ -16,7 +16,6 @@ AILSS indexes and queries typed links by these frontmatter keys:
 - Composition (part/whole): `part_of`
 - Dependency: `depends_on`, `uses`
 - Implementation: `implements`
-- Related: `see_also`
 - Citation: `cites`
 - Authorship / attribution: `authored_by`
 - Equivalence / versioning: `same_as`, `supersedes`
@@ -44,7 +43,7 @@ Notes:
 ### Workflow: derive relationships from semantic analysis
 
 1. Identify the target note **S** (identity): confirm `title`, `entity`, `layer`, `summary` first.
-2. Collect candidates: use the file path and existing frontmatter as signals (then confirm with `get_context` + `read_note`).
+2. Collect candidates: extract noun phrases from the body text, file path, and existing frontmatter (then confirm with `get_context` + `read_note`).
 3. Semantic retrieval: use `get_context` with the following question templates (to gather candidates):
    - “S is a kind of ?” → `instance_of` candidates
    - “S is part of ?” → `part_of` candidates
@@ -64,7 +63,7 @@ Notes:
 
 - Concept (`entity: concept`)
   - Required: `instance_of` (concept wikilink; see example snippet below)
-  - Recommended: `see_also`, `cites`
+  - Recommended: `cites`
 - Document (`entity: document`)
   - Required: `part_of`
   - Recommended: `cites`, and optionally `same_as` (duplicates), `supersedes` (newer replacement)
@@ -75,7 +74,7 @@ Notes:
   - Required: `implements` (pipeline/policy), `uses` (tools)
   - Recommended: `cites` (reference docs)
 - Software / tool (`entity: software` or `entity: tool`)
-  - Recommended: `part_of` (ecosystem/hub), `depends_on` (runtime/framework), `see_also`
+  - Recommended: `part_of` (ecosystem/hub), `depends_on` (runtime/framework)
 - Dataset (`entity: dataset`)
   - Recommended: `part_of` (domain), `depends_on` (schema/source), `cites` (origin)
 

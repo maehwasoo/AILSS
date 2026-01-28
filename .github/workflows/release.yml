@@ -1,0 +1,192 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      CI: "1"
+      LEFTHOOK: "0"
+      npm_config_cache: ${{ github.workspace }}/.npm-cache
+      npm_config_devdir: ${{ github.workspace }}/.node-gyp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Quality Gate
+        run: pnpm check:ci
+
+      - name: Compute release metadata
+        id: meta
+        shell: bash
+        run: |
+          ref="${GITHUB_REF_NAME}"
+          version="${ref#v}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${version}" == *-* ]]; then
+            echo "prerelease=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "prerelease=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Validate version consistency (service)
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          node -e "const fs=require('fs'); const version=process.env.VERSION; const pkgs=['packages/core/package.json','packages/mcp/package.json','packages/indexer/package.json']; for (const p of pkgs) { const pkg=JSON.parse(fs.readFileSync(p,'utf8')); if (pkg.version!==version) { console.error('version mismatch:', p, pkg.version, '!=', version); process.exit(1); } }"
+
+      - name: Validate version consistency (plugin)
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          node -e "const fs=require('fs'); const version=process.env.VERSION; const manifest=JSON.parse(fs.readFileSync('packages/obsidian-plugin/manifest.json','utf8')); const pkg=JSON.parse(fs.readFileSync('packages/obsidian-plugin/package.json','utf8')); const versions=JSON.parse(fs.readFileSync('packages/obsidian-plugin/versions.json','utf8')); if (manifest.version!==version) {console.error('manifest.json version mismatch:', manifest.version, '!=', version); process.exit(1);} if (pkg.version!==version) {console.error('package.json version mismatch:', pkg.version, '!=', version); process.exit(1);} if (!Object.prototype.hasOwnProperty.call(versions, version)) {console.error('versions.json missing key:', version); process.exit(1);} "
+
+      - name: Build service packages
+        run: |
+          pnpm -C packages/core build
+          pnpm -C packages/mcp build
+          pnpm -C packages/indexer build
+
+      - name: Build plugin bundle
+        run: pnpm -C packages/obsidian-plugin build
+
+      - name: Stage service bundle
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          bundle_root="ailss-service-${VERSION}"
+          stage="${RUNNER_TEMP}/${bundle_root}"
+
+          mkdir -p "${stage}/packages/core" "${stage}/packages/mcp" "${stage}/packages/indexer"
+
+          cat > "${stage}/package.json" <<'JSON'
+          {
+            "name": "ailss-service-bundle",
+            "private": true,
+            "packageManager": "pnpm@10.20.0",
+            "engines": {
+              "node": ">=20"
+            }
+          }
+          JSON
+
+          cat > "${stage}/pnpm-workspace.yaml" <<'YAML'
+          packages:
+            - "packages/*"
+          YAML
+
+          cat > "${stage}/README.md" <<'MD'
+          # AILSS service bundle (mcp + indexer)
+
+          This bundle contains the prebuilt AILSS service packages:
+
+          - `@ailss/mcp` (MCP server)
+          - `@ailss/indexer` (indexer CLI)
+          - `@ailss/core` (shared runtime)
+
+          ## Requirements
+
+          - Node.js >= 20
+          - pnpm 10.20.0
+
+          ## Install
+
+          From the extracted folder:
+
+          ```bash
+          pnpm install --prod
+          ```
+
+          Native dependencies (e.g. `better-sqlite3`) may require build tools on your OS.
+
+          ## Run
+
+          MCP (stdio):
+
+          ```bash
+          node packages/mcp/dist/stdio.js
+          ```
+
+          MCP (localhost HTTP):
+
+          ```bash
+          node packages/mcp/dist/http.js
+          ```
+
+          Indexer:
+
+          ```bash
+          node packages/indexer/dist/cli.js --help
+          ```
+          MD
+
+          cp -R "packages/core/dist" "${stage}/packages/core/dist"
+          cp "packages/core/package.json" "${stage}/packages/core/package.json"
+
+          cp -R "packages/mcp/dist" "${stage}/packages/mcp/dist"
+          cp "packages/mcp/package.json" "${stage}/packages/mcp/package.json"
+
+          cp -R "packages/indexer/dist" "${stage}/packages/indexer/dist"
+          cp "packages/indexer/package.json" "${stage}/packages/indexer/package.json"
+
+          pushd "${stage}"
+          pnpm install --prod --lockfile-only
+          popd
+
+          pushd "${RUNNER_TEMP}"
+          zip -r "ailss-service-${VERSION}.zip" "${bundle_root}"
+          popd
+
+          mv "${RUNNER_TEMP}/ailss-service-${VERSION}.zip" .
+          ls -la "ailss-service-${VERSION}.zip"
+
+      - name: Create plugin release zip
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          out="ailss-obsidian-${VERSION}.zip"
+          zip -j "${out}" \
+            packages/obsidian-plugin/main.js \
+            packages/obsidian-plugin/manifest.json \
+            packages/obsidian-plugin/styles.css \
+            packages/obsidian-plugin/versions.json
+          ls -la "${out}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.meta.outputs.version }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            ailss-service-${{ steps.meta.outputs.version }}.zip
+            ailss-obsidian-${{ steps.meta.outputs.version }}.zip

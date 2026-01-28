@@ -13,6 +13,7 @@ export type SemanticSearchServiceDeps = {
 	getSettings: () => AilssObsidianSettings;
 	getVaultPath: () => string;
 	getPluginDirRealpathOrNull: () => string | null;
+	getClientVersion: () => string;
 	resolveMcpArgs: () => string[];
 };
 
@@ -52,12 +53,15 @@ export async function semanticSearchWithMcp(
 		throw new Error(nodeNotFoundMessage("MCP"));
 	}
 
-	const client = new AilssMcpClient({
-		command: resolved.command,
-		args: mcpArgs,
-		env: toStringEnvRecord(resolved.env),
-		...(cwd ? { cwd } : {}),
-	});
+	const client = new AilssMcpClient(
+		{
+			command: resolved.command,
+			args: mcpArgs,
+			env: toStringEnvRecord(resolved.env),
+			...(cwd ? { cwd } : {}),
+		},
+		deps.getClientVersion(),
+	);
 
 	try {
 		return await client.semanticSearch(query, clampTopK(settings.topK));

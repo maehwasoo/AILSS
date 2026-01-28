@@ -1,0 +1,41 @@
+plugin:
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/obsidian-plugin/**
+
+mcp:
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/mcp/**
+
+indexer:
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/indexer/**
+
+core:
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/core/**
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - README.md
+
+ops:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - scripts/**
+          - commitlint.config.cjs
+          - eslint.config.mjs
+          - lefthook.yml
+          - package.json
+          - pnpm-lock.yaml
+          - pnpm-workspace.yaml
+          - prettier.config.cjs
+          - tsconfig.base.json
+          - tsconfig.json
+          - vitest.config.ts

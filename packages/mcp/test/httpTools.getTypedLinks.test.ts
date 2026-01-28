@@ -62,7 +62,7 @@ describe("MCP HTTP server (get_typed_links)", () => {
             now,
           );
 
-          linkStmt.run("A.md", "see_also", "B", "[[B]]", 0, now);
+          linkStmt.run("A.md", "cites", "B", "[[B]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "get_typed_links", {

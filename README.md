@@ -58,7 +58,7 @@ This setup lets Codex connect over HTTP without needing direct vault filesystem 
 AILSS treats your vault as a knowledge graph:
 
 - YAML frontmatter: structured note metadata. Required keys: `id` (`YYYYMMDDHHmmss`, derived from `created`), `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`.
-- Typed links: frontmatter keys of wikilinks for semantic relations (graph edges). Common keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `see_also`, `cites`, `authored_by`, `same_as`, `supersedes`.
+- Typed links: frontmatter keys of wikilinks for semantic relations (graph edges). Common keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `same_as`, `supersedes`.
 
 Full rules: `docs/standards/vault/README.md`.
 

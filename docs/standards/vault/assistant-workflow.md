@@ -8,7 +8,7 @@ Global working rules for the AILSS Obsidian vault.
 - For any claim grounded in a single web page/document, retrieve the original text via Fetch. For vault knowledge, query AILSS MCP first.
 - Split notes into frontmatter (metadata) and body (content), and record semantic relations only as typed links in frontmatter.
 - After semantic analysis, review and add any typed links that should exist (don’t stop at the existing ones).
-- Avoid body wikilinks; record relationships via frontmatter typed links, and check for broken links before and after work.
+- Do not add body wikilinks; record relationships via frontmatter typed links, and check for broken links before and after work.
 - When you have local assets (images, PDFs, diagrams, etc.), keep them in a note-adjacent `assets/` folder and embed them via relative paths.
 - MCP tool usage is mandatory: before summarizing/classifying/reviewing, query MCP tools to retrieve authoritative note text/metadata.
 
