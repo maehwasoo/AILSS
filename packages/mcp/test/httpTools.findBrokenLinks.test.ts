@@ -62,10 +62,10 @@ describe("MCP HTTP server (find_broken_links)", () => {
             now,
           );
 
-          // One valid link and two broken ones.
-          linkStmt.run("A.md", "links_to", "B", "[[B]]", 0, now);
-          linkStmt.run("A.md", "links_to", "Missing", "[[Missing]]", 1, now);
-          linkStmt.run("A.md", "depends_on", "Nope", "[[Nope]]", 0, now);
+          // One valid typed link and two broken ones.
+          linkStmt.run("A.md", "depends_on", "B", "[[B]]", 0, now);
+          linkStmt.run("A.md", "depends_on", "Missing", "[[Missing]]", 1, now);
+          linkStmt.run("A.md", "cites", "Nope", "[[Nope]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "find_broken_links", {
