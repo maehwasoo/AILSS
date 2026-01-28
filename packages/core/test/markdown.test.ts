@@ -2,11 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import {
-  chunkMarkdownByHeadings,
-  extractWikilinkTypedLinksFromMarkdownBody,
-  parseMarkdownNote,
-} from "../src/vault/markdown.js";
+import { chunkMarkdownByHeadings, parseMarkdownNote } from "../src/vault/markdown.js";
 
 describe("parseMarkdownNote()", () => {
   it("splits frontmatter and body", () => {
@@ -117,26 +113,5 @@ ${longLine}
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.every((c) => c.heading === "A")).toBe(true);
     expect(chunks.every((c) => c.content.length <= 25)).toBe(true);
-  });
-});
-
-describe("extractWikilinkTypedLinksFromMarkdownBody()", () => {
-  it("extracts Obsidian [[wikilinks]] from markdown body and ignores code fences", () => {
-    const body = `
-# H1
-Link to [[Note A]] and [[Note B|Alias]].
-Duplicate: [[Note A]]
-Embed: ![[Embed Note]]
-
-\`\`\`md
-[[Not a link]]
-\`\`\`
-`.trim();
-
-    const links = extractWikilinkTypedLinksFromMarkdownBody(body);
-
-    expect(links.map((l) => l.rel)).toEqual(["links_to", "links_to", "links_to"]);
-    expect(links.map((l) => l.toTarget)).toEqual(["Note A", "Note B", "Embed Note"]);
-    expect(links.map((l) => l.position)).toEqual([0, 1, 2]);
   });
 });
