@@ -34,20 +34,17 @@ To introduce a new typed-link key, update **all** of the above in the same chang
 
 Notes:
 
-- AILSS also extracts **body** wikilinks and stores them as edges with `rel: links_to`.
-  - `links_to` is **not** a frontmatter relation key you should write yourself; it is reserved for body-link extraction and navigation/backrefs.
+- AILSS does not index body wikilinks. Record relationships via YAML frontmatter typed links.
 
 ### How AILSS uses typed links (implementation notes)
 
 - Typed links are extracted from frontmatter into a structured edge list (stored as `typed_links` in the index DB).
 - The `get_typed_links` tool reads those edges and expands outgoing links into a bounded graph (metadata only).
-- Body wikilinks are also extracted and stored as `typed_links` edges with `rel: links_to` for non-semantic navigation and backrefs.
-  - Use frontmatter typed links when the relationship is semantic (so queries/graphs can distinguish it from `links_to`).
 
 ### Workflow: derive relationships from semantic analysis
 
 1. Identify the target note **S** (identity): confirm `title`, `entity`, `layer`, `summary` first.
-2. Collect candidates: extract noun phrases from the body wikilinks, file path, and existing frontmatter.
+2. Collect candidates: use the file path and existing frontmatter as signals (then confirm with `get_context` + `read_note`).
 3. Semantic retrieval: use `get_context` with the following question templates (to gather candidates):
    - “S is a kind of ?” → `instance_of` candidates
    - “S is part of ?” → `part_of` candidates

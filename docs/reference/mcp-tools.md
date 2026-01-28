@@ -71,7 +71,7 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Purpose: detect unresolved typed links / wikilinks via the `typed_links` table (DB-only).
 - Input:
   - `path_prefix` (string, optional)
-  - `rels` (string[], optional; default: `["links_to", ...typed-link keys]`)
+  - `rels` (string[], optional; default: typed-link keys)
   - `max_links` (int, default: `20000`, range: `1–100,000`)
   - `max_broken` (int, default: `2000`, range: `1–10,000`)
   - `max_resolutions_per_target` (int, default: `5`, range: `1–20`)
@@ -100,15 +100,6 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Purpose: list indexed keywords with usage counts (DB-only).
 - Input:
   - `limit` (int, default: `200`, range: `1–5000`)
-
-### `suggest_typed_links`
-
-- Purpose: suggest typed-link candidates from existing body wikilinks (`links_to`) (DB-only).
-- Input:
-  - `path` (string, required; vault-relative note path)
-  - `max_links_to_consider` (int, default: `500`, range: `1–5000`)
-  - `max_suggestions` (int, default: `100`, range: `1–500`)
-  - `max_resolutions_per_target` (int, default: `5`, range: `1–20`)
 
 ## Write tools (gated)
 

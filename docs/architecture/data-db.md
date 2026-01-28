@@ -62,10 +62,10 @@ Simple mapping tables for fast filtering without relying on sqlite JSON function
 
 ### `typed_links`
 
-Stores “typed links” as graph edges (frontmatter relations and body wikilinks).
+Stores “typed links” as graph edges (frontmatter relations).
 
 - `from_path`: vault-relative source note path
-- `rel`: relation key (e.g. `part_of`, `depends_on`, `links_to`)
+- `rel`: relation key (e.g. `part_of`, `depends_on`, `cites`)
 - `to_target`: normalized wikilink target string (display text / headings removed)
 - `to_wikilink`: canonical wikilink string (example below)
 - `position`: ordering within the relation list
@@ -92,7 +92,7 @@ Example `to_wikilink` value:
 1. Scan for `.md` files in the vault (default ignores: `.obsidian`, `.git`, `.trash`, `.ailss`, etc.)
 2. Compare the file sha256 to the DB; if it differs, treat as “changed”
 3. Upsert `files`
-4. Parse Markdown into `frontmatter` + `body`, normalize frontmatter fields + typed links, extract body wikilinks as `links_to`, and upsert:
+4. Parse Markdown into `frontmatter` + `body`, normalize frontmatter fields + typed links, and upsert:
    - `notes`, `note_tags`, `note_keywords`, `note_sources`, `typed_links`
 5. Chunk the Markdown body by headings (with `maxChars`) and compute stable chunk IDs per file
 6. Compare existing chunks for that file to the next chunk set:
