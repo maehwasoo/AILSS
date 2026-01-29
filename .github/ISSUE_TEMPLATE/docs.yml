@@ -3,6 +3,25 @@ description: Report missing/incorrect docs
 title: "docs: "
 labels: ["documentation"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please avoid adding component/scope to the title (no `docs(ops): ...`, no `mcp: ...`).
+        Use the `Component` field below and labels instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component (optional)
+      description: Which area is the doc about?
+      options:
+        - Indexer (packages/indexer)
+        - MCP server (packages/mcp)
+        - Obsidian plugin (packages/obsidian-plugin)
+        - Core/shared (packages/core)
+        - Docs
+        - Not sure
+
   - type: textarea
     id: location
     attributes:

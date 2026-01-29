@@ -3,6 +3,25 @@ description: Suggest an improvement or new capability
 title: "feat: "
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please avoid adding component/scope to the title (no `feat(mcp): ...`, no `plugin: ...`).
+        Use the `Component` field below and labels instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component (optional)
+      description: Where is the change happening?
+      options:
+        - Indexer (packages/indexer)
+        - MCP server (packages/mcp)
+        - Obsidian plugin (packages/obsidian-plugin)
+        - Core/shared (packages/core)
+        - Docs
+        - Not sure
+
   - type: textarea
     id: problem
     attributes:

@@ -96,6 +96,8 @@ This repo recommends Conventional Commits.
 When filing an issue, optimize for fast, high-confidence triage.
 
 - Title: concise, specific, and action-oriented (avoid vague titles like “It doesn’t work”).
+- Prefer using the Issue templates under `.github/ISSUE_TEMPLATE/` (they standardize title prefixes and required fields).
+- Avoid encoding component or scope in the title (no `type(scope): ...` and no `component: ...` prefixes); use labels and template fields (e.g. `Component`) instead.
 - Problem statement: what you were trying to do and why.
 - Reproduction: numbered steps starting from a clean state; include minimal config/snippets when possible.
 - Expected vs actual: explicit “Expected:” and “Actual:” sections.

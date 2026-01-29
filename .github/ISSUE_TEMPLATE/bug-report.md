@@ -7,6 +7,8 @@ labels: ["bug"]
 
 Please include a minimal repro and relevant logs.
 Do not paste API keys or private note content.
+Please avoid adding component/scope to the title (no `bug(mcp): ...`, no `plugin: ...`).
+Use the component checklist below and labels instead.
 
 ## Component
 
