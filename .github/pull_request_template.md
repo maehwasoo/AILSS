@@ -11,7 +11,3 @@
 ## How
 
 - [REPLACE ME]
-
-## Testing
-
-- [REPLACE ME] (exact commands, or `Not run: <reason>`)
