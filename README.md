@@ -43,10 +43,10 @@ http_headers = { Authorization = "Bearer <token>" }
 
 Set `AILSS_MCP_BEARER_TOKEN` to the token from step 3.
 
-## Prompts and Codex skill
+## Prompts and Skill
 
 - Vault prompt: use **Prompt installer (vault root)** to write `AGENTS.md` at your vault root.
-- Codex skill: use **Copy Prometheus Agent skill (Codex)** and install `~/.codex/skills/ailss-prometheus-agent/SKILL.md`.
+- Agent Skill: use **Copy Prometheus Agent Skill** and install it in your terminal AI client’s skill directory (for example, Codex CLI uses `~/.codex/skills/ailss-prometheus-agent/SKILL.md`).
 
 ## How it works
 
