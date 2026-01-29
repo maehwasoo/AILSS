@@ -6,16 +6,7 @@ labels: ["documentation"]
 ---
 
 Please avoid adding component/scope to the title (no `docs(ops): ...`, no `mcp: ...`).
-Use labels and the component checklist below instead.
-
-## Component (optional)
-
-- [ ] Indexer (`packages/indexer`)
-- [ ] MCP server (`packages/mcp`)
-- [ ] Obsidian plugin (`packages/obsidian-plugin`)
-- [ ] Core/shared (`packages/core`)
-- [ ] Docs
-- [ ] Not sure
+Use labels for component tagging instead.
 
 ## Doc location
 

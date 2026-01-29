@@ -7,20 +7,7 @@ body:
     attributes:
       value: |
         Please avoid adding component/scope to the title (no `mcp: ...`, no `plugin: ...`).
-        Use the `Component` field below and labels instead.
-
-  - type: dropdown
-    id: component
-    attributes:
-      label: Component (optional)
-      description: Where is the question about?
-      options:
-        - Indexer (packages/indexer)
-        - MCP server (packages/mcp)
-        - Obsidian plugin (packages/obsidian-plugin)
-        - Core/shared (packages/core)
-        - Docs
-        - Not sure
+        Use labels for component tagging instead.
 
   - type: textarea
     id: question
