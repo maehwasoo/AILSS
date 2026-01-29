@@ -1,13 +1,17 @@
 ## What
 
-[REPLACE ME]
+- [REPLACE ME]
 
 ## Why
 
-[REPLACE ME]
+- [REPLACE ME]
 
 - Fixes #<issue-number> (optional; delete if not applicable)
 
 ## How
 
-[REPLACE ME]
+- [REPLACE ME]
+
+## Testing
+
+- [REPLACE ME] (exact commands, or `Not run: <reason>`)

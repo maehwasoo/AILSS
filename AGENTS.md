@@ -83,6 +83,7 @@ This repo recommends Conventional Commits.
 - Title format: `<type>: <title>`
   - Allowed `type`: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`, `revert`
   - `<title>` must start with a lowercase letter (e.g. `feat: add ...`, not `feat: Add ...`)
+  - Do not use Conventional Commit scopes in PR titles (no `type(scope): ...`) — scopes are for commit messages only.
 - Body: use the existing template at `.github/pull_request_template.md` and replace all `[REPLACE ME]` placeholders.
 - Language: PR title and body must be written in English.
 - Sections: for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
