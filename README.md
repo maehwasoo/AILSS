@@ -51,14 +51,17 @@ Set `AILSS_MCP_BEARER_TOKEN` to the token from step 3.
 ## How it works
 
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.
+
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
 ## Vault model
 
 AILSS treats your vault as a knowledge graph:
 
-- YAML frontmatter: structured note metadata. Required keys: `id` (`YYYYMMDDHHmmss`, derived from `created`), `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`.
-- Typed links: frontmatter keys of wikilinks for semantic relations (graph edges). Common keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `same_as`, `supersedes`.
+- YAML frontmatter: structured note metadata.
+  - Required keys: `id` (`YYYYMMDDHHmmss`, derived from `created`), `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`.
+- Typed links: frontmatter keys of wikilinks for semantic relations (graph edges).
+  - Common keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `same_as`, `supersedes`.
 
 Full rules: `docs/standards/vault/README.md`.
 
