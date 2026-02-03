@@ -43,22 +43,25 @@ http_headers = { Authorization = "Bearer <token>" }
 
 Set `AILSS_MCP_BEARER_TOKEN` to the token from step 3.
 
-## Prompts and Codex skill
+## Prompts and Skill
 
 - Vault prompt: use **Prompt installer (vault root)** to write `AGENTS.md` at your vault root.
-- Codex skill: use **Copy Prometheus Agent skill (Codex)** and install `~/.codex/skills/ailss-prometheus-agent/SKILL.md`.
+- Agent Skill: use **Copy Prometheus Agent Skill** and install it in your terminal AI client’s skill directory (for example, Codex CLI uses `~/.codex/skills/ailss-prometheus-agent/SKILL.md`).
 
 ## How it works
 
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.
+
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
 ## Vault model
 
 AILSS treats your vault as a knowledge graph:
 
-- YAML frontmatter: structured note metadata. Required keys: `id` (`YYYYMMDDHHmmss`, derived from `created`), `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`.
-- Typed links: frontmatter keys of wikilinks for semantic relations (graph edges). Common keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `same_as`, `supersedes`.
+- YAML frontmatter: structured note metadata.
+  - Required keys: `id` (`YYYYMMDDHHmmss`, derived from `created`), `created`, `title`, `summary`, `aliases`, `entity`, `layer`, `tags`, `keywords`, `status`, `updated`, `source`.
+- Typed links: frontmatter keys of wikilinks for semantic relations (graph edges).
+  - Common keys: `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `same_as`, `supersedes`.
 
 Full rules: `docs/standards/vault/README.md`.
 
