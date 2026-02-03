@@ -83,6 +83,7 @@ This repo recommends Conventional Commits.
 - Title format: `<type>: <title>`
   - Allowed `type`: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`, `revert`
   - `<title>` must start with a lowercase letter (e.g. `feat: add ...`, not `feat: Add ...`)
+  - Do not use Conventional Commit scopes in PR titles (no `type(scope): ...`) — scopes are for commit messages only.
 - Body: use the existing template at `.github/pull_request_template.md` and replace all `[REPLACE ME]` placeholders.
 - Language: PR title and body must be written in English.
 - Sections: for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
@@ -95,6 +96,8 @@ This repo recommends Conventional Commits.
 When filing an issue, optimize for fast, high-confidence triage.
 
 - Title: concise, specific, and action-oriented (avoid vague titles like “It doesn’t work”).
+- Prefer using the Issue templates under `.github/ISSUE_TEMPLATE/` (they standardize title prefixes and required fields).
+- Avoid encoding component or scope in the title (no `type(scope): ...` and no `component: ...` prefixes); use labels (and template fields when present) instead.
 - Problem statement: what you were trying to do and why.
 - Reproduction: numbered steps starting from a clean state; include minimal config/snippets when possible.
 - Expected vs actual: explicit “Expected:” and “Actual:” sections.

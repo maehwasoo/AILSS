@@ -5,6 +5,9 @@ title: "feat: "
 labels: ["enhancement"]
 ---
 
+Please avoid adding component/scope to the title (no `feat(mcp): ...`, no `plugin: ...`).
+Use labels for component tagging instead.
+
 ## Problem statement
 
 What problem are you trying to solve?
