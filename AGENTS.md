@@ -59,7 +59,9 @@ Use this to “fully utilize” docs without loading unrelated context:
 
 - `.env` is local-dev only; do not commit (`.gitignore`)
 - Centralize env loading via `@ailss/core/src/env.ts` `loadEnv()`
-- MCP server provides read-only tools by default (file writes are a separate explicit action)
+- MCP server provides read-only behavior by default:
+  - Write tools require `AILSS_VAULT_PATH`
+  - Write tools default to `apply=false` (dry-run) and only write when `apply=true`
 - Vault path comes from external config; guard against path traversal
 
 ### 2.6 Supply-chain security: pnpm
@@ -69,7 +71,7 @@ Use this to “fully utilize” docs without loading unrelated context:
 
 ### 2.7 Commit conventions (reference)
 
-This repo recommends Conventional Commits.
+This repo enforces Conventional Commits (commitlint + Lefthook).
 
 - Format: `<type>(<scope>): <subject>`
 - Details: `docs/standards/commits.md`
@@ -118,6 +120,12 @@ When filing an issue, optimize for fast, high-confidence triage.
 - MCP HTTP issues: include HTTP status, endpoint/path, whether `Mcp-Session-Id` was present, and which `AILSS_MCP_HTTP_*` settings were used (token redacted).
 - Proposed solution (optional): if you have a hypothesis or fix direction, add it as a separate bullet list.
 - Security: if the issue involves secrets or an exploitable vulnerability, do **not** file a public issue; report privately.
+
+### 2.10 GitHub labels (area labeler)
+
+- Area labels (`plugin`, `mcp`, `indexer`, `core`, `docs`, `ops`) are auto-applied by the GitHub Actions labeler based on changed file paths.
+  - Config: `.github/workflows/labeler.yml` + `.github/labeler.yml`
+- Manually apply labels that are not path-derived (for example: `ignore-for-release`).
 
 ---
 
