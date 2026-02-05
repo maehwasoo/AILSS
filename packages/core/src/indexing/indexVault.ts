@@ -22,7 +22,6 @@ import {
 import { normalizeAilssNoteMeta } from "../vault/frontmatter.js";
 import {
   chunkMarkdownByHeadings,
-  extractWikilinkTypedLinksFromMarkdownBody,
   parseMarkdownNote,
   type MarkdownChunk,
 } from "../vault/markdown.js";
@@ -181,7 +180,6 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
     const parsed = parseMarkdownNote(markdown);
     const chunks = needsEmbeddingUpdate ? chunkMarkdownByHeadings(parsed.body, { maxChars }) : [];
     const noteMeta = normalizeAilssNoteMeta(parsed.frontmatter);
-    const bodyLinks = extractWikilinkTypedLinksFromMarkdownBody(parsed.body);
 
     upsertFile(options.db, {
       path: file.relPath,
@@ -205,7 +203,7 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
     replaceNoteTags(options.db, file.relPath, noteMeta.tags);
     replaceNoteKeywords(options.db, file.relPath, noteMeta.keywords);
     replaceNoteSources(options.db, file.relPath, noteMeta.sources);
-    replaceTypedLinks(options.db, file.relPath, [...noteMeta.typedLinks, ...bodyLinks]);
+    replaceTypedLinks(options.db, file.relPath, noteMeta.typedLinks);
 
     if (!needsEmbeddingUpdate) {
       continue;

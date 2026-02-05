@@ -3,6 +3,12 @@ description: Report missing/incorrect docs
 title: "docs: "
 labels: ["documentation"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please avoid adding component/scope to the title (no `docs(ops): ...`, no `mcp: ...`).
+        Use labels for component tagging instead.
+
   - type: textarea
     id: location
     attributes:

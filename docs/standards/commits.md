@@ -16,6 +16,11 @@ We follow Conventional Commits and standardize on:
 <type>(<scope>): <subject>
 ```
 
+Note:
+
+- This format is for **commit messages**.
+- Pull Request titles use `<type>: <title>` (no scope); see `AGENTS.md`.
+
 Examples:
 
 - `feat(monorepo): scaffold core/db + indexer + mcp stdio`

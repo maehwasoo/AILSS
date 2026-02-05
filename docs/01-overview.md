@@ -31,8 +31,9 @@ Read-first tools (implemented in this repo):
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
   - Default `top_k` can be set via `AILSS_GET_CONTEXT_DEFAULT_TOP_K` (applies only when the caller omits `top_k`; clamped to 1–50; default: 10)
+  - Default `max_chars_per_note` is 800 (applies only when the caller omits it; clamped to 200–50,000)
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
-- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges; includes `links_to`)
+- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
@@ -41,7 +42,6 @@ Read-first tools (implemented in this repo):
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
-- `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed `links_to` edges (typically derived from body wikilinks, if present) (DB-backed)
 
 Client guidance (Codex):
 

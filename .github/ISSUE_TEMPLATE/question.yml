@@ -3,6 +3,12 @@ description: Ask a question about setup, usage, or behavior
 title: "question: "
 labels: ["question"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please avoid adding component/scope to the title (no `mcp: ...`, no `plugin: ...`).
+        Use labels for component tagging instead.
+
   - type: textarea
     id: question
     attributes:

@@ -96,9 +96,24 @@ describe("MCP HTTP server (multi-session)", () => {
       const dbPath = path.join(dir, "index.sqlite");
 
       await withMcpHttpServer({ dbPath, maxSessions: 5, idleTtlMs: 10 }, async ({ url, token }) => {
+        const a = await mcpInitialize(url, token, "client-a");
+        const b = await mcpInitialize(url, token, "client-b");
+        await new Promise((r) => setTimeout(r, 50));
+
+        await mcpToolsList(url, token, b);
+        await mcpToolsListExpectSessionNotFound(url, token, a);
+      });
+    });
+  });
+
+  it("does not evict an active session on the first request after a long idle", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath, maxSessions: 5, idleTtlMs: 10 }, async ({ url, token }) => {
         const sessionId = await mcpInitialize(url, token, "client-a");
         await new Promise((r) => setTimeout(r, 50));
-        await mcpToolsListExpectSessionNotFound(url, token, sessionId);
+        await mcpToolsList(url, token, sessionId);
       });
     });
   });

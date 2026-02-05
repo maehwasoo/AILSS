@@ -8,6 +8,8 @@ body:
       value: |
         Please include a minimal repro and relevant logs.
         Do not paste API keys or private note content.
+        Please avoid adding component/scope to the title (no `bug(mcp): ...`, no `plugin: ...`).
+        Use the `Component` field below and labels instead.
 
   - type: dropdown
     id: component

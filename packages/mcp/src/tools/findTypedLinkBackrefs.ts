@@ -13,7 +13,7 @@ export function registerFindTypedLinkBackrefsTool(server: McpServer, deps: McpTo
     {
       title: "Find typed link backrefs",
       description:
-        "Finds notes that reference a target via typed links (including body links stored as rel=links_to). This is an incoming-edge query over the typed_links table.",
+        "Finds notes that reference a target via typed links. This is an incoming-edge query over the typed_links table.",
       inputSchema: {
         rel: z.string().min(1).optional().describe("Relation key to match (e.g. part_of, cites)"),
         to_target: z

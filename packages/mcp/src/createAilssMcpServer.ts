@@ -21,7 +21,6 @@ import { registerListTagsTool } from "./tools/listTags.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
 import { registerResolveNoteTool } from "./tools/resolveNote.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
-import { registerSuggestTypedLinksTool } from "./tools/suggestTypedLinks.js";
 
 export type AilssMcpRuntime = {
   deps: McpToolDeps;
@@ -76,7 +75,6 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   registerGetVaultTreeTool(server, deps);
   registerFrontmatterValidateTool(server, deps);
   registerFindBrokenLinksTool(server, deps);
-  registerSuggestTypedLinksTool(server, deps);
   registerSearchNotesTool(server, deps);
   registerListTagsTool(server, deps);
   registerListKeywordsTool(server, deps);

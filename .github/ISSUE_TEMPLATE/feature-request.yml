@@ -3,6 +3,12 @@ description: Suggest an improvement or new capability
 title: "feat: "
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please avoid adding component/scope to the title (no `feat(mcp): ...`, no `plugin: ...`).
+        Use labels for component tagging instead.
+
   - type: textarea
     id: problem
     attributes:

@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
 
-const DEFAULT_RELS = ["links_to", ...AILSS_TYPED_LINK_KEYS] as const;
+const DEFAULT_RELS = [...AILSS_TYPED_LINK_KEYS] as const;
 
 function normalizeRelList(input: string[] | undefined): string[] {
   const raw = (input && input.length > 0 ? input : DEFAULT_RELS)
@@ -39,9 +39,7 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
         rels: z
           .array(z.string().min(1))
           .optional()
-          .describe(
-            'Which link relations to check (default: ["links_to", ...frontmatter typed-link keys])',
-          ),
+          .describe("Which link relations to check (default: frontmatter typed-link keys)"),
         max_links: z
           .number()
           .int()
