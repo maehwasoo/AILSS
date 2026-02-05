@@ -362,20 +362,15 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		const advancedContainer = this.plugin.settings.mcpOnlyMode
-			? (() => {
-					containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
-					const details = containerEl.createEl("details");
-					details.createEl("summary", {
-						text: "Show advanced settings (server/indexer command + args)",
-					});
-					return details.createDiv();
-				})()
-			: containerEl;
+		containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
 
-		if (!this.plugin.settings.mcpOnlyMode) {
-			containerEl.createEl("h3", { text: "MCP server (local)" });
-		}
+		const details = containerEl.createEl("details");
+		details.createEl("summary", {
+			text: "Show advanced settings (server/indexer command + args)",
+		});
+		const advancedContainer = details.createDiv();
+
+		advancedContainer.createEl("h4", { text: "MCP server (local)" });
 
 		new Setting(advancedContainer)
 			.setName("Command")
@@ -394,7 +389,11 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		new Setting(advancedContainer)
 			.setName("Arguments (one per line)")
 			.setDesc(
-				'Example: "/absolute/path/to/Ailss-project/packages/mcp/dist/stdio.js" (for command "node").',
+				[
+					"Optional script path override for the MCP server.",
+					"Leave empty to use the bundled service (release zip) when available.",
+					'Example: "/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js" (for command "node").',
+				].join("\n"),
 			)
 			.addTextArea((text) => {
 				text.setValue(this.plugin.settings.mcpArgs.join("\n"));
@@ -407,9 +406,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-		if (!this.plugin.settings.mcpOnlyMode) {
-			containerEl.createEl("h3", { text: "Indexer (local)" });
-		}
+		advancedContainer.createEl("h4", { text: "Indexer (local)" });
 
 		new Setting(advancedContainer)
 			.setName("Command")
@@ -429,7 +426,11 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		new Setting(advancedContainer)
 			.setName("Arguments (one per line)")
 			.setDesc(
-				'Example: "/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js" (for command "node").',
+				[
+					"Optional script path override for the indexer.",
+					"Leave empty to use the bundled service (release zip) when available.",
+					'Example: "/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js" (for command "node").',
+				].join("\n"),
 			)
 			.addTextArea((text) => {
 				text.setValue(this.plugin.settings.indexerArgs.join("\n"));
