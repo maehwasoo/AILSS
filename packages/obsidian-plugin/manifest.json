@@ -3,7 +3,7 @@
 	"name": "AILSS Obsidian",
 	"version": "0.1.0-beta.5",
 	"minAppVersion": "0.15.0",
-	"description": "AILSS semantic search + recommendations for your vault.",
+	"description": "AILSS indexing + localhost MCP service for Codex (your vault).",
 	"author": "AILSS",
 	"isDesktopOnly": true
 }
