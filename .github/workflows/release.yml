@@ -162,23 +162,32 @@ jobs:
           pnpm install --prod --lockfile-only
           popd
 
-          pushd "${RUNNER_TEMP}"
-          zip -r "ailss-service-${VERSION}.zip" "${bundle_root}"
-          popd
-
-          mv "${RUNNER_TEMP}/ailss-service-${VERSION}.zip" .
-          ls -la "ailss-service-${VERSION}.zip"
-
-      - name: Create plugin release zip
+      - name: Create unified release zip
         env:
           VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
         run: |
-          out="ailss-obsidian-${VERSION}.zip"
-          zip -j "${out}" \
-            packages/obsidian-plugin/main.js \
-            packages/obsidian-plugin/manifest.json \
-            packages/obsidian-plugin/styles.css \
-            packages/obsidian-plugin/versions.json
+          out="ailss-${VERSION}.zip"
+          stage="${RUNNER_TEMP}/ailss-${VERSION}"
+          rm -rf "${stage}"
+          mkdir -p "${stage}"
+
+          cp "packages/obsidian-plugin/main.js" "${stage}/main.js"
+          cp "packages/obsidian-plugin/manifest.json" "${stage}/manifest.json"
+          cp "packages/obsidian-plugin/styles.css" "${stage}/styles.css"
+          cp "packages/obsidian-plugin/versions.json" "${stage}/versions.json"
+
+          service_stage="${RUNNER_TEMP}/ailss-service-${VERSION}"
+          if [[ ! -d "${service_stage}" ]]; then
+            echo "missing service bundle stage: ${service_stage}" >&2
+            exit 1
+          fi
+          cp -R "${service_stage}" "${stage}/ailss-service"
+
+          pushd "${stage}"
+          zip -r "${GITHUB_WORKSPACE}/${out}" .
+          popd
+
           ls -la "${out}"
 
       - name: Publish GitHub Release
@@ -188,5 +197,4 @@ jobs:
           prerelease: ${{ steps.meta.outputs.prerelease }}
           generate_release_notes: true
           files: |
-            ailss-service-${{ steps.meta.outputs.version }}.zip
-            ailss-obsidian-${{ steps.meta.outputs.version }}.zip
+            ailss-${{ steps.meta.outputs.version }}.zip

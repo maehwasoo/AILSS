@@ -46,6 +46,12 @@ export function resolveMcpArgs(options: {
 	if (options.settings.mcpArgs.length > 0) return options.settings.mcpArgs;
 	if (!options.pluginDirRealpathOrNull) return [];
 
+	const bundled = path.resolve(
+		options.pluginDirRealpathOrNull,
+		"ailss-service/packages/mcp/dist/stdio.js",
+	);
+	if (fs.existsSync(bundled)) return [bundled];
+
 	const candidate = path.resolve(options.pluginDirRealpathOrNull, "../mcp/dist/stdio.js");
 	if (!fs.existsSync(candidate)) return [];
 
@@ -83,6 +89,12 @@ export function resolveIndexerArgs(options: {
 }): string[] {
 	if (options.settings.indexerArgs.length > 0) return options.settings.indexerArgs;
 	if (!options.pluginDirRealpathOrNull) return [];
+
+	const bundled = path.resolve(
+		options.pluginDirRealpathOrNull,
+		"ailss-service/packages/indexer/dist/cli.js",
+	);
+	if (fs.existsSync(bundled)) return [bundled];
 
 	const candidate = path.resolve(options.pluginDirRealpathOrNull, "../indexer/dist/cli.js");
 	if (!fs.existsSync(candidate)) return [];
