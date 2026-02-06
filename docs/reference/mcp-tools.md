@@ -14,6 +14,22 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `top_k` (int, default: `10`, range: `1–50`)
   - `max_chars_per_note` (int, default: `2000`, range: `200–50,000`)
 
+### `get_graph_context`
+
+- Purpose: GraphRAG-style retrieval loop (semantic seeds + bounded typed-link expansion + curated snippets; DB-only).
+- Input:
+  - `query` (string, required)
+  - `seed_top_k` (int, default: `10`, range: `1–50`)
+  - `max_hops` (int, default: `1`, range: `0–2`)
+  - `rels` (string[], optional; default: canonical frontmatter typed-link keys)
+  - `path_prefix` (string, optional)
+  - `include_backrefs` (boolean, default: `false`)
+  - `max_notes` (int, default: `80`, range: `1–200`)
+  - `max_edges` (int, default: `2000`, range: `1–10,000`)
+  - `max_links_per_note` (int, default: `40`, range: `1–200`)
+  - `max_resolutions_per_target` (int, default: `5`, range: `1–20`)
+  - `max_chunks_per_note` (int, default: `2`, range: `1–5`)
+
 ### `get_typed_links`
 
 - Purpose: expand outgoing typed links into a bounded metadata graph (DB-only).

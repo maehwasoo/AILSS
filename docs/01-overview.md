@@ -32,6 +32,7 @@ Read-first tools (implemented in this repo):
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
   - Default `top_k` can be set via `AILSS_GET_CONTEXT_DEFAULT_TOP_K` (applies only when the caller omits `top_k`; clamped to 1–50; default: 10)
   - Default `max_chars_per_note` is 800 (applies only when the caller omits it; clamped to 200–50,000)
+- `get_graph_context`: GraphRAG-style retrieval loop (semantic seed notes + bounded typed-link expansion + curated snippets; DB-backed)
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
 - `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
@@ -62,7 +63,7 @@ Frontmatter query support (current):
 
 - AILSS stores normalized frontmatter in SQLite for retrieval and graph building.
 - The MCP surface supports both:
-  - semantic retrieval via `get_context`
+  - semantic retrieval via `get_context` / `get_graph_context`
   - metadata filtering via `search_notes` + typed-link navigation/backrefs via `get_typed_links` / `find_typed_link_backrefs`
 
 Read-first tools (planned):

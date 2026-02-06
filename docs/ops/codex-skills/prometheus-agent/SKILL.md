@@ -4,6 +4,7 @@ description: "Obsidian vault notes (AILSS): search/summarize/edit (frontmatter, 
 mcp_tools:
   # Always available (read tools)
   - get_context
+  - get_graph_context
   - get_typed_links
   - resolve_note
   - read_note
@@ -27,7 +28,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 
 ## Core workflow
 
-1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
+1. Start with `get_context` or `get_graph_context` for the user’s query (avoid guessing and avoid duplicates).
 2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
    - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements; do not add reciprocal links unless explicitly requested.
 3. Use `resolve_note` when you only have `id`/`title`/a wikilink target and need a vault-relative path for `read_note`/`edit_note`.

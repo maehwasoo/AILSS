@@ -24,7 +24,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read-first tools: `get_context`, `get_typed_links`, `find_typed_link_backrefs`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
+  - Read-first tools: `get_context`, `get_graph_context`, `get_typed_links`, `find_typed_link_backrefs`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
   - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
@@ -120,6 +120,7 @@ MCP tools (read-only):
 Implemented:
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
+- `get_graph_context`: GraphRAG-style retrieval loop (semantic seed notes + bounded typed-link expansion + curated snippets)
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
 - `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
@@ -134,7 +135,7 @@ Implemented:
 Notes on queryability (current):
 
 - AILSS stores normalized frontmatter + typed links in SQLite (used for graph expansion and retrieval).
-- The MCP surface supports both semantic retrieval (`get_context`) and structured navigation/filtering (`get_typed_links`, `find_typed_link_backrefs`, `search_notes`).
+- The MCP surface supports both semantic retrieval (`get_context`, `get_graph_context`) and structured navigation/filtering (`get_typed_links`, `find_typed_link_backrefs`, `search_notes`).
 - Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:
