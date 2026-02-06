@@ -336,13 +336,13 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-			containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
-			const details = containerEl.createEl("details");
+		containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
+		const details = containerEl.createEl("details");
 		details.createEl("summary", {
 			text: "Show advanced settings (server/indexer command + args)",
 		});
-			const advancedContainer = details.createDiv();
-			advancedContainer.createEl("h4", { text: "MCP server (local)" });
+		const advancedContainer = details.createDiv();
+		advancedContainer.createEl("h4", { text: "MCP server (local)" });
 
 		new Setting(advancedContainer)
 			.setName("Command")
@@ -378,8 +378,8 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				});
 			});
 
-			advancedContainer.createEl("h4", { text: "Indexer (local)" });
-			new Setting(advancedContainer)
+		advancedContainer.createEl("h4", { text: "Indexer (local)" });
+		new Setting(advancedContainer)
 			.setName("Command")
 			.setDesc(
 				"How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite). If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
