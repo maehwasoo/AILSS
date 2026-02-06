@@ -14,7 +14,6 @@ mcp_tools:
   - search_notes
   - list_tags
   - list_keywords
-  - suggest_typed_links
   # Only when write tools are enabled (AILSS_ENABLE_WRITE_TOOLS=1)
   - capture_note
   - edit_note
@@ -150,13 +149,6 @@ Notes:
 1. Read the note with `read_note`.
 2. Call `improve_frontmatter` with `apply=false` first.
 3. Confirm the proposed changes, then `apply=true`.
-
-### Apply typed-link suggestions (`suggest_typed_links` → `edit_note`)
-
-1. Use `suggest_typed_links` to propose candidates.
-2. Verify with `read_note` before editing (especially for ambiguous titles).
-3. Apply via `edit_note`:
-   - `apply=false` preview → confirm → `apply=true`
 
 ### Move/rename a note (`relocate_note`)
 

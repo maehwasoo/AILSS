@@ -24,11 +24,11 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read-first tools: `get_context`, `get_typed_links`, `find_typed_link_backrefs`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `suggest_typed_links`
+  - Read-first tools: `get_context`, `get_typed_links`, `find_typed_link_backrefs`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
   - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
-  - UI: semantic search modal that opens a selected note
+  - UI: status modals for indexing and the localhost MCP service
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
@@ -52,9 +52,9 @@ It also records a few **hard decisions** so code and docs stay consistent.
 - Provide `get_typed_links` for typed-link navigation from a note path (outgoing only; bounded graph)
 - Include enough evidence in results (note path + snippet + optional preview)
 
-## 4) Obsidian plugin MVP (UI)
+## 4) Obsidian plugin MVP
 
-- Semantic search modal UI (opens the selected note)
+- No in-vault semantic search UI; Codex connects via the localhost MCP service.
 - No “Apply” UI for note edits yet; vault writes happen via gated MCP write tools (`apply=true`).
 
 ## 5) Obsidian-managed indexing (background)
@@ -121,7 +121,7 @@ Implemented:
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
 - `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
-- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges; includes `links_to`)
+- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
@@ -130,7 +130,6 @@ Implemented:
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
-- `suggest_typed_links`: suggest frontmatter typed-link candidates using already-indexed body wikilinks (DB-backed)
 
 Notes on queryability (current):
 

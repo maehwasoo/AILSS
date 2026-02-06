@@ -59,7 +59,9 @@ Use this to “fully utilize” docs without loading unrelated context:
 
 - `.env` is local-dev only; do not commit (`.gitignore`)
 - Centralize env loading via `@ailss/core/src/env.ts` `loadEnv()`
-- MCP server provides read-only tools by default (file writes are a separate explicit action)
+- MCP server provides read-only behavior by default:
+  - Write tools require `AILSS_VAULT_PATH`
+  - Write tools default to `apply=false` (dry-run) and only write when `apply=true`
 - Vault path comes from external config; guard against path traversal
 
 ### 2.6 Supply-chain security: pnpm
@@ -69,7 +71,7 @@ Use this to “fully utilize” docs without loading unrelated context:
 
 ### 2.7 Commit conventions (reference)
 
-This repo recommends Conventional Commits.
+This repo enforces Conventional Commits (commitlint + Lefthook).
 
 - Format: `<type>(<scope>): <subject>`
 - Details: `docs/standards/commits.md`
@@ -83,11 +85,18 @@ This repo recommends Conventional Commits.
 - Title format: `<type>: <title>`
   - Allowed `type`: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`, `revert`
   - `<title>` must start with a lowercase letter (e.g. `feat: add ...`, not `feat: Add ...`)
-- Body: use the existing template at `.github/pull_request_template.md` and replace all `[REPLACE ME]` placeholders.
+  - Do not use Conventional Commit scopes in PR titles (no `type(scope): ...`) — scopes are for commit messages only.
+- Body:
+  - Default: use the existing template at `.github/pull_request_template.md` and replace all `[REPLACE ME]` placeholders.
+  - Exception (version bump only): use this exact minimal format:
+    - `Version bump only (service + plugin).`
+    - `- After merge: tag v<version> on main to trigger release.`
 - Language: PR title and body must be written in English.
-- Sections: for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
+- Sections (template-based PRs only): for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
 - Scope: the PR description must reflect _all_ changes in the branch (code + docs + tests).
-- Testing: include the exact validation commands you ran (or explicitly state `Not run` and why).
+- Testing:
+  - Default: include the exact validation commands you ran (or explicitly state `Not run` and why).
+  - Exception (version bump only): omit (body is fixed); rely on CI + pre-push checks.
 - Issues: include `Fixes #...` when applicable; omit the line otherwise.
 
 ### 2.9 GitHub issue conventions (required)
@@ -95,6 +104,8 @@ This repo recommends Conventional Commits.
 When filing an issue, optimize for fast, high-confidence triage.
 
 - Title: concise, specific, and action-oriented (avoid vague titles like “It doesn’t work”).
+- Prefer using the Issue templates under `.github/ISSUE_TEMPLATE/` (they standardize title prefixes and required fields).
+- Avoid encoding component or scope in the title (no `type(scope): ...` and no `component: ...` prefixes); use labels (and template fields when present) instead.
 - Problem statement: what you were trying to do and why.
 - Reproduction: numbered steps starting from a clean state; include minimal config/snippets when possible.
 - Expected vs actual: explicit “Expected:” and “Actual:” sections.
@@ -109,6 +120,12 @@ When filing an issue, optimize for fast, high-confidence triage.
 - MCP HTTP issues: include HTTP status, endpoint/path, whether `Mcp-Session-Id` was present, and which `AILSS_MCP_HTTP_*` settings were used (token redacted).
 - Proposed solution (optional): if you have a hypothesis or fix direction, add it as a separate bullet list.
 - Security: if the issue involves secrets or an exploitable vulnerability, do **not** file a public issue; report privately.
+
+### 2.10 GitHub labels (area labeler)
+
+- Area labels (`plugin`, `mcp`, `indexer`, `core`, `docs`, `ops`) are auto-applied by the GitHub Actions labeler based on changed file paths.
+  - Config: `.github/workflows/labeler.yml` + `.github/labeler.yml`
+- Manually apply labels that are not path-derived (for example: `ignore-for-release`).
 
 ---
 

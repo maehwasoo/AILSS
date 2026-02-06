@@ -7,9 +7,7 @@ import { saveLastIndexerLogToFile as saveLastIndexerLogToFileInVault } from "./i
 import { getIndexerFailureHint } from "./indexer/indexerFailureHints.js";
 import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
-import type { AilssSemanticSearchHit } from "./mcp/ailssMcpClient.js";
 import type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
-import { semanticSearchWithMcp } from "./mcp/semanticSearchService.js";
 import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
 import {
 	AilssObsidianSettingTab,
@@ -41,7 +39,6 @@ import {
 	getPluginDirRealpathOrNull,
 	getVaultPath,
 	resolveIndexerArgs,
-	resolveMcpArgs,
 	resolveMcpHttpArgs,
 } from "./utils/pluginPaths.js";
 import { type PromptKind } from "./utils/promptTemplates.js";
@@ -294,27 +291,6 @@ export default class AilssObsidianPlugin extends Plugin {
 			const hint = getIndexerFailureHint(message);
 			showNotice(`AILSS indexing failed: ${message}${hint ? `\n\n${hint}` : ""}`);
 		}
-	}
-
-	async semanticSearch(query: string): Promise<AilssSemanticSearchHit[]> {
-		return semanticSearchWithMcp(
-			{
-				getSettings: () => this.settings,
-				getVaultPath: () => getVaultPath(this.app),
-				getPluginDirRealpathOrNull: () =>
-					getPluginDirRealpathOrNull(this.app, this.manifest.id),
-				getClientVersion: () => this.manifest.version,
-				resolveMcpArgs: () =>
-					resolveMcpArgs({
-						settings: this.settings,
-						pluginDirRealpathOrNull: getPluginDirRealpathOrNull(
-							this.app,
-							this.manifest.id,
-						),
-					}),
-			},
-			query,
-		);
 	}
 
 	openLastIndexerLogModal(): void {

@@ -369,8 +369,6 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
         return;
       }
 
-      closeIdleSessions(sessions, idleTtlMs);
-
       let parsedBody: unknown = undefined;
       if (req.method === "POST") {
         try {
@@ -383,6 +381,7 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
       }
 
       if (req.method === "POST" && isInitializeRequestMessage(parsedBody)) {
+        closeIdleSessions(sessions, idleTtlMs);
         const { server, transport } = await createSession(runtime, sessions, maxSessions);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
@@ -420,6 +419,7 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
       }
 
       session.lastSeenAtMs = Date.now();
+      closeIdleSessions(sessions, idleTtlMs);
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,

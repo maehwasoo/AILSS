@@ -5,6 +5,9 @@ title: "question: "
 labels: ["question"]
 ---
 
+Please avoid adding component/scope to the title (no `mcp: ...`, no `plugin: ...`).
+Use labels for component tagging instead.
+
 ## Your question
 
 What are you trying to do, and what’s blocking you?

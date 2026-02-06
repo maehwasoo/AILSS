@@ -52,7 +52,7 @@ Entry points:
 
 Responsibilities:
 
-- Provide an Obsidian UI for semantic search and recommendations
+- Provide Obsidian surfaces for indexing and the localhost MCP service (Codex)
 - Spawn the indexer and MCP server/service locally (desktop-only for now)
 - Apply changes only via explicit user actions (gated)
 

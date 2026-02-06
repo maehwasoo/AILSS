@@ -5,6 +5,9 @@ title: "docs: "
 labels: ["documentation"]
 ---
 
+Please avoid adding component/scope to the title (no `docs(ops): ...`, no `mcp: ...`).
+Use labels for component tagging instead.
+
 ## Doc location
 
 Which doc needs updating?

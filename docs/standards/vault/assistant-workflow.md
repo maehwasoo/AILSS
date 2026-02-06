@@ -8,7 +8,7 @@ Global working rules for the AILSS Obsidian vault.
 - For any claim grounded in a single web page/document, retrieve the original text via Fetch. For vault knowledge, query AILSS MCP first.
 - Split notes into frontmatter (metadata) and body (content), and record semantic relations only as typed links in frontmatter.
 - After semantic analysis, review and add any typed links that should exist (don’t stop at the existing ones).
-- Avoid adding new body wikilinks as part of the standard workflow; record relationships via frontmatter typed links and check for broken links before and after work.
+- Do not add body wikilinks; record relationships via frontmatter typed links, and check for broken links before and after work.
 - When you have local assets (images, PDFs, diagrams, etc.), keep them in a note-adjacent `assets/` folder and embed them via relative paths.
 - MCP tool usage is mandatory: before summarizing/classifying/reviewing, query MCP tools to retrieve authoritative note text/metadata.
 
@@ -35,8 +35,7 @@ Global working rules for the AILSS Obsidian vault.
      - If you only know `id`/`title`, use `resolve_note` (preferred) or `search_notes` to find candidate paths first, then `read_note`.
   3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
-  5. Optional: use `suggest_typed_links` to propose candidates, then apply via `edit_note` (`apply=false` preview → `apply=true` auto-apply).
-  6. Use `edit_note` for edits and `relocate_note` for moves/renames (`relocate_note` is still manual confirm; `edit_note` is auto-apply).
+  5. Use `edit_note` for edits and `relocate_note` for moves/renames (`relocate_note` is still manual confirm; `edit_note` is auto-apply).
 - Failure handling: record the error and cause; temporarily fall back to `rg`/`find` only if MCP calls fail.
 
 ### Tool summary
@@ -48,11 +47,10 @@ Global working rules for the AILSS Obsidian vault.
 - `list_tags`: list indexed tags and counts (use to reuse existing vocabulary).
 - `list_keywords`: list indexed keywords and counts (use to reuse existing vocabulary).
 - `get_typed_links`: expands outgoing typed links into a bounded graph (metadata only).
-- `find_typed_link_backrefs`: find notes that link _to_ a target via typed links (incoming edges; includes `links_to`).
+- `find_typed_link_backrefs`: find notes that link _to_ a target via typed links (incoming edges).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
 - `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
-- `suggest_typed_links`: suggests typed-link candidates using already-indexed body wikilinks (DB-backed).
 - `capture_note`: creates a new note (`apply=false` preview → `apply=true` auto-apply by default).
 - `edit_note`: applies line-based patch ops to a note (`apply=false` preview → `apply=true` auto-apply by default).
 - `improve_frontmatter`: normalizes/adds required frontmatter keys for a note (`apply=false` preview → `apply=true` auto-apply by default).
