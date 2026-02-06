@@ -103,6 +103,19 @@ Copy these files into:
   - `styles.css`
   - `versions.json` (release metadata; optional)
 
+### Install (GitHub Release single archive)
+
+If you install from GitHub Release, extract `ailss-<version>.zip` into:
+
+- `<Vault>/.obsidian/plugins/ailss-obsidian/`
+
+Then install service dependencies once:
+
+```bash
+cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service"
+pnpm install --prod
+```
+
 ### Install (dev-friendly symlink)
 
 Instead of copying on every change, you can symlink the plugin folder into a test vault:
@@ -123,9 +136,11 @@ Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at y
   - `cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service" && pnpm install --prod`
   - Then you can leave **MCP/Indexer args** empty (the plugin resolves the bundled scripts automatically).
 - **MCP command/args** (stdio)
-  - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
+  - Monorepo symlink example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
+  - Release archive example: command `node`, args `ailss-service/packages/mcp/dist/stdio.js`
 - **Indexer command/args** (optional; enables reindex + auto-index)
-  - Example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
+  - Monorepo symlink example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
+  - Release archive example: command `node`, args `ailss-service/packages/indexer/dist/cli.js`
 - If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
 - Index maintenance: use **Reset index DB** if you switch embedding models (e.g. `text-embedding-3-small` ↔ `text-embedding-3-large`); use **Indexer logs** to see which file failed.
 - Command palette: `AILSS: Reindex vault`
