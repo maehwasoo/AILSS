@@ -62,11 +62,11 @@ describe("MCP HTTP server (find_typed_link_backrefs)", () => {
             now,
           );
 
-          linkStmt.run("A.md", "part_of", "WorldAce", "[[WorldAce]]", 0, now);
+          linkStmt.run("A.md", "supports", "WorldAce", "[[WorldAce]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "find_typed_link_backrefs", {
-            rel: "part_of",
+            rel: "supports",
             to_target: "WorldAce",
             limit: 10,
           });
@@ -77,6 +77,7 @@ describe("MCP HTTP server (find_typed_link_backrefs)", () => {
           expect(backrefs).toHaveLength(1);
           assertRecord(backrefs[0], "backrefs[0]");
           expect(backrefs[0]["from_path"]).toBe("A.md");
+          expect(backrefs[0]["rel"]).toBe("supports");
           expect(backrefs[0]["to_target"]).toBe("WorldAce");
         },
       );

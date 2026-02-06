@@ -75,7 +75,7 @@ Global working rules for the AILSS Obsidian vault.
   - Title: specific and stable; default to English; add disambiguators when needed (parentheses OK for disambiguation; avoid translation parentheses — use `aliases` instead).
   - Summary: 2–5 sentences that answer “what is this note for?”
 - Tags/keywords: before adding a new value, check existing vocabulary via `list_tags` / `list_keywords` and reuse when possible.
-- Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `same_as`, `supersedes`).
+- Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `same_as`, `supersedes`).
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
 - Links: run `find_broken_links` (preferred) and fix unresolved targets; fall back to `rg "\\[\\[" -n` if needed.
 - Assets: if a folder contains local assets, ensure a note-adjacent `assets/` folder exists (create it when adding the first asset); avoid absolute/external file paths.

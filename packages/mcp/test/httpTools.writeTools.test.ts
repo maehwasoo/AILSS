@@ -234,6 +234,62 @@ describe("MCP HTTP server (write tools)", () => {
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "instance_of")).toBe(false);
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "part_of")).toBe(false);
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "uses")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "summarizes")).toBe(false);
+      });
+    });
+  });
+
+  it("normalizes extended typed-link values via improve_frontmatter", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      const relPath = "TypedLinks.md";
+      await fs.writeFile(
+        path.join(vaultPath, relPath),
+        [
+          "---",
+          'id: "20260108123456"',
+          'created: "2026-01-08T12:34:56"',
+          'title: "TypedLinks"',
+          "summary:",
+          "aliases: []",
+          "entity:",
+          "layer:",
+          "tags: []",
+          "keywords: []",
+          "status: draft",
+          'updated: "2026-01-08T12:34:56"',
+          "source: []",
+          "summarizes: Source A",
+          "derived_from:",
+          '  - "[[Origin A]]"',
+          "verifies:",
+          "  - Experiment A",
+          "---",
+          "",
+          "body",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+
+        const applied = await mcpToolsCall(url, token, sessionId, "improve_frontmatter", {
+          path: relPath,
+          apply: true,
+          reindex_after_apply: false,
+        });
+
+        const appliedStructured = getStructuredContent(applied);
+        expect(appliedStructured["applied"]).toBe(true);
+        expect(appliedStructured["changed"]).toBe(true);
+
+        const written = await fs.readFile(path.join(vaultPath, relPath), "utf8");
+        const parsed = parseMarkdownNote(written);
+
+        expect(parsed.frontmatter.summarizes).toEqual(["[[Source A]]"]);
+        expect(parsed.frontmatter.derived_from).toEqual(["[[Origin A]]"]);
+        expect(parsed.frontmatter.verifies).toEqual(["[[Experiment A]]"]);
       });
     });
   });
