@@ -93,7 +93,7 @@ The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only.
 pnpm -C packages/obsidian-plugin build
 ```
 
-### Install (manual)
+### Install (manual from source build)
 
 Copy these files into:
 
@@ -116,18 +116,7 @@ cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service"
 pnpm install --prod
 ```
 
-### Install (dev-friendly symlink)
-
-Instead of copying on every change, you can symlink the plugin folder into a test vault:
-
-Note: if `ailss-obsidian` already exists in the vault plugins folder, rename/remove it first (symlink creation fails if the path exists).
-
-```bash
-ln -s /absolute/path/to/AILSS-project/packages/obsidian-plugin "<Vault>/.obsidian/plugins/ailss-obsidian"
-pnpm -C packages/obsidian-plugin dev
-```
-
-Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at your repo path.
+If you are testing from source build output, rebuild and recopy plugin files after changes.
 
 ### Configure (inside Obsidian)
 
@@ -136,11 +125,11 @@ Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at y
   - `cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service" && pnpm install --prod`
   - Then you can leave **MCP/Indexer args** empty (the plugin resolves the bundled scripts automatically).
 - **MCP command/args** (stdio)
-  - Monorepo symlink example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
-  - Release archive example: command `node`, args `ailss-service/packages/mcp/dist/stdio.js`
+  - Release archive default: command `node`, args empty
+  - Source build example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
 - **Indexer command/args** (optional; enables reindex + auto-index)
-  - Monorepo symlink example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
-  - Release archive example: command `node`, args `ailss-service/packages/indexer/dist/cli.js`
+  - Release archive default: command `node`, args empty
+  - Source build example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
 - If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
 - Index maintenance: use **Reset index DB** if you switch embedding models (e.g. `text-embedding-3-small` ↔ `text-embedding-3-large`); use **Indexer logs** to see which file failed.
 - Command palette: `AILSS: Reindex vault`

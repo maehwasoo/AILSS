@@ -26,35 +26,35 @@ pnpm -C packages/obsidian-plugin build
 
 3. Install into your vault
 
-- Copy `main.js`, `manifest.json`, `styles.css` into:
+- Source build install: copy `main.js`, `manifest.json`, `styles.css` into:
     - `<Vault>/.obsidian/plugins/ailss-obsidian/`
-
-Dev-friendly option (recommended while developing): symlink this folder into your vault:
+- GitHub Release install: extract `ailss-<ver>.zip` into:
+    - `<Vault>/.obsidian/plugins/ailss-obsidian/`
+    - Then run:
 
 ```bash
-# If you previously installed by copying, rename/remove the existing folder first.
-ln -s /absolute/path/to/AILSS-project/packages/obsidian-plugin "<Vault>/.obsidian/plugins/ailss-obsidian"
-pnpm -C packages/obsidian-plugin dev
+cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service"
+pnpm install --prod
 ```
 
-Confirm: `readlink "<Vault>/.obsidian/plugins/ailss-obsidian"` should point at your repo path.
-
-When symlinked from the monorepo, you can usually leave MCP/indexer args empty and the plugin will auto-detect `../mcp/dist/stdio.js` and `../indexer/dist/cli.js`.
+When installed from GitHub Release, you can usually leave MCP/indexer args empty and the plugin will auto-detect bundled scripts under `ailss-service/`.
 
 4. Configure settings inside Obsidian
 
 - **OpenAI API key**: required for indexing and MCP query embeddings
 - **Top K**: default `get_context.top_k` when the caller omits `top_k` (Codex)
+- If installed from GitHub Release:
+    - keep `MCP args` and `Indexer args` empty to use bundled scripts
 - **MCP command/args**: how to run the AILSS MCP server (stdio)
-    - Example for monorepo dev:
+    - Example for source-build install:
         - command: `node`
-        - args: `/absolute/path/to/Ailss-project/packages/mcp/dist/stdio.js`
+        - args: `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
 - **MCP service (Codex, localhost)**: optional localhost service (`http://127.0.0.1:<port>/mcp`)
     - Enable the service, generate a token, and use “Copy config block” to paste into `~/.codex/config.toml`
 - **Indexer command/args**: enables `AILSS: Reindex vault` and auto indexing
-    - Example for monorepo dev:
+    - Example for source-build install:
         - command: `node`
-        - args: `/absolute/path/to/Ailss-project/packages/indexer/dist/cli.js`
+        - args: `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
 - If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
 - Index maintenance: use **Reset index DB** if you switch embedding models (1536 vs 3072) or the DB gets into a bad state; use **Indexer logs** to find which file failed.
 
