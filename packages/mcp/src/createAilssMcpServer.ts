@@ -12,6 +12,7 @@ import { registerFindTypedLinkBackrefsTool } from "./tools/findTypedLinkBackrefs
 import { registerFindBrokenLinksTool } from "./tools/findBrokenLinks.js";
 import { registerFrontmatterValidateTool } from "./tools/frontmatterValidate.js";
 import { registerGetContextTool } from "./tools/getContext.js";
+import { registerGetGraphContextTool } from "./tools/getGraphContext.js";
 import { registerGetNoteTool } from "./tools/getNote.js";
 import { registerGetVaultTreeTool } from "./tools/getVaultTree.js";
 import { registerGetTypedLinksTool } from "./tools/getTypedLinks.js";
@@ -69,6 +70,7 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   const server = new McpServer({ name: "ailss-mcp", version: "0.1.0" });
 
   registerGetContextTool(server, deps);
+  registerGetGraphContextTool(server, deps);
   registerGetTypedLinksTool(server, deps);
   registerResolveNoteTool(server, deps);
   registerGetNoteTool(server, deps);
