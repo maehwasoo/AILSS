@@ -121,7 +121,7 @@ export function chunkMarkdownByHeadings(
           heading: headingText,
           headingDepth: depth,
           headingPath: nextPath,
-          buffer: [],
+          buffer: [line],
         };
         continue;
       }
