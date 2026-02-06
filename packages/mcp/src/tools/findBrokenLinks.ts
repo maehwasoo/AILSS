@@ -31,6 +31,10 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
       description:
         "Detects broken wikilinks/typed links by scanning the index DB typed_links table and resolving targets against indexed notes. Works without AILSS_VAULT_PATH (DB-only).",
       inputSchema: {
+        treat_ambiguous_as_broken: z
+          .boolean()
+          .default(true)
+          .describe("When true, treat ambiguous targets (2+ resolutions) as broken"),
         path_prefix: z
           .string()
           .min(1)
@@ -158,7 +162,10 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
         if (!target) continue;
 
         const resolved = resolveCached(target);
-        if (resolved.length > 0) continue;
+        const isUnresolved = resolved.length === 0;
+        const isAmbiguous = resolved.length >= 2;
+        const isBroken = isUnresolved || (args.treat_ambiguous_as_broken && isAmbiguous);
+        if (!isBroken) continue;
 
         brokenTotal += 1;
         if (broken.length >= args.max_broken) {
