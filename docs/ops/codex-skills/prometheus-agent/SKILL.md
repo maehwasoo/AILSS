@@ -4,13 +4,13 @@ description: "Obsidian vault notes (AILSS): search/summarize/edit (frontmatter, 
 mcp_tools:
   # Always available (read tools)
   - get_context
-  - get_typed_links
+  - expand_typed_links_outgoing
   - resolve_note
   - read_note
   - get_vault_tree
   - frontmatter_validate
   - find_broken_links
-  - find_typed_link_backrefs
+  - find_typed_links_incoming
   - search_notes
   - list_tags
   - list_keywords
@@ -28,7 +28,7 @@ Use this skill when you want to work **retrieval-first** against an AILSS Obsidi
 ## Core workflow
 
 1. Start with `get_context` for the user’s query (avoid guessing and avoid duplicates).
-2. Use `get_typed_links` to navigate the semantic graph from a specific note (DB-backed).
+2. Use `expand_typed_links_outgoing` to navigate the semantic graph from a specific note (DB-backed).
    - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements; do not add reciprocal links unless explicitly requested.
 3. Use `resolve_note` when you only have `id`/`title`/a wikilink target and need a vault-relative path for `read_note`/`edit_note`.
 4. Use `read_note` to confirm exact wording and frontmatter before making claims.
@@ -54,7 +54,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
   - `read_note` is path-based. If you only have `id`/`title`/a wikilink target, call `resolve_note` first.
 - For metadata filtering (entity/layer/status/tags/keywords/source/date ranges), use `search_notes` (DB-only; no embeddings).
 - Before adding new tags/keywords, prefer reusing existing vocabulary via `list_tags` / `list_keywords`.
-- If you need typed-link navigation starting from a specific note path, call `get_typed_links` (outgoing only; bounded graph).
+- If you need typed-link navigation starting from a specific note path, call `expand_typed_links_outgoing` (outgoing only; bounded graph).
 - Typed links are directional: link from the current note to what it uses/depends_on/part_of/implements; do not add reciprocal links unless explicitly requested.
 - If you are unsure what tools exist or what arguments they require, call `tools/list` and follow the returned schemas exactly.
 
@@ -63,7 +63,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 - Use `get_vault_tree` when you need a filesystem folder tree for the vault.
 - Use `frontmatter_validate` when you need to audit frontmatter health (required keys + `id`/`created` consistency).
 - Use `find_broken_links` when you need to detect unresolved wikilinks/typed links after moves/renames.
-- Use `find_typed_link_backrefs` when you need incoming edges/backrefs for a target.
+- Use `find_typed_links_incoming` when you need incoming edges/backrefs for a target.
 
 ### Safe edits (explicit apply only)
 

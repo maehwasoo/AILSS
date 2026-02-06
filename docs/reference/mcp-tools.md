@@ -14,7 +14,7 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `top_k` (int, default: `10`, range: `1–50`)
   - `max_chars_per_note` (int, default: `2000`, range: `200–50,000`)
 
-### `get_typed_links`
+### `expand_typed_links_outgoing`
 
 - Purpose: expand outgoing typed links into a bounded metadata graph (DB-only).
 - Input:
@@ -31,7 +31,7 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `query` (string, required)
   - `limit` (int, default: `20`, range: `1–200`)
 
-### `find_typed_link_backrefs`
+### `find_typed_links_incoming`
 
 - Purpose: find incoming typed links pointing to a target (DB-only).
 - Input:

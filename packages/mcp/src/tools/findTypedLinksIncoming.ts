@@ -1,4 +1,4 @@
-// find_typed_link_backrefs tool
+// find_typed_links_incoming tool
 // - DB-backed typed-link backref queries (incoming edges)
 
 import { findNotesByTypedLink } from "@ailss/core";
@@ -7,11 +7,11 @@ import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
 
-export function registerFindTypedLinkBackrefsTool(server: McpServer, deps: McpToolDeps): void {
+export function registerFindTypedLinksIncomingTool(server: McpServer, deps: McpToolDeps): void {
   server.registerTool(
-    "find_typed_link_backrefs",
+    "find_typed_links_incoming",
     {
-      title: "Find typed link backrefs",
+      title: "Find typed links incoming",
       description:
         "Finds notes that reference a target via typed links. This is an incoming-edge query over the typed_links table.",
       inputSchema: {
