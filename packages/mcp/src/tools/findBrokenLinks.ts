@@ -31,6 +31,10 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
       description:
         "Detects broken wikilinks/typed links by scanning the index DB typed_links table and resolving targets against indexed notes. Works without AILSS_VAULT_PATH (DB-only).",
       inputSchema: {
+        treat_ambiguous_as_broken: z
+          .boolean()
+          .default(true)
+          .describe("When true, treat ambiguous targets (2+ resolutions) as broken"),
         path_prefix: z
           .string()
           .min(1)
@@ -89,6 +93,10 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
     async (args) => {
       const prefix = args.path_prefix ? args.path_prefix.trim() : null;
       const rels = normalizeRelList(args.rels);
+      const resolveLimit = Math.max(
+        args.max_resolutions_per_target,
+        args.treat_ambiguous_as_broken ? 2 : 1,
+      );
 
       const where: string[] = [];
       const params: unknown[] = [];
@@ -129,11 +137,7 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
         target: string,
       ): ReturnType<typeof resolveNotePathsByWikilinkTarget> => {
         if (resolveCache.has(target)) return resolveCache.get(target) ?? [];
-        const resolved = resolveNotePathsByWikilinkTarget(
-          deps.db,
-          target,
-          args.max_resolutions_per_target,
-        );
+        const resolved = resolveNotePathsByWikilinkTarget(deps.db, target, resolveLimit);
         resolveCache.set(target, resolved);
         return resolved;
       };
@@ -158,7 +162,10 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
         if (!target) continue;
 
         const resolved = resolveCached(target);
-        if (resolved.length > 0) continue;
+        const isUnresolved = resolved.length === 0;
+        const isAmbiguous = resolved.length >= 2;
+        const isBroken = isUnresolved || (args.treat_ambiguous_as_broken && isAmbiguous);
+        if (!isBroken) continue;
 
         brokenTotal += 1;
         if (broken.length >= args.max_broken) {
@@ -171,7 +178,7 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
           rel: row.rel,
           target,
           to_wikilink: row.to_wikilink,
-          resolutions: resolved.map((r) => ({
+          resolutions: resolved.slice(0, args.max_resolutions_per_target).map((r) => ({
             path: r.path,
             title: r.title,
             matched_by: r.matchedBy,

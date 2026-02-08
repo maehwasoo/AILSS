@@ -68,8 +68,9 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 
 ### `find_broken_links`
 
-- Purpose: detect unresolved typed links / wikilinks via the `typed_links` table (DB-only).
+- Purpose: detect unresolved (and optionally ambiguous) typed links / wikilinks via the `typed_links` table (DB-only).
 - Input:
+  - `treat_ambiguous_as_broken` (boolean, default: `true`)
   - `path_prefix` (string, optional)
   - `rels` (string[], optional; default: typed-link keys)
   - `max_links` (int, default: `20000`, range: `1–100,000`)
