@@ -194,11 +194,38 @@ describe("MCP HTTP server (find_broken_links)", () => {
             .sort();
           expect(resolutionPaths).toEqual(["B.md", "sub/B.md"]);
 
+          const cappedRes = await mcpToolsCall(url, token, sessionId, "find_broken_links", {
+            path_prefix: "A",
+            max_links: 100,
+            max_broken: 100,
+            max_resolutions_per_target: 1,
+          });
+
+          const cappedStructured = getStructuredContent(cappedRes);
+          expect(cappedStructured["scanned_links"]).toBe(2);
+          expect(cappedStructured["broken_total"]).toBe(2);
+
+          const cappedBroken = cappedStructured["broken"];
+          assertArray(cappedBroken, "broken");
+
+          const cappedAmbiguous = cappedBroken.find((b) => {
+            assertRecord(b, "broken[i]");
+            return String(b["target"] ?? "") === "B";
+          });
+          expect(cappedAmbiguous).toBeTruthy();
+          assertRecord(cappedAmbiguous, "cappedAmbiguous");
+          assertArray(cappedAmbiguous["resolutions"], "cappedAmbiguous.resolutions");
+          expect(cappedAmbiguous["resolutions"]).toHaveLength(1);
+
+          const firstResolution = cappedAmbiguous["resolutions"][0];
+          assertRecord(firstResolution, "cappedAmbiguous.resolutions[0]");
+          expect(firstResolution["path"]).toBe("B.md");
+
           const disabledRes = await mcpToolsCall(url, token, sessionId, "find_broken_links", {
             path_prefix: "A",
             max_links: 100,
             max_broken: 100,
-            max_resolutions_per_target: 5,
+            max_resolutions_per_target: 1,
             treat_ambiguous_as_broken: false,
           });
 

@@ -93,6 +93,10 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
     async (args) => {
       const prefix = args.path_prefix ? args.path_prefix.trim() : null;
       const rels = normalizeRelList(args.rels);
+      const resolveLimit = Math.max(
+        args.max_resolutions_per_target,
+        args.treat_ambiguous_as_broken ? 2 : 1,
+      );
 
       const where: string[] = [];
       const params: unknown[] = [];
@@ -133,11 +137,7 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
         target: string,
       ): ReturnType<typeof resolveNotePathsByWikilinkTarget> => {
         if (resolveCache.has(target)) return resolveCache.get(target) ?? [];
-        const resolved = resolveNotePathsByWikilinkTarget(
-          deps.db,
-          target,
-          args.max_resolutions_per_target,
-        );
+        const resolved = resolveNotePathsByWikilinkTarget(deps.db, target, resolveLimit);
         resolveCache.set(target, resolved);
         return resolved;
       };
@@ -178,7 +178,7 @@ export function registerFindBrokenLinksTool(server: McpServer, deps: McpToolDeps
           rel: row.rel,
           target,
           to_wikilink: row.to_wikilink,
-          resolutions: resolved.map((r) => ({
+          resolutions: resolved.slice(0, args.max_resolutions_per_target).map((r) => ({
             path: r.path,
             title: r.title,
             matched_by: r.matchedBy,
