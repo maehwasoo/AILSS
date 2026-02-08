@@ -113,6 +113,12 @@ contradicts:
   - "[[Old Claim]]"
 verifies:
   - Experiment Result
+blocks:
+  - Pending Migration
+mitigates:
+  - Runtime Risk
+measures:
+  - API Latency
 ---
 
 Body
@@ -128,6 +134,9 @@ Body
     expect(meta.frontmatter.supports).toEqual(["[[Claim Note]]"]);
     expect(meta.frontmatter.contradicts).toEqual(["[[Old Claim]]"]);
     expect(meta.frontmatter.verifies).toEqual(["[[Experiment Result]]"]);
+    expect(meta.frontmatter.blocks).toEqual(["[[Pending Migration]]"]);
+    expect(meta.frontmatter.mitigates).toEqual(["[[Runtime Risk]]"]);
+    expect(meta.frontmatter.measures).toEqual(["[[API Latency]]"]);
 
     expect(meta.typedLinks).toEqual([
       {
@@ -155,6 +164,24 @@ Body
         rel: "verifies",
         toTarget: "Experiment Result",
         toWikilink: "[[Experiment Result]]",
+        position: 0,
+      },
+      {
+        rel: "blocks",
+        toTarget: "Pending Migration",
+        toWikilink: "[[Pending Migration]]",
+        position: 0,
+      },
+      {
+        rel: "mitigates",
+        toTarget: "Runtime Risk",
+        toWikilink: "[[Runtime Risk]]",
+        position: 0,
+      },
+      {
+        rel: "measures",
+        toTarget: "API Latency",
+        toWikilink: "[[API Latency]]",
         position: 0,
       },
     ]);

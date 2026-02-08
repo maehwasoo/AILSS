@@ -62,11 +62,12 @@ describe("MCP HTTP server (find_broken_links)", () => {
             now,
           );
 
-          // One valid typed link and three broken ones.
+          // One valid typed link and four broken ones.
           linkStmt.run("A.md", "depends_on", "B", "[[B]]", 0, now);
           linkStmt.run("A.md", "depends_on", "Missing", "[[Missing]]", 1, now);
           linkStmt.run("A.md", "cites", "Nope", "[[Nope]]", 0, now);
           linkStmt.run("A.md", "verifies", "UnverifiedClaim", "[[UnverifiedClaim]]", 0, now);
+          linkStmt.run("A.md", "measures", "UnknownMetric", "[[UnknownMetric]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "find_broken_links", {
@@ -77,8 +78,8 @@ describe("MCP HTTP server (find_broken_links)", () => {
           });
 
           const structured = getStructuredContent(res);
-          expect(structured["scanned_links"]).toBe(4);
-          expect(structured["broken_total"]).toBe(3);
+          expect(structured["scanned_links"]).toBe(5);
+          expect(structured["broken_total"]).toBe(4);
 
           const broken = structured["broken"];
           assertArray(broken, "broken");
@@ -89,7 +90,7 @@ describe("MCP HTTP server (find_broken_links)", () => {
             })
             .sort();
 
-          expect(targets).toEqual(["Missing", "Nope", "UnverifiedClaim"]);
+          expect(targets).toEqual(["Missing", "Nope", "UnknownMetric", "UnverifiedClaim"]);
         },
       );
     });

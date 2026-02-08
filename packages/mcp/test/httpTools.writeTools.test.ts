@@ -235,6 +235,9 @@ describe("MCP HTTP server (write tools)", () => {
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "part_of")).toBe(false);
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "uses")).toBe(false);
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "summarizes")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "blocks")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "mitigates")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "measures")).toBe(false);
       });
     });
   });
@@ -263,6 +266,10 @@ describe("MCP HTTP server (write tools)", () => {
           '  - "[[Origin A]]"',
           "verifies:",
           "  - Experiment A",
+          "mitigates:",
+          "  - Service Risk A",
+          "measures:",
+          "  - P95 Latency",
           "---",
           "",
           "body",
@@ -290,6 +297,8 @@ describe("MCP HTTP server (write tools)", () => {
         expect(parsed.frontmatter.summarizes).toEqual(["[[Source A]]"]);
         expect(parsed.frontmatter.derived_from).toEqual(["[[Origin A]]"]);
         expect(parsed.frontmatter.verifies).toEqual(["[[Experiment A]]"]);
+        expect(parsed.frontmatter.mitigates).toEqual(["[[Service Risk A]]"]);
+        expect(parsed.frontmatter.measures).toEqual(["[[P95 Latency]]"]);
       });
     });
   });

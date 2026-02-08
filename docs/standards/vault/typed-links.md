@@ -20,12 +20,14 @@ AILSS indexes and queries typed links by these frontmatter keys:
 - Citation (strict): `cites`
 - Content transformation: `summarizes`, `derived_from`
 - Explanation/evidence: `explains`, `supports`, `contradicts`, `verifies`
+- Risk/control/measurement: `blocks`, `mitigates`, `measures`
 - Authorship / attribution: `authored_by`
 - Equivalence / versioning: `same_as`, `supersedes`
 
 Semantics notes:
 
 - `derived_from` includes extraction/refactoring and translation/paraphrase. Do not add a separate `translates` key.
+- `measures` links to the observed target note (what is measured), not to a numeric value itself.
 
 If you need a new key, update the rules/ontology first and then use it consistently.
 
@@ -64,6 +66,9 @@ Notes:
    - “S supports ?” → `supports` candidates
    - “S contradicts ?” → `contradicts` candidates
    - “S verifies ?” → `verifies` candidates
+   - “S blocks ?” → `blocks` candidates
+   - “S mitigates ?” → `mitigates` candidates
+   - “S measures ?” → `measures` candidates
    - “S is same as ?” (synonyms/duplicates) → `same_as` candidates
    - “S supersedes ?” → `supersedes` candidates
 4. Literal verification: use `read_note` to read the actual note text (and confirm you are linking the right target).
@@ -80,6 +85,9 @@ Notes:
 - “This note is evidence for X” → `supports: [[X]]`
 - “This note disagrees with X” → `contradicts: [[X]]`
 - “This note tested or validated X” → `verifies: [[X]]`
+- “This note cannot proceed until X is resolved” → `blocks: [[X]]`
+- “This note reduces risk/impact for X” → `mitigates: [[X]]`
+- “This note records metrics/observations for X” → `measures: [[X]]`
 
 ### Recommended coverage matrix (by entity)
 
@@ -116,6 +124,9 @@ The matrix is a baseline. If more links are justified, add them, but stay within
 - Supporting evidence relationship recorded when applicable? → `supports`
 - Contradiction relationship recorded when applicable? → `contradicts`
 - Verification relationship recorded when applicable? → `verifies`
+- Blocking relationship recorded when applicable? → `blocks`
+- Mitigation relationship recorded when applicable? → `mitigates`
+- Measurement relationship recorded when applicable? → `measures`
 - Equivalence/replacement recorded? → `same_as`, `supersedes`
 - Authorship recorded when applicable? → `authored_by`
 
@@ -162,4 +173,10 @@ contradicts:
   - "[[Conflicting Claim]]"
 verifies:
   - "[[Experiment Target]]"
+blocks:
+  - "[[Blocked Task]]"
+mitigates:
+  - "[[Risk Note]]"
+measures:
+  - "[[Service Reliability]]"
 ```
