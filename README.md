@@ -77,7 +77,7 @@ Full rules: `docs/standards/vault/README.md`.
 
 Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 
-- Read tools: `get_context`, `get_typed_links`, `resolve_note`, `read_note`, `search_notes`, `list_tags`, `list_keywords`, `find_broken_links`, `frontmatter_validate`, `find_typed_link_backrefs`
+- Read tools: `get_context`, `expand_typed_links_outgoing`, `resolve_note`, `read_note`, `search_notes`, `list_tags`, `list_keywords`, `find_broken_links`, `frontmatter_validate`, `find_typed_links_incoming`
 - Write tools (gated): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`  
   Requires `AILSS_ENABLE_WRITE_TOOLS=1` and `apply=true`.
 
