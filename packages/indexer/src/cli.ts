@@ -5,7 +5,13 @@
 import { Command } from "commander";
 import OpenAI from "openai";
 
-import { loadEnv, openAilssDb, resolveDefaultDbPath } from "@ailss/core";
+import {
+  loadEnv,
+  openAilssDb,
+  resolveDefaultDbPath,
+  resolveNeo4jSettings,
+  syncSqliteGraphToNeo4j,
+} from "@ailss/core";
 
 import { promises as fs } from "node:fs";
 
@@ -30,6 +36,46 @@ function embeddingDimForModel(model: string): number {
 
 async function createOpenAiClient(apiKey: string): Promise<OpenAI> {
   return new OpenAI({ apiKey });
+}
+
+async function syncNeo4jMirrorIfEnabled(
+  db: ReturnType<typeof openAilssDb>,
+  env: ReturnType<typeof loadEnv>,
+): Promise<void> {
+  const settings = resolveNeo4jSettings(env);
+  if (!settings.enabled || !settings.syncOnIndex) return;
+
+  if (!settings.config) {
+    const message =
+      settings.unavailableReason ??
+      "Neo4j configuration is missing. Set AILSS_NEO4J_URI, AILSS_NEO4J_USERNAME, and AILSS_NEO4J_PASSWORD.";
+    if (settings.strictMode) {
+      throw new Error(`${message} Disable strict mode with AILSS_NEO4J_STRICT_MODE=0 if needed.`);
+    }
+    console.warn(`[ailss-indexer] neo4j sync skipped: ${message}`);
+    return;
+  }
+
+  try {
+    const summary = await syncSqliteGraphToNeo4j(db, settings.config);
+    console.log(
+      [
+        "[ailss-indexer] neo4j sync complete",
+        `sqlite.notes=${summary.sqliteCounts.notes}`,
+        `sqlite.typed_links=${summary.sqliteCounts.typedLinks}`,
+        `neo4j.notes=${summary.neo4jCounts.notes}`,
+        `neo4j.typed_links=${summary.neo4jCounts.typedLinks}`,
+        `neo4j.targets=${summary.neo4jCounts.targets}`,
+        `consistent=${summary.consistent}`,
+      ].join(" "),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (settings.strictMode) {
+      throw new Error(`Neo4j sync failed in strict mode: ${message}`);
+    }
+    console.warn(`[ailss-indexer] neo4j sync skipped due to error: ${message}`);
+  }
 }
 
 async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
@@ -70,6 +116,8 @@ async function runIndexCommand(options: IndexCommandOptions): Promise<void> {
     ...(options.paths ? { paths: options.paths } : {}),
     logger: { log: (line) => console.log(line), write: (text) => process.stdout.write(text) },
   });
+
+  await syncNeo4jMirrorIfEnabled(db, env);
 }
 
 const program = new Command();
