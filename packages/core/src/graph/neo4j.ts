@@ -1,6 +1,8 @@
 // Neo4j graph sync and query helpers
 // - optional SQLite -> Neo4j hybrid integration
 
+import { randomUUID } from "node:crypto";
+
 import neo4j from "neo4j-driver";
 import type { Driver, Session } from "neo4j-driver";
 
@@ -116,10 +118,11 @@ async function runBatchWrites<T extends Record<string, unknown>>(
   query: string,
   rows: T[],
   batchSize: number,
+  params: Record<string, unknown> = {},
 ): Promise<void> {
   if (rows.length === 0) return;
   for (const batch of chunked(rows, batchSize)) {
-    await session.executeWrite((tx) => tx.run(query, { rows: batch }));
+    await session.executeWrite((tx) => tx.run(query, { ...params, rows: batch }));
   }
 }
 
@@ -130,27 +133,107 @@ export type Neo4jGraphCounts = {
   resolvedLinks: number;
 };
 
-async function readNeo4jGraphCounts(session: Session): Promise<Neo4jGraphCounts> {
+export type Neo4jMirrorStatus = "empty" | "ok" | "error";
+
+export type Neo4jMirrorState = {
+  activeRunId: string | null;
+  status: Neo4jMirrorStatus;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+};
+
+function normalizeMirrorStatus(value: unknown): Neo4jMirrorStatus {
+  if (value === "ok" || value === "error" || value === "empty") {
+    return value;
+  }
+  return "empty";
+}
+
+async function readMirrorState(session: Session): Promise<Neo4jMirrorState> {
   const result = await session.executeRead((tx) =>
     tx.run(`
-      CALL {
-        MATCH (n:AilssNote)
-        RETURN count(n) AS notes
-      }
-      CALL {
-        MATCH ()-[r:AILSS_TYPED_LINK]->()
-        RETURN count(r) AS typedLinks
-      }
-      CALL {
-        MATCH (t:AilssTarget)
-        RETURN count(t) AS targets
-      }
-      CALL {
-        MATCH ()-[r:AILSS_RESOLVES_TO]->()
-        RETURN count(r) AS resolvedLinks
-      }
-      RETURN notes, typedLinks, targets, resolvedLinks
+      OPTIONAL MATCH (s:AilssMirrorState { name: 'active' })
+      RETURN
+        s.active_run_id AS activeRunId,
+        coalesce(s.status, 'empty') AS status,
+        s.last_success_at AS lastSuccessAt,
+        s.last_error AS lastError,
+        s.last_error_at AS lastErrorAt
+      LIMIT 1
     `),
+  );
+
+  const row = result.records[0];
+  if (!row) {
+    return {
+      activeRunId: null,
+      status: "empty",
+      lastSuccessAt: null,
+      lastError: null,
+      lastErrorAt: null,
+    };
+  }
+
+  const activeRunId = row.get("activeRunId");
+  const lastSuccessAt = row.get("lastSuccessAt");
+  const lastError = row.get("lastError");
+  const lastErrorAt = row.get("lastErrorAt");
+
+  return {
+    activeRunId: typeof activeRunId === "string" ? activeRunId : null,
+    status: normalizeMirrorStatus(row.get("status")),
+    lastSuccessAt: typeof lastSuccessAt === "string" ? lastSuccessAt : null,
+    lastError: typeof lastError === "string" ? lastError : null,
+    lastErrorAt: typeof lastErrorAt === "string" ? lastErrorAt : null,
+  };
+}
+
+async function ensureMirrorSchema(session: Session): Promise<void> {
+  await session.executeWrite((tx) =>
+    tx.run(
+      "CREATE CONSTRAINT ailss_note_run_path_unique IF NOT EXISTS FOR (n:AilssNote) REQUIRE (n.run_id, n.path) IS UNIQUE",
+    ),
+  );
+  await session.executeWrite((tx) =>
+    tx.run(
+      "CREATE CONSTRAINT ailss_target_run_value_unique IF NOT EXISTS FOR (t:AilssTarget) REQUIRE (t.run_id, t.target) IS UNIQUE",
+    ),
+  );
+  await session.executeWrite((tx) =>
+    tx.run(
+      "CREATE CONSTRAINT ailss_mirror_state_name_unique IF NOT EXISTS FOR (s:AilssMirrorState) REQUIRE s.name IS UNIQUE",
+    ),
+  );
+}
+
+async function readNeo4jGraphCountsForRun(
+  session: Session,
+  runId: string,
+): Promise<Neo4jGraphCounts> {
+  const result = await session.executeRead((tx) =>
+    tx.run(
+      `
+        CALL {
+          MATCH (n:AilssNote { run_id: $runId })
+          RETURN count(n) AS notes
+        }
+        CALL {
+          MATCH ()-[r:AILSS_TYPED_LINK { run_id: $runId }]->()
+          RETURN count(r) AS typedLinks
+        }
+        CALL {
+          MATCH (t:AilssTarget { run_id: $runId })
+          RETURN count(t) AS targets
+        }
+        CALL {
+          MATCH ()-[r:AILSS_RESOLVES_TO { run_id: $runId }]->()
+          RETURN count(r) AS resolvedLinks
+        }
+        RETURN notes, typedLinks, targets, resolvedLinks
+      `,
+      { runId },
+    ),
   );
 
   const row = result.records[0];
@@ -166,13 +249,22 @@ async function readNeo4jGraphCounts(session: Session): Promise<Neo4jGraphCounts>
   };
 }
 
-export type Neo4jSyncSummary = {
+export type Neo4jGraphStatus = {
   sqliteCounts: {
     notes: number;
     typedLinks: number;
   };
   neo4jCounts: Neo4jGraphCounts;
   consistent: boolean;
+  activeRunId: string | null;
+  mirrorStatus: Neo4jMirrorStatus;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+};
+
+export type Neo4jSyncSummary = Neo4jGraphStatus & {
+  activeRunId: string;
 };
 
 export type SyncSqliteGraphToNeo4jOptions = {
@@ -182,7 +274,7 @@ export type SyncSqliteGraphToNeo4jOptions = {
 
 const UPSERT_NOTES_CYPHER = `
   UNWIND $rows AS row
-  MERGE (n:AilssNote { path: row.path })
+  MERGE (n:AilssNote { run_id: $runId, path: row.path })
   SET
     n.note_id = row.noteId,
     n.created = row.created,
@@ -196,14 +288,15 @@ const UPSERT_NOTES_CYPHER = `
 
 const UPSERT_TARGETS_CYPHER = `
   UNWIND $rows AS row
-  MERGE (t:AilssTarget { target: row.target })
+  MERGE (t:AilssTarget { run_id: $runId, target: row.target })
 `;
 
 const INSERT_TYPED_LINKS_CYPHER = `
   UNWIND $rows AS row
-  MATCH (from:AilssNote { path: row.fromPath })
-  MATCH (target:AilssTarget { target: row.target })
+  MATCH (from:AilssNote { run_id: $runId, path: row.fromPath })
+  MATCH (target:AilssTarget { run_id: $runId, target: row.target })
   CREATE (from)-[:AILSS_TYPED_LINK {
+    run_id: $runId,
     edge_key: row.edgeKey,
     rel: row.rel,
     to_wikilink: row.toWikilink,
@@ -213,11 +306,28 @@ const INSERT_TYPED_LINKS_CYPHER = `
 
 const UPSERT_RESOLVED_LINKS_CYPHER = `
   UNWIND $rows AS row
-  MATCH (target:AilssTarget { target: row.target })
-  MATCH (to:AilssNote { path: row.toPath })
-  MERGE (target)-[r:AILSS_RESOLVES_TO { to_path: row.toPath }]->(to)
+  MATCH (target:AilssTarget { run_id: $runId, target: row.target })
+  MATCH (to:AilssNote { run_id: $runId, path: row.toPath })
+  MERGE (target)-[r:AILSS_RESOLVES_TO { run_id: $runId, to_path: row.toPath }]->(to)
   SET r.matched_by = row.matchedBy
 `;
+
+async function markMirrorError(session: Session, message: string): Promise<void> {
+  const now = new Date().toISOString();
+  await session.executeWrite((tx) =>
+    tx.run(
+      `
+        MERGE (s:AilssMirrorState { name: 'active' })
+        ON CREATE SET s.status = 'empty'
+        SET
+          s.status = 'error',
+          s.last_error = $message,
+          s.last_error_at = $at
+      `,
+      { message, at: now },
+    ),
+  );
+}
 
 export async function syncSqliteGraphToNeo4j(
   db: AilssDb,
@@ -230,6 +340,9 @@ export async function syncSqliteGraphToNeo4j(
 
   const batchSize = Math.min(Math.max(1, options.batchSize ?? 500), 2000);
   const maxResolutionsPerTarget = Math.min(Math.max(1, options.maxResolutionsPerTarget ?? 20), 200);
+
+  const runId = randomUUID();
+  const syncAt = new Date().toISOString();
 
   const targets = Array.from(new Set(typedLinks.map((link) => link.toTarget))).sort((a, b) =>
     a.localeCompare(b),
@@ -265,32 +378,67 @@ export async function syncSqliteGraphToNeo4j(
       defaultAccessMode: neo4j.session.WRITE,
     });
     try {
-      await session.executeWrite((tx) =>
-        tx.run(
-          "CREATE CONSTRAINT ailss_note_path_unique IF NOT EXISTS FOR (n:AilssNote) REQUIRE n.path IS UNIQUE",
-        ),
-      );
-      await session.executeWrite((tx) =>
-        tx.run(
-          "CREATE CONSTRAINT ailss_target_value_unique IF NOT EXISTS FOR (t:AilssTarget) REQUIRE t.target IS UNIQUE",
-        ),
-      );
+      await ensureMirrorSchema(session);
 
-      // Full mirror refresh
-      await session.executeWrite((tx) => tx.run("MATCH (n:AilssNote) DETACH DELETE n"));
-      await session.executeWrite((tx) => tx.run("MATCH (t:AilssTarget) DETACH DELETE t"));
+      await runBatchWrites(session, UPSERT_NOTES_CYPHER, notes, batchSize, { runId });
+      await runBatchWrites(session, UPSERT_TARGETS_CYPHER, targetRows, batchSize, { runId });
+      await runBatchWrites(session, INSERT_TYPED_LINKS_CYPHER, typedLinkRows, batchSize, { runId });
+      await runBatchWrites(session, UPSERT_RESOLVED_LINKS_CYPHER, resolvedRows, batchSize, {
+        runId,
+      });
 
-      await runBatchWrites(session, UPSERT_NOTES_CYPHER, notes, batchSize);
-      await runBatchWrites(session, UPSERT_TARGETS_CYPHER, targetRows, batchSize);
-      await runBatchWrites(session, INSERT_TYPED_LINKS_CYPHER, typedLinkRows, batchSize);
-      await runBatchWrites(session, UPSERT_RESOLVED_LINKS_CYPHER, resolvedRows, batchSize);
-
-      const neo4jCounts = await readNeo4jGraphCounts(session);
+      const neo4jCounts = await readNeo4jGraphCountsForRun(session, runId);
       const consistent =
         sqliteCounts.notes === neo4jCounts.notes &&
         sqliteCounts.typedLinks === neo4jCounts.typedLinks;
 
-      return { sqliteCounts, neo4jCounts, consistent };
+      if (!consistent) {
+        throw new Error(
+          [
+            "Neo4j mirror counts are inconsistent after staging sync.",
+            `sqlite.notes=${sqliteCounts.notes}`,
+            `sqlite.typed_links=${sqliteCounts.typedLinks}`,
+            `neo4j.notes=${neo4jCounts.notes}`,
+            `neo4j.typed_links=${neo4jCounts.typedLinks}`,
+          ].join(" "),
+        );
+      }
+
+      // Atomic active-run cutover
+      await session.executeWrite((tx) =>
+        tx.run(
+          `
+            MERGE (s:AilssMirrorState { name: 'active' })
+            ON CREATE SET s.status = 'empty'
+            SET
+              s.active_run_id = $runId,
+              s.status = 'ok',
+              s.last_success_at = $at,
+              s.last_error = NULL,
+              s.last_error_at = NULL
+          `,
+          { runId, at: syncAt },
+        ),
+      );
+
+      return {
+        sqliteCounts,
+        neo4jCounts,
+        consistent: true,
+        activeRunId: runId,
+        mirrorStatus: "ok",
+        lastSuccessAt: syncAt,
+        lastError: null,
+        lastErrorAt: null,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      try {
+        await markMirrorError(session, message);
+      } catch {
+        // Best-effort error metadata
+      }
+      throw error;
     } finally {
       await session.close();
     }
@@ -302,7 +450,7 @@ export async function syncSqliteGraphToNeo4j(
 export async function readNeo4jGraphStatus(
   db: AilssDb,
   config: Neo4jConnectionConfig,
-): Promise<Neo4jSyncSummary> {
+): Promise<Neo4jGraphStatus> {
   const sqliteCounts = getSqliteGraphCounts(db);
   const driver = createNeo4jDriver(config);
   try {
@@ -312,11 +460,25 @@ export async function readNeo4jGraphStatus(
       defaultAccessMode: neo4j.session.READ,
     });
     try {
-      const neo4jCounts = await readNeo4jGraphCounts(session);
+      const mirrorState = await readMirrorState(session);
+      const neo4jCounts = mirrorState.activeRunId
+        ? await readNeo4jGraphCountsForRun(session, mirrorState.activeRunId)
+        : { notes: 0, typedLinks: 0, targets: 0, resolvedLinks: 0 };
+
       const consistent =
         sqliteCounts.notes === neo4jCounts.notes &&
         sqliteCounts.typedLinks === neo4jCounts.typedLinks;
-      return { sqliteCounts, neo4jCounts, consistent };
+
+      return {
+        sqliteCounts,
+        neo4jCounts,
+        consistent,
+        activeRunId: mirrorState.activeRunId,
+        mirrorStatus: mirrorState.status,
+        lastSuccessAt: mirrorState.lastSuccessAt,
+        lastError: mirrorState.lastError,
+        lastErrorAt: mirrorState.lastErrorAt,
+      };
     } finally {
       await session.close();
     }
@@ -342,6 +504,7 @@ export type Neo4jTraversalEdge = {
 };
 
 export type Neo4jTraversalResult = {
+  activeRunId: string;
   nodes: Neo4jTraversalNode[];
   edges: Neo4jTraversalEdge[];
   truncated: boolean;
@@ -375,14 +538,17 @@ function toNullableString(value: unknown): string | null {
 
 async function queryOutgoingRows(
   session: Session,
+  runId: string,
   path: string,
   limit: number,
 ): Promise<RawTraversalRow[]> {
   const result = await session.executeRead((tx) =>
     tx.run(
       `
-        MATCH (from:AilssNote { path: $path })-[edge:AILSS_TYPED_LINK]->(target:AilssTarget)
-        OPTIONAL MATCH (target)-[:AILSS_RESOLVES_TO]->(to:AilssNote)
+        MATCH (from:AilssNote { run_id: $runId, path: $path })
+          -[edge:AILSS_TYPED_LINK { run_id: $runId }]->
+          (target:AilssTarget { run_id: $runId })
+        OPTIONAL MATCH (target)-[:AILSS_RESOLVES_TO { run_id: $runId }]->(to:AilssNote { run_id: $runId })
         RETURN
           from.path AS fromPath,
           to.path AS toPath,
@@ -393,7 +559,7 @@ async function queryOutgoingRows(
         ORDER BY position, rel, target, toPath
         LIMIT $limit
       `,
-      { path, limit: neo4j.int(limit) },
+      { runId, path, limit: neo4j.int(limit) },
     ),
   );
 
@@ -408,14 +574,15 @@ async function queryOutgoingRows(
 
 async function queryIncomingRows(
   session: Session,
+  runId: string,
   path: string,
   limit: number,
 ): Promise<RawTraversalRow[]> {
   const result = await session.executeRead((tx) =>
     tx.run(
       `
-        MATCH (target:AilssTarget)-[:AILSS_RESOLVES_TO]->(to:AilssNote { path: $path })
-        MATCH (from:AilssNote)-[edge:AILSS_TYPED_LINK]->(target)
+        MATCH (target:AilssTarget { run_id: $runId })-[:AILSS_RESOLVES_TO { run_id: $runId }]->(to:AilssNote { run_id: $runId, path: $path })
+        MATCH (from:AilssNote { run_id: $runId })-[edge:AILSS_TYPED_LINK { run_id: $runId }]->(target)
         RETURN
           from.path AS fromPath,
           to.path AS toPath,
@@ -426,7 +593,7 @@ async function queryIncomingRows(
         ORDER BY fromPath, position, rel, target
         LIMIT $limit
       `,
-      { path, limit: neo4j.int(limit) },
+      { runId, path, limit: neo4j.int(limit) },
     ),
   );
 
@@ -463,19 +630,25 @@ export async function traverseNeo4jGraph(
       defaultAccessMode: neo4j.session.READ,
     });
     try {
+      const mirrorState = await readMirrorState(session);
+      if (!mirrorState.activeRunId) {
+        throw new Error("Neo4j mirror is empty. Run the indexer with Neo4j sync enabled first.");
+      }
+      const activeRunId = mirrorState.activeRunId;
+
       const seedCheck = await session.executeRead((tx) =>
         tx.run(
           `
-            MATCH (n:AilssNote { path: $path })
+            MATCH (n:AilssNote { run_id: $runId, path: $path })
             RETURN n.path AS path
             LIMIT 1
           `,
-          { path: seedPath },
+          { runId: activeRunId, path: seedPath },
         ),
       );
       if (seedCheck.records.length === 0) {
         throw new Error(
-          `Neo4j seed note not found for path="${seedPath}". Re-run indexer sync to refresh the graph mirror.`,
+          `Neo4j seed note not found for path="${seedPath}" in active run ${activeRunId}. Re-run indexer sync to refresh the graph mirror.`,
         );
       }
 
@@ -495,7 +668,7 @@ export async function traverseNeo4jGraph(
         if (current.hop >= maxHops) continue;
 
         if (direction === "outgoing" || direction === "both") {
-          const rows = await queryOutgoingRows(session, current.path, maxLinksPerNote);
+          const rows = await queryOutgoingRows(session, activeRunId, current.path, maxLinksPerNote);
           for (const row of rows) {
             if (!row.fromPath || !row.rel || !row.target) continue;
             if (row.toPath === null && !includeUnresolvedTargets) continue;
@@ -538,7 +711,7 @@ export async function traverseNeo4jGraph(
         if (truncated) break;
 
         if (direction === "incoming" || direction === "both") {
-          const rows = await queryIncomingRows(session, current.path, maxLinksPerNote);
+          const rows = await queryIncomingRows(session, activeRunId, current.path, maxLinksPerNote);
           for (const row of rows) {
             if (!row.fromPath || !row.rel || !row.target) continue;
 
@@ -580,7 +753,7 @@ export async function traverseNeo4jGraph(
         if (truncated) break;
       }
 
-      return { nodes, edges, truncated };
+      return { activeRunId, nodes, edges, truncated };
     } finally {
       await session.close();
     }
