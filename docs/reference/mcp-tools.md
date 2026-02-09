@@ -122,6 +122,18 @@ Write tools are registered only when `AILSS_ENABLE_WRITE_TOOLS=1` and they only 
   - `apply` (boolean, default: `false`)
   - `reindex_after_apply` (boolean, default: `true`)
 
+### `canonicalize_typed_links`
+
+- Purpose: canonicalize frontmatter typed-link targets in a single note to deterministic vault-relative paths when resolution is unique (filesystem + DB; requires `AILSS_VAULT_PATH`).
+- Input:
+  - `path` (string, required)
+  - `apply` (boolean, default: `false`)
+  - `reindex_after_apply` (boolean, default: `true`)
+- Notes:
+  - Scope is frontmatter typed-link keys only (does not touch body wikilinks).
+  - If a target is unresolved or ambiguous, the tool keeps it unchanged and reports it.
+  - Targets containing `/` use strict vault-relative path resolution (no suffix matching).
+
 ### `edit_note`
 
 - Purpose: apply line-based patch ops to an existing note (filesystem; requires `AILSS_VAULT_PATH`).

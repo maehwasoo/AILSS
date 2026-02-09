@@ -16,6 +16,7 @@ mcp_tools:
   - list_keywords
   # Only when write tools are enabled (AILSS_ENABLE_WRITE_TOOLS=1)
   - capture_note
+  - canonicalize_typed_links
   - edit_note
   - improve_frontmatter
   - relocate_note
@@ -71,7 +72,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 - For new notes, prefer `capture_note` so required frontmatter keys exist and `id` matches `created`.
   - When capturing, set non-default frontmatter via `frontmatter` overrides (at least `entity`/`layer`/`status`/`summary` when known).
   - Prefer reusing existing `tags`/`keywords` by checking `list_tags` / `list_keywords` first (avoid near-duplicates).
-- Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
+- Default policy for `capture_note` / `canonicalize_typed_links` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
   - Only pause when the user explicitly requests “preview only” or the preview indicates a suspicious target.
 - Do not override identity fields (`id`, `created`) unless the user explicitly asks.
 - For line-based edits, fetch the note via `read_note`, then compute exact anchors + line numbers (do not guess).
@@ -122,7 +123,7 @@ cites: ["[[Some Note]]"]
 
 ## Safe writes (when enabled)
 
-- Default policy for `capture_note` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
+- Default policy for `capture_note` / `canonicalize_typed_links` / `edit_note` / `improve_frontmatter`: do `apply=false` preview, then proceed with `apply=true` automatically (auto-apply).
   - Only pause when the user explicitly requests “preview only” or the preview indicates a suspicious target.
 - For edits, use `expected_sha256` to avoid overwriting concurrent changes.
 - Keep identity fields safe: do not override `id`/`created` unless the user explicitly requests it.
