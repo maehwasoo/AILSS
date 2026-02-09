@@ -22,6 +22,11 @@ export function registerNeo4jGraphStatusTool(server: McpServer, deps: McpToolDep
         sync_on_index: z.boolean(),
         strict_mode: z.boolean(),
         reason: z.string().nullable(),
+        active_run_id: z.string().nullable(),
+        mirror_status: z.enum(["empty", "ok", "error"]),
+        last_success_at: z.string().nullable(),
+        last_error: z.string().nullable(),
+        last_error_at: z.string().nullable(),
         sqlite_counts: z.object({
           notes: z.number().int().nonnegative(),
           typed_links: z.number().int().nonnegative(),
@@ -54,6 +59,11 @@ export function registerNeo4jGraphStatusTool(server: McpServer, deps: McpToolDep
         sync_on_index: neo4j.syncOnIndex,
         strict_mode: neo4j.strictMode,
         reason: neo4j.unavailableReason,
+        active_run_id: null as string | null,
+        mirror_status: "empty" as "empty" | "ok" | "error",
+        last_success_at: null as string | null,
+        last_error: null as string | null,
+        last_error_at: null as string | null,
         sqlite_counts: {
           notes: sqliteCounts.notes,
           typed_links: sqliteCounts.typedLinks,
@@ -80,6 +90,11 @@ export function registerNeo4jGraphStatusTool(server: McpServer, deps: McpToolDep
           ...basePayload,
           available: true,
           reason: null,
+          active_run_id: status.activeRunId,
+          mirror_status: status.mirrorStatus,
+          last_success_at: status.lastSuccessAt,
+          last_error: status.lastError,
+          last_error_at: status.lastErrorAt,
           neo4j_counts: {
             notes: status.neo4jCounts.notes,
             typed_links: status.neo4jCounts.typedLinks,
@@ -97,6 +112,8 @@ export function registerNeo4jGraphStatusTool(server: McpServer, deps: McpToolDep
         const payload = {
           ...basePayload,
           reason: `Neo4j unavailable: ${message}`,
+          mirror_status: "error" as "empty" | "ok" | "error",
+          last_error: message,
         };
         return {
           structuredContent: payload,

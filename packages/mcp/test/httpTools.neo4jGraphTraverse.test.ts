@@ -77,6 +77,7 @@ describe("MCP HTTP server (neo4j_graph_traverse)", () => {
 
           expect(structured["backend"]).toBe("sqlite_fallback");
           expect(structured["seed_path"]).toBe("A.md");
+          expect(structured["active_run_id"]).toBeNull();
           expect(structured["truncated"]).toBe(false);
 
           const nodes = structured["nodes"];

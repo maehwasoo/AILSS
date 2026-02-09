@@ -3,6 +3,7 @@
 
 import {
   getNoteMeta,
+  readNeo4jGraphStatus,
   resolveNotePathsByWikilinkTarget,
   traverseNeo4jGraph,
   type Neo4jTraversalDirection,
@@ -209,6 +210,7 @@ export function registerNeo4jGraphTraverseTool(server: McpServer, deps: McpToolD
         backend: z.enum(["neo4j", "sqlite_fallback"]),
         reason: z.string().nullable(),
         seed_path: z.string(),
+        active_run_id: z.string().nullable(),
         params: z.object({
           direction: z.enum(["outgoing", "incoming", "both"]),
           max_hops: z.number().int(),
@@ -278,6 +280,7 @@ export function registerNeo4jGraphTraverseTool(server: McpServer, deps: McpToolD
               ? (neo4j.unavailableReason ?? "Neo4j unavailable.")
               : `Neo4j unavailable. Fallback only supports outgoing traversal. Requested direction=${direction}.`,
           seed_path: args.path,
+          active_run_id: null,
           params: baseParams,
           truncated: fallback.truncated,
           nodes: fallback.nodes,
@@ -290,6 +293,39 @@ export function registerNeo4jGraphTraverseTool(server: McpServer, deps: McpToolD
       }
 
       try {
+        const status = await readNeo4jGraphStatus(deps.db, neo4j.config);
+        if (!status.consistent) {
+          const fallback = runSqliteFallbackTraversal(deps, {
+            path: args.path,
+            max_hops: args.max_hops,
+            max_notes: args.max_notes,
+            max_edges: args.max_edges,
+            max_links_per_note: args.max_links_per_note,
+            include_unresolved_targets: args.include_unresolved_targets,
+          });
+          const payload = {
+            backend: "sqlite_fallback" as const,
+            reason: [
+              "Neo4j mirror is inconsistent with SQLite; fallback used.",
+              `active_run_id=${status.activeRunId ?? "null"}`,
+              `sqlite.notes=${status.sqliteCounts.notes}`,
+              `sqlite.typed_links=${status.sqliteCounts.typedLinks}`,
+              `neo4j.notes=${status.neo4jCounts.notes}`,
+              `neo4j.typed_links=${status.neo4jCounts.typedLinks}`,
+            ].join(" "),
+            seed_path: args.path,
+            active_run_id: status.activeRunId,
+            params: baseParams,
+            truncated: fallback.truncated,
+            nodes: fallback.nodes,
+            edges: fallback.edges,
+          };
+          return {
+            structuredContent: payload,
+            content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+          };
+        }
+
         const traversal = await traverseNeo4jGraph(neo4j.config, {
           path: args.path,
           direction,
@@ -314,6 +350,7 @@ export function registerNeo4jGraphTraverseTool(server: McpServer, deps: McpToolD
           backend: "neo4j" as const,
           reason: null,
           seed_path: args.path,
+          active_run_id: traversal.activeRunId,
           params: baseParams,
           truncated: traversal.truncated,
           nodes,
@@ -337,6 +374,7 @@ export function registerNeo4jGraphTraverseTool(server: McpServer, deps: McpToolD
           backend: "sqlite_fallback" as const,
           reason: `Neo4j traversal failed; fallback used: ${message}`,
           seed_path: args.path,
+          active_run_id: null,
           params: baseParams,
           truncated: fallback.truncated,
           nodes: fallback.nodes,

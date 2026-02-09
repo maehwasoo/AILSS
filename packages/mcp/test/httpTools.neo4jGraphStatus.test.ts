@@ -60,6 +60,9 @@ describe("MCP HTTP server (neo4j_graph_status)", () => {
           expect(structured["available"]).toBe(false);
           expect(structured["neo4j_counts"]).toBeNull();
           expect(structured["consistent"]).toBeNull();
+          expect(structured["active_run_id"]).toBeNull();
+          expect(structured["mirror_status"]).toBe("empty");
+          expect(structured["last_success_at"]).toBeNull();
 
           const sqliteCounts = structured["sqlite_counts"];
           assertRecord(sqliteCounts, "sqlite_counts");
