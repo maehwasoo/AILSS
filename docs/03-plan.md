@@ -24,7 +24,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read-first tools: `get_context`, `get_typed_links`, `find_typed_link_backrefs`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
+  - Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
   - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
@@ -49,7 +49,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
 ## 3) MCP server MVP
 
 - Provide `get_context` (semantic retrieval) + `read_note` (exact note text)
-- Provide `get_typed_links` for typed-link navigation from a note path (outgoing only; bounded graph)
+- Provide `expand_typed_links_outgoing` for typed-link navigation from a note path (outgoing only; bounded graph)
 - Include enough evidence in results (note path + snippet + optional preview)
 
 ## 4) Obsidian plugin MVP
@@ -120,8 +120,8 @@ MCP tools (read-only):
 Implemented:
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with snippets and optional previews
-- `get_typed_links`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
-- `find_typed_link_backrefs`: find notes that reference a target via typed links (incoming edges)
+- `expand_typed_links_outgoing`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
+- `find_typed_links_incoming`: find notes that reference a target via typed links (incoming edges)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
@@ -134,7 +134,7 @@ Implemented:
 Notes on queryability (current):
 
 - AILSS stores normalized frontmatter + typed links in SQLite (used for graph expansion and retrieval).
-- The MCP surface supports both semantic retrieval (`get_context`) and structured navigation/filtering (`get_typed_links`, `find_typed_link_backrefs`, `search_notes`).
+- The MCP surface supports both semantic retrieval (`get_context`) and structured navigation/filtering (`expand_typed_links_outgoing`, `find_typed_links_incoming`, `search_notes`).
 - Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:

@@ -23,6 +23,7 @@ Stores chunk-level text and metadata.
 
 - `chunk_id` (PK)
 - `path` (FK → `files.path`)
+- `chunk_index` (0-based order within the file)
 - `heading`, `heading_path_json`
 - `content`, `content_sha256`
 

@@ -73,7 +73,7 @@ Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be us
 
 Notes:
 
-- The inspector will launch the STDIO server command you provide and let you call tools like `get_context` and `get_typed_links`.
+- The inspector will launch the STDIO server command you provide and let you call tools like `get_context` and `expand_typed_links_outgoing`.
 - For write tools (e.g. `edit_note`), prefer `apply=false` first and only confirm/apply when you are sure the target path and patch ops are correct.
 
 Example:

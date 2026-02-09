@@ -1,4 +1,4 @@
-// get_typed_links tool
+// expand_typed_links_outgoing tool
 // - DB-backed typed-link expansion (outgoing only; depth-unbounded, bounded by max_notes/max_edges)
 
 import { getNoteMeta, resolveNotePathsByWikilinkTarget } from "@ailss/core";
@@ -7,11 +7,11 @@ import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
 
-export function registerGetTypedLinksTool(server: McpServer, deps: McpToolDeps): void {
+export function registerExpandTypedLinksOutgoingTool(server: McpServer, deps: McpToolDeps): void {
   server.registerTool(
-    "get_typed_links",
+    "expand_typed_links_outgoing",
     {
-      title: "Get typed links",
+      title: "Expand typed links outgoing",
       description:
         "Expands outgoing typed links from a specified note path into a bounded graph of note metadata (DB-only; no note body reads). Traversal continues until no more nodes are found or safety bounds are hit.",
       inputSchema: {

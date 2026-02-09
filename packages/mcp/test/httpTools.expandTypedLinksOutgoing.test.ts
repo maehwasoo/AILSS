@@ -12,8 +12,8 @@ import {
   withTempDir,
 } from "./httpTestUtils.js";
 
-describe("MCP HTTP server (find_typed_link_backrefs)", () => {
-  it("returns typed link backrefs via find_typed_link_backrefs", async () => {
+describe("MCP HTTP server (expand_typed_links_outgoing)", () => {
+  it("returns typed links via expand_typed_links_outgoing", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
@@ -33,7 +33,7 @@ describe("MCP HTTP server (find_typed_link_backrefs)", () => {
           );
 
           fileStmt.run("A.md", 0, 0, "0", now);
-          fileStmt.run("SRETeam.md", 0, 0, "0", now);
+          fileStmt.run("B.md", 0, 0, "0", now);
 
           noteStmt.run(
             "A.md",
@@ -49,36 +49,46 @@ describe("MCP HTTP server (find_typed_link_backrefs)", () => {
             now,
           );
           noteStmt.run(
-            "SRETeam.md",
-            "SRETeam",
+            "B.md",
+            "B",
             now,
-            "SRE Team",
+            "B",
             null,
             null,
             "conceptual",
             "draft",
             now,
-            JSON.stringify({ id: "SRETeam", title: "SRE Team", tags: [] }),
+            JSON.stringify({ id: "B", title: "B", tags: [] }),
             now,
           );
 
-          linkStmt.run("A.md", "owned_by", "SRE Team", "[[SRE Team]]", 0, now);
+          linkStmt.run("A.md", "produces", "B", "[[B]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
-          const res = await mcpToolsCall(url, token, sessionId, "find_typed_link_backrefs", {
-            rel: "owned_by",
-            to_target: "SRE Team",
-            limit: 10,
+          const res = await mcpToolsCall(url, token, sessionId, "expand_typed_links_outgoing", {
+            path: "A.md",
+            max_notes: 10,
+            max_edges: 10,
+            max_resolutions_per_target: 5,
           });
 
           const structured = getStructuredContent(res);
-          const backrefs = structured["backrefs"];
-          assertArray(backrefs, "backrefs");
-          expect(backrefs).toHaveLength(1);
-          assertRecord(backrefs[0], "backrefs[0]");
-          expect(backrefs[0]["from_path"]).toBe("A.md");
-          expect(backrefs[0]["rel"]).toBe("owned_by");
-          expect(backrefs[0]["to_target"]).toBe("SRE Team");
+
+          const nodes = structured["nodes"];
+          assertArray(nodes, "nodes");
+          expect(nodes.map((n) => (n as Record<string, unknown>)["path"]).sort()).toEqual([
+            "A.md",
+            "B.md",
+          ]);
+
+          const edges = structured["edges"];
+          assertArray(edges, "edges");
+          expect(edges.length).toBe(1);
+          assertRecord(edges[0], "edges[0]");
+          expect(edges[0]["direction"]).toBe("outgoing");
+          expect(edges[0]["rel"]).toBe("produces");
+          expect(edges[0]["from_path"]).toBe("A.md");
+          expect(edges[0]["to_path"]).toBe("B.md");
         },
       );
     });

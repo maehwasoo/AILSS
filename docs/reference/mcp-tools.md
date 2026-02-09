@@ -8,13 +8,18 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 
 ### `get_context`
 
-- Purpose: semantic retrieval over the index DB (note previews when `AILSS_VAULT_PATH` is set).
+- Purpose: semantic retrieval over the index DB (returns note metadata + stitched evidence chunks; optional file-start previews).
 - Input:
   - `query` (string, required)
   - `top_k` (int, default: `10`, range: `1–50`)
-  - `max_chars_per_note` (int, default: `2000`, range: `200–50,000`)
+  - `expand_top_k` (int, default: `5`, range: `0–50`) — how many of the top_k notes include stitched evidence text
+  - `hit_chunks_per_note` (int, default: `2`, range: `1–5`)
+  - `neighbor_window` (int, default: `1`, range: `0–3`) — stitches ±window around the best hit
+  - `max_evidence_chars_per_note` (int, default: `1500`, range: `200–20,000`)
+  - `include_file_preview` (boolean, default: `false`) — when true, includes file-start preview (requires `AILSS_VAULT_PATH`)
+  - `max_chars_per_note` (int, default: `800`, range: `200–50,000`) — file-start preview size when `include_file_preview=true`
 
-### `get_typed_links`
+### `expand_typed_links_outgoing`
 
 - Purpose: expand outgoing typed links into a bounded metadata graph (DB-only).
 - Input:
@@ -31,7 +36,7 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `query` (string, required)
   - `limit` (int, default: `20`, range: `1–200`)
 
-### `find_typed_link_backrefs`
+### `find_typed_links_incoming`
 
 - Purpose: find incoming typed links pointing to a target (DB-only).
 - Input:
@@ -68,8 +73,9 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 
 ### `find_broken_links`
 
-- Purpose: detect unresolved typed links / wikilinks via the `typed_links` table (DB-only).
+- Purpose: detect unresolved (and optionally ambiguous) typed links / wikilinks via the `typed_links` table (DB-only).
 - Input:
+  - `treat_ambiguous_as_broken` (boolean, default: `true`)
   - `path_prefix` (string, optional)
   - `rels` (string[], optional; default: typed-link keys)
   - `max_links` (int, default: `20000`, range: `1–100,000`)

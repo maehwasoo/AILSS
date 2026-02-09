@@ -49,6 +49,7 @@ describe("openAilssDb() + semanticSearch()", () => {
       insertChunkWithEmbedding(db, {
         chunkId: "chunk-1",
         path: "notes/a.md",
+        chunkIndex: 0,
         heading: "A",
         headingPathJson: JSON.stringify(["A"]),
         content: "hello world",
@@ -82,6 +83,7 @@ describe("openAilssDb() + semanticSearch()", () => {
       insertChunkWithEmbedding(db, {
         chunkId: "chunk-1",
         path: "notes/a.md",
+        chunkIndex: 0,
         heading: "A",
         headingPathJson: JSON.stringify(["A"]),
         content: "hello world",
@@ -114,6 +116,7 @@ describe("openAilssDb() + semanticSearch()", () => {
       insertChunkWithEmbedding(db, {
         chunkId: "chunk-1",
         path: "notes/a.md",
+        chunkIndex: 0,
         heading: "A",
         headingPathJson: JSON.stringify(["A"]),
         content: "hello world",
@@ -265,6 +268,7 @@ describe("openAilssDb() embedding config validation", () => {
       insertChunkWithEmbedding(db, {
         chunkId: "chunk-1",
         path: "notes/a.md",
+        chunkIndex: 0,
         heading: "A",
         headingPathJson: JSON.stringify(["A"]),
         content: "hello world",

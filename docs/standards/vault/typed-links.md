@@ -50,7 +50,7 @@ Notes:
 ### How AILSS uses typed links (implementation notes)
 
 - Typed links are extracted from frontmatter into a structured edge list (stored as `typed_links` in the index DB).
-- The `get_typed_links` tool reads those edges and expands outgoing links into a bounded graph (metadata only).
+- The `expand_typed_links_outgoing` tool reads those edges and expands outgoing links into a bounded graph (metadata only).
 
 ### Workflow: derive relationships from semantic analysis
 
