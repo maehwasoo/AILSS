@@ -24,9 +24,13 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
+  - Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `neo4j_graph_status`, `neo4j_graph_traverse`
   - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
+- Optional Neo4j hybrid graph mirror (phase 1):
+  - SQLite remains source of truth
+  - Indexer can sync `notes`/`typed_links` into Neo4j
+  - MCP provides read-only Neo4j status/traversal with SQLite fallback when unavailable
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: status modals for indexing and the localhost MCP service
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
@@ -130,6 +134,8 @@ Implemented:
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
+- `neo4j_graph_status`: report optional Neo4j mirror availability and SQLite↔Neo4j consistency
+- `neo4j_graph_traverse`: multi-hop traversal over optional Neo4j mirror (with SQLite fallback)
 
 Notes on queryability (current):
 

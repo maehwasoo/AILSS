@@ -107,6 +107,29 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Input:
   - `limit` (int, default: `200`, range: `1–5000`)
 
+### `neo4j_graph_status`
+
+- Purpose: report optional Neo4j graph mirror availability and SQLite↔Neo4j consistency status.
+- Input: none
+- Notes:
+  - Always available as a read tool.
+  - When Neo4j is disabled/unavailable, returns non-fatal fallback status (`available=false`) with SQLite counts.
+
+### `neo4j_graph_traverse`
+
+- Purpose: multi-hop traversal over the optional Neo4j graph mirror.
+- Input:
+  - `path` (string, required; vault-relative seed note path)
+  - `direction` (`"outgoing" | "incoming" | "both"`, default: `"both"`)
+  - `max_hops` (int, default: `2`, range: `1–6`)
+  - `max_notes` (int, default: `80`, range: `1–400`)
+  - `max_edges` (int, default: `1500`, range: `1–10,000`)
+  - `max_links_per_note` (int, default: `80`, range: `1–500`)
+  - `include_unresolved_targets` (boolean, default: `false`)
+- Notes:
+  - When Neo4j is unavailable, tool falls back to SQLite-based outgoing traversal and reports `backend="sqlite_fallback"`.
+  - Fallback mode supports outgoing traversal semantics only.
+
 ## Write tools (gated)
 
 Write tools are registered only when `AILSS_ENABLE_WRITE_TOOLS=1` and they only write when `apply=true`.

@@ -43,6 +43,8 @@ Read-first tools (implemented in this repo):
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
+- `neo4j_graph_status`: report optional Neo4j mirror availability and SQLite↔Neo4j consistency
+- `neo4j_graph_traverse`: multi-hop traversal over the optional Neo4j graph mirror (falls back to SQLite outgoing traversal if unavailable)
 
 Client guidance (Codex):
 
@@ -62,9 +64,11 @@ Transport / client integration:
 Frontmatter query support (current):
 
 - AILSS stores normalized frontmatter in SQLite for retrieval and graph building.
+- Optional Neo4j hybrid mode mirrors `notes` + `typed_links` into Neo4j without replacing SQLite as source of truth.
 - The MCP surface supports both:
   - semantic retrieval via `get_context`
   - metadata filtering via `search_notes` + typed-link navigation/backrefs via `expand_typed_links_outgoing` / `find_typed_links_incoming`
+  - graph-native checks/traversal via `neo4j_graph_status` / `neo4j_graph_traverse`
 
 Read-first tools (planned):
 
@@ -85,6 +89,13 @@ TBD
 Write tools are gated and not exposed by default:
 
 - Set `AILSS_ENABLE_WRITE_TOOLS=1` to register write tools like `edit_note` in the MCP server
+
+Optional Neo4j hybrid config:
+
+- `AILSS_NEO4J_ENABLED=1`: enable Neo4j integration
+- `AILSS_NEO4J_URI`, `AILSS_NEO4J_USERNAME`, `AILSS_NEO4J_PASSWORD`, `AILSS_NEO4J_DATABASE`: Neo4j connection settings
+- `AILSS_NEO4J_SYNC_ON_INDEX=1` (default): sync SQLite graph to Neo4j after indexer runs
+- `AILSS_NEO4J_STRICT_MODE=1`: fail hard if Neo4j sync/connectivity fails (default is best-effort fallback)
 
 ## 3) Obsidian plugin
 

@@ -77,6 +77,16 @@ Example `to_wikilink` value:
 [[WorldAce]]
 ```
 
+## Optional Neo4j hybrid mirror (phase 1)
+
+- SQLite remains the source of truth for indexing/retrieval.
+- When enabled, the indexer mirrors graph structures into Neo4j after indexing:
+  - `(:AilssNote {path})` from SQLite `notes`
+  - `(:AilssTarget {target})` from SQLite `typed_links.to_target`
+  - `(:AilssNote)-[:AILSS_TYPED_LINK]->(:AilssTarget)` (one edge per SQLite `typed_links` row)
+  - `(:AilssTarget)-[:AILSS_RESOLVES_TO]->(:AilssNote)` (derived target resolution links)
+- MCP read tools can query Neo4j (`neo4j_graph_status`, `neo4j_graph_traverse`) and fall back safely when Neo4j is disabled/unavailable.
+
 ## Query support (current)
 
 - Metadata filtering supports only a fixed set of filters backed by indexed columns/tables:

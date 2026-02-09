@@ -10,6 +10,12 @@ Create a `.env` at the repo root based on `.env.example`, and set:
 - `AILSS_VAULT_PATH` (absolute path)
 - `OPENAI_EMBEDDING_MODEL` (optional; default: `text-embedding-3-large`)
 - `AILSS_DB_PATH` (optional; MCP only): absolute path to an existing DB file when `AILSS_VAULT_PATH` is not set
+- Optional Neo4j hybrid mode:
+  - `AILSS_NEO4J_ENABLED=1`
+  - `AILSS_NEO4J_URI`, `AILSS_NEO4J_USERNAME`, `AILSS_NEO4J_PASSWORD`
+  - `AILSS_NEO4J_DATABASE` (optional; default: `neo4j`)
+  - `AILSS_NEO4J_SYNC_ON_INDEX` (optional; default: `1`)
+  - `AILSS_NEO4J_STRICT_MODE` (optional; default: `0`)
 
 Notes:
 
@@ -43,6 +49,7 @@ Options:
 Note:
 
 - The index DB records the embedding model/dimension and refuses to start on mismatch. Use `--reset-db` (or a different `--db` path) when switching models.
+- If Neo4j hybrid mode is enabled, indexer also syncs SQLite `notes`/`typed_links` into Neo4j after each run.
 
 ## 4) Run MCP server (STDIO)
 
