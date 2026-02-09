@@ -27,13 +27,13 @@ Global working rules for the AILSS Obsidian vault.
   - Use read-first by default. Writes require explicit `apply=true`.
     - Default policy: do `apply=false` preview first, then proceed with `apply=true` automatically for `capture_note` / `edit_note` / `improve_frontmatter` (auto-apply).
   - Leading queries: `get_context` (semantic retrieval), `get_vault_tree` (folder/file structure)
-  - Follow-up queries: `read_note` (exact text + frontmatter), `get_typed_links` (typed-link graph)
+  - Follow-up queries: `read_note` (exact text + frontmatter), `expand_typed_links_outgoing` (typed-link graph)
 - Recommended flow:
   1. Use `get_context` to collect candidate notes (write your query as a full sentence for reproducibility).
   2. Use `read_note` to confirm exact wording and frontmatter.
      - Note: `read_note` does **not** search by title/id; it reads by vault-relative `path`.
      - If you only know `id`/`title`, use `resolve_note` (preferred) or `search_notes` to find candidate paths first, then `read_note`.
-  3. Use `get_typed_links` (outgoing only) to check for missing relationships and navigation gaps.
+  3. Use `expand_typed_links_outgoing` (outgoing only) to check for missing relationships and navigation gaps.
   4. Use the typed-links coverage checklist (see `./typed-links.md`) to fill obvious omissions.
   5. Use `edit_note` for edits and `relocate_note` for moves/renames (`relocate_note` is still manual confirm; `edit_note` is auto-apply).
 - Failure handling: record the error and cause; temporarily fall back to `rg`/`find` only if MCP calls fail.
@@ -46,8 +46,8 @@ Global working rules for the AILSS Obsidian vault.
 - `search_notes`: DB-backed metadata filtering (frontmatter-derived fields, tags/keywords/sources); no embeddings calls.
 - `list_tags`: list indexed tags and counts (use to reuse existing vocabulary).
 - `list_keywords`: list indexed keywords and counts (use to reuse existing vocabulary).
-- `get_typed_links`: expands outgoing typed links into a bounded graph (metadata only).
-- `find_typed_link_backrefs`: find notes that link _to_ a target via typed links (incoming edges).
+- `expand_typed_links_outgoing`: expands outgoing typed links into a bounded graph (metadata only).
+- `find_typed_links_incoming`: find notes that link _to_ a target via typed links (incoming edges).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
 - `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
