@@ -10,4 +10,8 @@ Notes:
 
 ## Available snapshots
 
-- `prometheus-agent`: `docs/ops/codex-skills/prometheus-agent/SKILL.md`
+- `ailss-agent` (core): `docs/ops/codex-skills/ailss-agent/SKILL.md`
+- `ailss-agent-ontology`: `docs/ops/codex-skills/ailss-agent-ontology/SKILL.md`
+- `ailss-agent-curator`: `docs/ops/codex-skills/ailss-agent-curator/SKILL.md`
+- `ailss-agent-maintenance`: `docs/ops/codex-skills/ailss-agent-maintenance/SKILL.md`
+- `prometheus-agent` (legacy shim): `docs/ops/codex-skills/prometheus-agent/SKILL.md`

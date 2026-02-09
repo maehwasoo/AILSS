@@ -76,7 +76,7 @@ Supported keys:
 - `supersedes` (replacement/versioning)
 - `same_as` (equivalence/duplicates)
 
-The supported key list is also encoded in the implementation (see `./typed-links.md` for the “sources of truth” that must be updated together when adding new keys).
+The supported key list is also encoded in the implementation (see `./typed-links-relation-catalog.md` and `./typed-links-governance.md` for the SoT artifacts that must be updated together when adding new keys).
 
 ## Layers: definition and classification
 
