@@ -96,4 +96,112 @@ Body
 
     expect(meta.frontmatter.source).toEqual(["https://example.com/a", "doi:10.1234/xyz"]);
   });
+
+  it("normalizes extended typed-link relations and keeps cites as strict citation", () => {
+    const input = `---
+title: Derived Note
+cites:
+  - "[[Canonical Source]]"
+summarizes: Summary Source
+derived_from:
+  - "[[Original Source]]"
+explains:
+  - "[[Topic A]]"
+supports:
+  - "[[Claim Note]]"
+contradicts:
+  - "[[Old Claim]]"
+verifies:
+  - Experiment Result
+blocks:
+  - Pending Migration
+mitigates:
+  - Runtime Risk
+measures:
+  - API Latency
+produces:
+  - Daily Report
+owned_by:
+  - SRE Team
+---
+
+Body
+`;
+
+    const parsed = parseMarkdownNote(input);
+    const meta = normalizeAilssNoteMeta(parsed.frontmatter);
+
+    expect(meta.frontmatter.cites).toEqual(["[[Canonical Source]]"]);
+    expect(meta.frontmatter.summarizes).toEqual(["[[Summary Source]]"]);
+    expect(meta.frontmatter.derived_from).toEqual(["[[Original Source]]"]);
+    expect(meta.frontmatter.explains).toEqual(["[[Topic A]]"]);
+    expect(meta.frontmatter.supports).toEqual(["[[Claim Note]]"]);
+    expect(meta.frontmatter.contradicts).toEqual(["[[Old Claim]]"]);
+    expect(meta.frontmatter.verifies).toEqual(["[[Experiment Result]]"]);
+    expect(meta.frontmatter.blocks).toEqual(["[[Pending Migration]]"]);
+    expect(meta.frontmatter.mitigates).toEqual(["[[Runtime Risk]]"]);
+    expect(meta.frontmatter.measures).toEqual(["[[API Latency]]"]);
+    expect(meta.frontmatter.produces).toEqual(["[[Daily Report]]"]);
+    expect(meta.frontmatter.owned_by).toEqual(["[[SRE Team]]"]);
+
+    expect(meta.typedLinks).toEqual([
+      {
+        rel: "cites",
+        toTarget: "Canonical Source",
+        toWikilink: "[[Canonical Source]]",
+        position: 0,
+      },
+      {
+        rel: "summarizes",
+        toTarget: "Summary Source",
+        toWikilink: "[[Summary Source]]",
+        position: 0,
+      },
+      {
+        rel: "derived_from",
+        toTarget: "Original Source",
+        toWikilink: "[[Original Source]]",
+        position: 0,
+      },
+      { rel: "explains", toTarget: "Topic A", toWikilink: "[[Topic A]]", position: 0 },
+      { rel: "supports", toTarget: "Claim Note", toWikilink: "[[Claim Note]]", position: 0 },
+      { rel: "contradicts", toTarget: "Old Claim", toWikilink: "[[Old Claim]]", position: 0 },
+      {
+        rel: "verifies",
+        toTarget: "Experiment Result",
+        toWikilink: "[[Experiment Result]]",
+        position: 0,
+      },
+      {
+        rel: "blocks",
+        toTarget: "Pending Migration",
+        toWikilink: "[[Pending Migration]]",
+        position: 0,
+      },
+      {
+        rel: "mitigates",
+        toTarget: "Runtime Risk",
+        toWikilink: "[[Runtime Risk]]",
+        position: 0,
+      },
+      {
+        rel: "measures",
+        toTarget: "API Latency",
+        toWikilink: "[[API Latency]]",
+        position: 0,
+      },
+      {
+        rel: "produces",
+        toTarget: "Daily Report",
+        toWikilink: "[[Daily Report]]",
+        position: 0,
+      },
+      {
+        rel: "owned_by",
+        toTarget: "SRE Team",
+        toWikilink: "[[SRE Team]]",
+        position: 0,
+      },
+    ]);
+  });
 });

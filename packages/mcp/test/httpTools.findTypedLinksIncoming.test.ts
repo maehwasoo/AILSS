@@ -33,7 +33,7 @@ describe("MCP HTTP server (find_typed_links_incoming)", () => {
           );
 
           fileStmt.run("A.md", 0, 0, "0", now);
-          fileStmt.run("WorldAce.md", 0, 0, "0", now);
+          fileStmt.run("SRETeam.md", 0, 0, "0", now);
 
           noteStmt.run(
             "A.md",
@@ -49,25 +49,25 @@ describe("MCP HTTP server (find_typed_links_incoming)", () => {
             now,
           );
           noteStmt.run(
-            "WorldAce.md",
-            "WorldAce",
+            "SRETeam.md",
+            "SRETeam",
             now,
-            "WorldAce",
+            "SRE Team",
             null,
             null,
             "conceptual",
             "draft",
             now,
-            JSON.stringify({ id: "WorldAce", title: "WorldAce", tags: [] }),
+            JSON.stringify({ id: "SRETeam", title: "SRE Team", tags: [] }),
             now,
           );
 
-          linkStmt.run("A.md", "part_of", "WorldAce", "[[WorldAce]]", 0, now);
+          linkStmt.run("A.md", "owned_by", "SRE Team", "[[SRE Team]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "find_typed_links_incoming", {
-            rel: "part_of",
-            to_target: "WorldAce",
+            rel: "owned_by",
+            to_target: "SRE Team",
             limit: 10,
           });
 
@@ -77,7 +77,8 @@ describe("MCP HTTP server (find_typed_links_incoming)", () => {
           expect(backrefs).toHaveLength(1);
           assertRecord(backrefs[0], "backrefs[0]");
           expect(backrefs[0]["from_path"]).toBe("A.md");
-          expect(backrefs[0]["to_target"]).toBe("WorldAce");
+          expect(backrefs[0]["rel"]).toBe("owned_by");
+          expect(backrefs[0]["to_target"]).toBe("SRE Team");
         },
       );
     });

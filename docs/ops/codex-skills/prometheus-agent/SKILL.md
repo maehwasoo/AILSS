@@ -88,12 +88,14 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
   - `source` is always an array (example: `source: []`)
 - `layer`: `strategic` | `conceptual` | `logical` | `physical` | `operational`
 - `status`: `draft` | `in-review` | `active` | `archived`
-- Typed-link keys (only include when non-empty; omit key when you have no values): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `authored_by`, `supersedes`, `same_as`
+- Typed-link keys (only include when non-empty; omit key when you have no values): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
 - `entity` candidates (use one of these; do not invent new values):
   - `concept` | `document` | `project` | `artifact` | `person` | `organization` | `place` | `event` | `task` | `method` | `tool` | `idea` | `principle` | `heuristic` | `pattern` | `definition` | `question` | `software` | `dataset` | `pipeline` | `procedure` | `dashboard` | `checklist` | `workflow` | `decide` | `review` | `plan` | `implement` | `approve` | `reject` | `observe` | `measure` | `test` | `verify` | `learn` | `research` | `summarize` | `publish` | `meet` | `audit` | `deploy` | `rollback` | `refactor` | `design` | `delete` | `update` | `create` | `schedule` | `migrate` | `reference` | `hub` | `interface` | `guide` | `log` | `structure` | `architecture` | `analyze`
 - External vs internal sources:
   - Use `source: ['https://…']` for external URLs/docs/tickets
-  - Use `cites` for citations to other vault notes (example below)
+  - Use `cites` only for strict citations to other vault notes (example below)
+  - Use `summarizes` / `derived_from` / `explains` / `supports` / `contradicts` / `verifies` / `blocks` / `mitigates` / `measures` / `produces` / `owned_by` for non-citation note-to-note relations
+  - Use `authored_by` for content authorship and `owned_by` for operational ownership
 
 ```yaml
 cites: ["[[Some Note]]"]

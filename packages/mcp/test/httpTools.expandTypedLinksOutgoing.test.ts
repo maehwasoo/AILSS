@@ -62,7 +62,7 @@ describe("MCP HTTP server (expand_typed_links_outgoing)", () => {
             now,
           );
 
-          linkStmt.run("A.md", "cites", "B", "[[B]]", 0, now);
+          linkStmt.run("A.md", "produces", "B", "[[B]]", 0, now);
 
           const sessionId = await mcpInitialize(url, token, "client-a");
           const res = await mcpToolsCall(url, token, sessionId, "expand_typed_links_outgoing", {
@@ -86,6 +86,7 @@ describe("MCP HTTP server (expand_typed_links_outgoing)", () => {
           expect(edges.length).toBe(1);
           assertRecord(edges[0], "edges[0]");
           expect(edges[0]["direction"]).toBe("outgoing");
+          expect(edges[0]["rel"]).toBe("produces");
           expect(edges[0]["from_path"]).toBe("A.md");
           expect(edges[0]["to_path"]).toBe("B.md");
         },

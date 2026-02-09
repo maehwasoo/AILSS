@@ -43,7 +43,7 @@ source: []
 Use `source` to record **non-vault** sources that support the note (URLs, papers, tickets, specs, etc.).
 
 - Type: **string array** (keep it present even when empty: `source: []`).
-- Use when the “source” is not another vault note (for vault notes, prefer `cites` typed links instead).
+- Use when the “source” is not another vault note (for vault notes, prefer strict `cites` typed links instead).
 - Prefer stable identifiers (URLs/DOIs) over long quotes; put quotes in the body and keep references in `source`.
 
 ### Typed links (relationships)
@@ -52,6 +52,7 @@ Typed links are optional frontmatter keys used to record semantic relations as w
 
 - Keep typed-link keys **below `source`** when present.
 - Only include a key when you have at least one value; do not keep empty arrays.
+- Keep `cites` strict for note-to-note citations. For non-citation relationships, use the other relation keys below.
 
 Supported keys:
 
@@ -59,8 +60,19 @@ Supported keys:
 - `part_of` (composition)
 - `depends_on`, `uses` (dependencies)
 - `implements` (implementation)
-- `cites` (citation to other vault notes)
+- `cites` (strict citation to other vault notes)
+- `summarizes` (summary of another note)
+- `derived_from` (derived/transformed from another note, including translation/paraphrase)
+- `explains` (explains another note)
+- `supports` (evidence/argument supporting another note)
+- `contradicts` (conflicts with/refutes another note)
+- `verifies` (verifies another note via test/measurement/reproduction)
+- `blocks` (direct blocker preventing progress of another note)
+- `mitigates` (risk/issue mitigation relation to another note)
+- `measures` (metric/observation relation targeting another note)
+- `produces` (process/pipeline output relation to artifact/dataset/release notes)
 - `authored_by` (authorship/attribution)
+- `owned_by` (current operational ownership; team/person responsible for upkeep)
 - `supersedes` (replacement/versioning)
 - `same_as` (equivalence/duplicates)
 

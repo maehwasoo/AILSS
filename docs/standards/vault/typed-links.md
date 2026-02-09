@@ -7,6 +7,7 @@
 - Avoid adding new body wikilinks as part of the standard workflow; record semantic relations as typed links in YAML frontmatter.
 - Don’t stop at “what already exists”. After semantic analysis, consider which links _should_ exist and add the missing ones.
 - The relationship fields are optional to _fill_, but omit the key when you have no values (do not keep empty arrays). If the note implies a relationship, use typed links so the graph is queryable.
+- Keep `cites` strict: use it only when this note cites another note as a source. Do not use `cites` as a generic “related” edge.
 
 ### Relation keys (supported)
 
@@ -16,9 +17,20 @@ AILSS indexes and queries typed links by these frontmatter keys:
 - Composition (part/whole): `part_of`
 - Dependency: `depends_on`, `uses`
 - Implementation: `implements`
-- Citation: `cites`
-- Authorship / attribution: `authored_by`
+- Citation (strict): `cites`
+- Content transformation: `summarizes`, `derived_from`
+- Explanation/evidence: `explains`, `supports`, `contradicts`, `verifies`
+- Risk/control/measurement: `blocks`, `mitigates`, `measures`
+- Process output: `produces`
+- Responsibility: `authored_by`, `owned_by`
 - Equivalence / versioning: `same_as`, `supersedes`
+
+Semantics notes:
+
+- `derived_from` includes extraction/refactoring and translation/paraphrase. Do not add a separate `translates` key.
+- `measures` links to the observed target note (what is measured), not to a numeric value itself.
+- `produces` links a process/procedure/pipeline note to output artifact/data/release notes.
+- `owned_by` is current operational ownership and is distinct from `authored_by` (content author/attribution).
 
 If you need a new key, update the rules/ontology first and then use it consistently.
 
@@ -51,6 +63,17 @@ Notes:
    - “S uses ?” → `uses` candidates
    - “S implements ?” → `implements` candidates
    - “S cites ?” → `cites` candidates
+   - “S summarizes ?” → `summarizes` candidates
+   - “S is derived from ?” → `derived_from` candidates
+   - “S explains ?” → `explains` candidates
+   - “S supports ?” → `supports` candidates
+   - “S contradicts ?” → `contradicts` candidates
+   - “S verifies ?” → `verifies` candidates
+   - “S blocks ?” → `blocks` candidates
+   - “S mitigates ?” → `mitigates` candidates
+   - “S measures ?” → `measures` candidates
+   - “S produces ?” → `produces` candidates
+   - “S is owned by ?” → `owned_by` candidates
    - “S is same as ?” (synonyms/duplicates) → `same_as` candidates
    - “S supersedes ?” → `supersedes` candidates
 4. Literal verification: use `read_note` to read the actual note text (and confirm you are linking the right target).
@@ -58,6 +81,20 @@ Notes:
 6. Select and limit: for each category, record only the highest-confidence 1–5 items (avoid over-linking).
 7. Order and deduplicate: keep a stable ordering; resolve duplicates via `same_as`.
 8. Validate: check for obvious omissions via the coverage checklist below.
+
+### One-line decision tests
+
+- “This note is a summary of X” → `summarizes: [[X]]`
+- “This note was produced by transforming X (including translation/paraphrase)” → `derived_from: [[X]]`
+- “This note helps you understand X” → `explains: [[X]]`
+- “This note is evidence for X” → `supports: [[X]]`
+- “This note disagrees with X” → `contradicts: [[X]]`
+- “This note tested or validated X” → `verifies: [[X]]`
+- “This note cannot proceed until X is resolved” → `blocks: [[X]]`
+- “This note reduces risk/impact for X” → `mitigates: [[X]]`
+- “This note records metrics/observations for X” → `measures: [[X]]`
+- “This process/procedure note outputs X” → `produces: [[X]]`
+- “This note’s operational owner is X (team/person)” → `owned_by: [[X]]`
 
 ### Recommended coverage matrix (by entity)
 
@@ -69,10 +106,10 @@ Notes:
   - Recommended: `cites`, and optionally `same_as` (duplicates), `supersedes` (newer replacement)
 - Project (`entity: project`, strategic)
   - Required: `part_of` (program/area), `depends_on` (core platform/tools)
-  - Recommended: `implements` (standards/architectures), `uses`
+  - Recommended: `implements` (standards/architectures), `uses`, `owned_by`
 - Procedure (`entity: procedure`, operational)
   - Required: `implements` (pipeline/policy), `uses` (tools)
-  - Recommended: `cites` (reference docs)
+  - Recommended: `cites` (reference docs), `produces`
 - Software / tool (`entity: software` or `entity: tool`)
   - Recommended: `part_of` (ecosystem/hub), `depends_on` (runtime/framework)
 - Dataset (`entity: dataset`)
@@ -87,9 +124,20 @@ The matrix is a baseline. If more links are justified, add them, but stay within
 - External dependencies recorded? → `depends_on`
 - Directly used tools/services recorded? → `uses`
 - Specs/standards implemented recorded? → `implements`
-- Sources recorded? → `cites` (and/or `source` in frontmatter schema for non-note sources)
+- Sources recorded? → `cites` (strict citation, and/or `source` in frontmatter schema for non-note sources)
+- Summary relationship recorded when applicable? → `summarizes`
+- Transform/paraphrase relationship recorded when applicable? → `derived_from`
+- Explanation relationship recorded when applicable? → `explains`
+- Supporting evidence relationship recorded when applicable? → `supports`
+- Contradiction relationship recorded when applicable? → `contradicts`
+- Verification relationship recorded when applicable? → `verifies`
+- Blocking relationship recorded when applicable? → `blocks`
+- Mitigation relationship recorded when applicable? → `mitigates`
+- Measurement relationship recorded when applicable? → `measures`
+- Output relationship recorded when applicable? → `produces`
 - Equivalence/replacement recorded? → `same_as`, `supersedes`
 - Authorship recorded when applicable? → `authored_by`
+- Operational ownership recorded when applicable? → `owned_by`
 
 ### Writing rules
 
@@ -122,4 +170,26 @@ implements:
   - "[[CI Pipeline]]"
 cites:
   - "[[Reference Title]]"
+summarizes:
+  - "[[Source Summary Target]]"
+derived_from:
+  - "[[Original Source]]"
+explains:
+  - "[[Concept Target]]"
+supports:
+  - "[[Claim Target]]"
+contradicts:
+  - "[[Conflicting Claim]]"
+verifies:
+  - "[[Experiment Target]]"
+blocks:
+  - "[[Blocked Task]]"
+mitigates:
+  - "[[Risk Note]]"
+measures:
+  - "[[Service Reliability]]"
+produces:
+  - "[[Daily Metrics Report]]"
+owned_by:
+  - "[[SRE Team]]"
 ```
