@@ -809,6 +809,7 @@ export function guessWikilinkTargetsForNote(
 export type InsertChunkInput = {
   chunkId: string;
   path: string;
+  chunkIndex: number;
   heading: string | null;
   headingPathJson: string;
   content: string;
@@ -820,12 +821,13 @@ export function insertChunkWithEmbedding(db: AilssDb, input: InsertChunkInput): 
   const tx = db.transaction(() => {
     db.prepare(
       `
-      INSERT INTO chunks(chunk_id, path, heading, heading_path_json, content, content_sha256, updated_at)
-      VALUES (@chunk_id, @path, @heading, @heading_path_json, @content, @content_sha256, @updated_at)
+      INSERT INTO chunks(chunk_id, path, chunk_index, heading, heading_path_json, content, content_sha256, updated_at)
+      VALUES (@chunk_id, @path, @chunk_index, @heading, @heading_path_json, @content, @content_sha256, @updated_at)
     `,
     ).run({
       chunk_id: input.chunkId,
       path: input.path,
+      chunk_index: Math.floor(input.chunkIndex),
       heading: input.heading,
       heading_path_json: input.headingPathJson,
       content: input.content,
@@ -847,6 +849,7 @@ export function insertChunkWithEmbedding(db: AilssDb, input: InsertChunkInput): 
 export type UpdateChunkMetadataInput = {
   chunkId: string;
   path: string;
+  chunkIndex: number;
   heading: string | null;
   headingPathJson: string;
   content: string;
@@ -859,6 +862,7 @@ export function updateChunkMetadata(db: AilssDb, input: UpdateChunkMetadataInput
       UPDATE chunks
       SET
         path = @path,
+        chunk_index = @chunk_index,
         heading = @heading,
         heading_path_json = @heading_path_json,
         content = @content,
@@ -869,6 +873,7 @@ export function updateChunkMetadata(db: AilssDb, input: UpdateChunkMetadataInput
   ).run({
     chunk_id: input.chunkId,
     path: input.path,
+    chunk_index: Math.floor(input.chunkIndex),
     heading: input.heading,
     heading_path_json: input.headingPathJson,
     content: input.content,
@@ -880,6 +885,7 @@ export function updateChunkMetadata(db: AilssDb, input: UpdateChunkMetadataInput
 export type SemanticSearchResult = {
   chunkId: string;
   path: string;
+  chunkIndex: number;
   heading: string | null;
   headingPath: string[];
   content: string;
@@ -905,6 +911,7 @@ export function semanticSearch(
     SELECT
       c.chunk_id AS chunkId,
       c.path AS path,
+      c.chunk_index AS chunkIndex,
       c.heading AS heading,
       c.heading_path_json AS headingPathJson,
       c.content AS content,
@@ -918,6 +925,7 @@ export function semanticSearch(
   const rows = stmt.all(JSON.stringify(queryEmbedding), topK) as Array<{
     chunkId: string;
     path: string;
+    chunkIndex: number;
     heading: string | null;
     headingPathJson: string;
     content: string;
@@ -927,10 +935,69 @@ export function semanticSearch(
   return rows.map((row) => ({
     chunkId: row.chunkId,
     path: row.path,
+    chunkIndex: row.chunkIndex,
     heading: row.heading,
     headingPath: safeParseJsonArray(row.headingPathJson),
     content: row.content,
     distance: row.distance,
+  }));
+}
+
+export type ChunkContentByIndex = {
+  chunkId: string;
+  chunkIndex: number;
+  heading: string | null;
+  headingPath: string[];
+  content: string;
+};
+
+export function listChunksByPathAndIndices(
+  db: AilssDb,
+  filePath: string,
+  indices: number[],
+): ChunkContentByIndex[] {
+  const wanted = indices.map((n) => Math.floor(n)).filter((n) => Number.isFinite(n) && n >= 0);
+
+  const deduped: number[] = [];
+  const seen = new Set<number>();
+  for (const n of wanted) {
+    if (seen.has(n)) continue;
+    seen.add(n);
+    deduped.push(n);
+  }
+
+  if (deduped.length === 0) return [];
+
+  const placeholders = deduped.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          chunk_id AS chunkId,
+          chunk_index AS chunkIndex,
+          heading AS heading,
+          heading_path_json AS headingPathJson,
+          content AS content
+        FROM chunks
+        WHERE path = ?
+          AND chunk_index IN (${placeholders})
+        ORDER BY chunk_index ASC
+      `,
+    )
+    .all(filePath, ...deduped) as Array<{
+    chunkId: string;
+    chunkIndex: number;
+    heading: string | null;
+    headingPathJson: string;
+    content: string;
+  }>;
+
+  return rows.map((row) => ({
+    chunkId: row.chunkId,
+    chunkIndex: row.chunkIndex,
+    heading: row.heading,
+    headingPath: safeParseJsonArray(row.headingPathJson),
+    content: row.content,
   }));
 }
 

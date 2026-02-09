@@ -22,6 +22,7 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
     CREATE TABLE IF NOT EXISTS chunks (
       chunk_id TEXT PRIMARY KEY,
       path TEXT NOT NULL,
+      chunk_index INTEGER NOT NULL,
       heading TEXT,
       heading_path_json TEXT NOT NULL,
       content TEXT NOT NULL,
@@ -30,6 +31,16 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
       FOREIGN KEY(path) REFERENCES files(path) ON DELETE CASCADE
     );
   `);
+
+  // Additive migration: chunk_index for stable neighbor stitching.
+  // - safe to apply to existing DBs (default 0 for old rows)
+  const chunkCols = db.prepare("PRAGMA table_info(chunks)").all() as Array<{ name?: string }>;
+  const hasChunkIndex = chunkCols.some((c) => c.name === "chunk_index");
+  if (!hasChunkIndex) {
+    db.exec(`ALTER TABLE chunks ADD COLUMN chunk_index INTEGER NOT NULL DEFAULT 0;`);
+  }
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chunks_path_chunk_index ON chunks(path, chunk_index);`);
 
   // DB metadata
   // - helps prevent mixing embeddings from different models/dimensions
@@ -112,12 +123,14 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
   `);
 
   // Indexing convenience view
+  db.exec(`DROP VIEW IF EXISTS chunks_with_rowid;`);
   db.exec(`
     CREATE VIEW IF NOT EXISTS chunks_with_rowid AS
     SELECT
       c.chunk_id,
       r.rowid AS embedding_rowid,
       c.path,
+      c.chunk_index,
       c.heading,
       c.heading_path_json,
       c.content,

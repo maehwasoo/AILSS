@@ -75,6 +75,7 @@ type PlannedChunk = {
   chunkId: string;
   content: string;
   contentSha256: string;
+  chunkIndex: number;
   heading: string | null;
   headingPathJson: string;
 };
@@ -85,7 +86,7 @@ function computeStableChunkIds(fileRelPath: string, chunks: MarkdownChunk[]): Pl
   // - include an occurrence index to disambiguate duplicates within the same file
   const occurrenceByContent = new Map<string, number>();
 
-  return chunks.map((chunk) => {
+  return chunks.map((chunk, chunkIndex) => {
     const contentKey = chunk.contentSha256;
     const occurrence = occurrenceByContent.get(contentKey) ?? 0;
     occurrenceByContent.set(contentKey, occurrence + 1);
@@ -95,6 +96,7 @@ function computeStableChunkIds(fileRelPath: string, chunks: MarkdownChunk[]): Pl
       chunkId,
       content: chunk.content,
       contentSha256: chunk.contentSha256,
+      chunkIndex,
       heading: chunk.heading,
       headingPathJson: JSON.stringify(chunk.headingPath),
     };
@@ -271,6 +273,7 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
       updateChunkMetadata(options.db, {
         chunkId: planned.chunkId,
         path: file.relPath,
+        chunkIndex: planned.chunkIndex,
         heading: planned.heading,
         headingPathJson: planned.headingPathJson,
         content: planned.content,
@@ -291,6 +294,7 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
       insertChunkWithEmbedding(options.db, {
         chunkId: planned.chunkId,
         path: file.relPath,
+        chunkIndex: planned.chunkIndex,
         heading: planned.heading,
         headingPathJson: planned.headingPathJson,
         content: planned.content,

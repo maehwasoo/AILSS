@@ -65,7 +65,7 @@ describe("indexVault() per-chunk reuse", () => {
 
         expect(first.changedFiles).toBe(1);
         expect(first.indexedChunks).toBe(3);
-        expect(embedCalls).toEqual([["hello", "world", "again"]]);
+        expect(embedCalls).toEqual([["# A\nhello", "# B\nworld", "# C\nagain"]]);
 
         // Edit only the middle chunk.
         await fs.writeFile(
@@ -102,7 +102,7 @@ describe("indexVault() per-chunk reuse", () => {
 
         expect(second.changedFiles).toBe(1);
         expect(second.indexedChunks).toBe(3);
-        expect(embedCalls[1]).toEqual(["world!"]);
+        expect(embedCalls[1]).toEqual(["# B\nworld!"]);
 
         const chunkCount = db
           .prepare("SELECT COUNT(*) as count FROM chunks WHERE path = ?")
