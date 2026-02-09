@@ -286,4 +286,92 @@ describe("MCP HTTP server (get_graph_context)", () => {
       }
     });
   });
+
+  it("caps outgoing edges per note when one link resolves to multiple paths", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+      const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+      const queryEmbedding = [0, 0, 0];
+      const openaiStub = {
+        embeddings: {
+          create: async () => ({ data: [{ embedding: queryEmbedding }] }),
+        },
+      } as unknown as AilssMcpRuntime["deps"]["openai"];
+
+      const runtime: AilssMcpRuntime = {
+        deps: {
+          db,
+          dbPath,
+          vaultPath: undefined,
+          openai: openaiStub,
+          embeddingModel: "test-embeddings",
+          writeLock: new AsyncMutex(),
+        },
+        enableWriteTools: false,
+      };
+
+      upsertIndexedNote({
+        runtime,
+        path: "Domain/A.md",
+        title: "A",
+        summary: "summary A",
+        embedding: [0, 0, 0],
+        typedLinks: [{ rel: "uses", target: "Shared" }],
+      });
+      upsertIndexedNote({
+        runtime,
+        path: "Domain/Shared-1.md",
+        title: "Shared",
+        summary: "summary Shared 1",
+        embedding: [5, 0, 0],
+      });
+      upsertIndexedNote({
+        runtime,
+        path: "Domain/Shared-2.md",
+        title: "Shared",
+        summary: "summary Shared 2",
+        embedding: [6, 0, 0],
+      });
+
+      const { close, url } = await startAilssMcpHttpServer({
+        runtime,
+        config: { host: "127.0.0.1", port: 0, path: "/mcp", token: TEST_TOKEN },
+        maxSessions: 5,
+        idleTtlMs: 60_000,
+      });
+
+      try {
+        const sessionId = await mcpInitialize(url, TEST_TOKEN, "client-c");
+        const res = await mcpToolsCall(url, TEST_TOKEN, sessionId, "get_graph_context", {
+          query: "query",
+          seed_top_k: 1,
+          max_hops: 1,
+          path_prefix: "Domain/",
+          rels: ["uses"],
+          include_backrefs: false,
+          max_notes: 20,
+          max_edges: 20,
+          max_links_per_note: 1,
+          max_chunks_per_note: 1,
+        });
+
+        const structured = getStructuredContent(res);
+        const graph = structured["graph"] as Record<string, unknown>;
+        const edges = graph["edges"];
+        assertArray(edges, "graph.edges");
+
+        const outgoingFromA = edges.filter(
+          (edge) =>
+            (edge as Record<string, unknown>)["direction"] === "outgoing" &&
+            (edge as Record<string, unknown>)["from_path"] === "Domain/A.md",
+        );
+
+        expect(outgoingFromA).toHaveLength(1);
+      } finally {
+        await close();
+        db.close();
+      }
+    });
+  });
 });

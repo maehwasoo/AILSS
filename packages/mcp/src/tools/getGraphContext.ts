@@ -414,11 +414,6 @@ export function registerGetGraphContextTool(server: McpServer, deps: McpToolDeps
         let outgoingFollowed = 0;
         for (const link of meta.typedLinks) {
           if (!relSet.has(link.rel)) continue;
-          if (outgoingFollowed >= args.max_links_per_note) {
-            truncated = true;
-            break;
-          }
-          outgoingFollowed += 1;
 
           const resolved = resolveNotePathsByWikilinkTarget(
             deps.db,
@@ -427,8 +422,13 @@ export function registerGetGraphContextTool(server: McpServer, deps: McpToolDeps
           );
 
           for (const match of resolved) {
+            if (outgoingFollowed >= args.max_links_per_note) {
+              truncated = true;
+              break;
+            }
             if (!isPathInScope(match.path, pathPrefix)) continue;
 
+            const edgeCountBefore = edgeMap.size;
             const pushed = pushEdge({
               direction: "outgoing",
               rel: link.rel,
@@ -438,6 +438,9 @@ export function registerGetGraphContextTool(server: McpServer, deps: McpToolDeps
               to_wikilink: link.toWikilink,
             });
             if (!pushed) break;
+            if (edgeMap.size > edgeCountBefore) {
+              outgoingFollowed += 1;
+            }
 
             const nextHop = current.hop + 1;
             const upserted = upsertNode(match.path, nextHop, current.seedDistance);
