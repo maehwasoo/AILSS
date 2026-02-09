@@ -75,12 +75,37 @@ type PlannedChunk = {
   chunkId: string;
   content: string;
   contentSha256: string;
+  embeddingInput: string;
+  embeddingInputSha256: string;
   chunkIndex: number;
   heading: string | null;
   headingPathJson: string;
 };
 
-function computeStableChunkIds(fileRelPath: string, chunks: MarkdownChunk[]): PlannedChunk[] {
+type EmbeddingInputMeta = {
+  title: string;
+  summary: string;
+};
+
+function buildChunkEmbeddingInput(
+  meta: EmbeddingInputMeta,
+  chunk: Pick<MarkdownChunk, "content" | "headingPath">,
+): string {
+  const headingPath = chunk.headingPath.join(" > ");
+  return [
+    `Title: ${meta.title}`,
+    `Summary: ${meta.summary}`,
+    `Heading path: ${headingPath}`,
+    "---",
+    chunk.content,
+  ].join("\n");
+}
+
+function computeStableChunkIds(
+  fileRelPath: string,
+  chunks: MarkdownChunk[],
+  embeddingInputMeta: EmbeddingInputMeta,
+): PlannedChunk[] {
   // Stable IDs across edits
   // - based on chunk content hash, not global ordinal
   // - include an occurrence index to disambiguate duplicates within the same file
@@ -92,10 +117,14 @@ function computeStableChunkIds(fileRelPath: string, chunks: MarkdownChunk[]): Pl
     occurrenceByContent.set(contentKey, occurrence + 1);
 
     const chunkId = sha256Text(`${fileRelPath}\n${contentKey}\n${occurrence}`);
+    const embeddingInput = buildChunkEmbeddingInput(embeddingInputMeta, chunk);
+    const embeddingInputSha256 = sha256Text(embeddingInput);
     return {
       chunkId,
       content: chunk.content,
       contentSha256: chunk.contentSha256,
+      embeddingInput,
+      embeddingInputSha256,
       chunkIndex,
       heading: chunk.heading,
       headingPathJson: JSON.stringify(chunk.headingPath),
@@ -162,10 +191,15 @@ async function resolveIndexTargetsStage(options: IndexVaultOptions): Promise<Res
   };
 }
 
+type SyncedFileMetadata = {
+  body: string;
+  embeddingInputMeta: EmbeddingInputMeta;
+};
+
 async function syncFileMetadataStage(
   options: IndexVaultOptions,
   file: IndexedMarkdownFile,
-): Promise<string> {
+): Promise<SyncedFileMetadata> {
   const markdown = await readUtf8File(file.absPath);
   const parsed = parseMarkdownNote(markdown);
   const noteMeta = normalizeAilssNoteMeta(parsed.frontmatter);
@@ -194,15 +228,21 @@ async function syncFileMetadataStage(
   replaceNoteSources(options.db, file.relPath, noteMeta.sources);
   replaceTypedLinks(options.db, file.relPath, noteMeta.typedLinks);
 
-  return parsed.body;
+  return {
+    body: parsed.body,
+    embeddingInputMeta: {
+      title: noteMeta.title ?? "",
+      summary: noteMeta.summary ?? "",
+    },
+  };
 }
 
 type ChunkDiffPlan = {
   plannedChunks: PlannedChunk[];
-  existingChunkIds: Set<string>;
+  existingChunkIdsAfterDelete: Set<string>;
   toDelete: string[];
-  embeddingByContentSha: Map<string, number[]>;
-  toEmbed: Array<{ contentSha256: string; content: string }>;
+  embeddingByInputSha: Map<string, number[]>;
+  toEmbed: Array<{ embeddingInputSha256: string; embeddingInput: string }>;
 };
 
 function planChunkDiffStage(
@@ -210,40 +250,60 @@ function planChunkDiffStage(
   fileRelPath: string,
   body: string,
   maxChars: number,
+  embeddingInputMeta: EmbeddingInputMeta,
 ): ChunkDiffPlan {
   const chunks = chunkMarkdownByHeadings(body, { maxChars });
-  const plannedChunks = computeStableChunkIds(fileRelPath, chunks);
+  const plannedChunks = computeStableChunkIds(fileRelPath, chunks, embeddingInputMeta);
 
   const existingChunkIds = new Set(listChunkIdsByPath(db, fileRelPath));
   const nextChunkIds = new Set(plannedChunks.map((chunk) => chunk.chunkId));
 
-  const toDelete: string[] = [];
+  const toDeleteSet = new Set<string>();
   for (const chunkId of existingChunkIds) {
-    if (!nextChunkIds.has(chunkId)) toDelete.push(chunkId);
+    if (!nextChunkIds.has(chunkId)) toDeleteSet.add(chunkId);
   }
 
-  const embeddingByContentSha = new Map<string, number[]>();
+  const existingEmbeddingInputShaByChunkId = new Map<string, string>();
+  const embeddingByInputSha = new Map<string, number[]>();
   for (const item of listChunkEmbeddingsByPath(db, fileRelPath)) {
-    if (!embeddingByContentSha.has(item.contentSha256)) {
-      embeddingByContentSha.set(item.contentSha256, item.embedding);
-    }
+    existingEmbeddingInputShaByChunkId.set(item.chunkId, item.embeddingInputSha256);
+    if (!item.embeddingInputSha256) continue;
+    if (!item.embedding) continue;
+    if (embeddingByInputSha.has(item.embeddingInputSha256)) continue;
+    embeddingByInputSha.set(item.embeddingInputSha256, item.embedding);
   }
 
-  const toEmbed: Array<{ contentSha256: string; content: string }> = [];
+  // Existing chunk IDs that require re-embedding due to embedding-input change.
+  for (const planned of plannedChunks) {
+    if (!existingChunkIds.has(planned.chunkId)) continue;
+    const existingInputSha = existingEmbeddingInputShaByChunkId.get(planned.chunkId) ?? "";
+    if (existingInputSha === planned.embeddingInputSha256) continue;
+    toDeleteSet.add(planned.chunkId);
+  }
+
+  const toDelete = Array.from(toDeleteSet);
+  const existingChunkIdsAfterDelete = new Set(
+    Array.from(existingChunkIds).filter((chunkId) => !toDeleteSet.has(chunkId)),
+  );
+
+  const toEmbed: Array<{ embeddingInputSha256: string; embeddingInput: string }> = [];
   const seenToEmbed = new Set<string>();
   for (const planned of plannedChunks) {
-    if (existingChunkIds.has(planned.chunkId)) continue;
-    if (embeddingByContentSha.has(planned.contentSha256)) continue;
-    if (seenToEmbed.has(planned.contentSha256)) continue;
-    seenToEmbed.add(planned.contentSha256);
-    toEmbed.push({ contentSha256: planned.contentSha256, content: planned.content });
+    if (existingChunkIdsAfterDelete.has(planned.chunkId)) continue;
+    if (embeddingByInputSha.has(planned.embeddingInputSha256)) continue;
+    if (seenToEmbed.has(planned.embeddingInputSha256)) continue;
+    seenToEmbed.add(planned.embeddingInputSha256);
+    toEmbed.push({
+      embeddingInputSha256: planned.embeddingInputSha256,
+      embeddingInput: planned.embeddingInput,
+    });
   }
 
   return {
     plannedChunks,
-    existingChunkIds,
+    existingChunkIdsAfterDelete,
     toDelete,
-    embeddingByContentSha,
+    embeddingByInputSha,
     toEmbed,
   };
 }
@@ -260,7 +320,7 @@ async function acquireChunkEmbeddingsStage(
 ): Promise<void> {
   for (let i = 0; i < plan.toEmbed.length; i += batchSize) {
     const batch = plan.toEmbed.slice(i, i + batchSize);
-    const embeddings = await options.embedTexts(batch.map((chunk) => chunk.content));
+    const embeddings = await options.embedTexts(batch.map((chunk) => chunk.embeddingInput));
 
     for (const [j, chunk] of batch.entries()) {
       const embedding = embeddings[j];
@@ -269,7 +329,7 @@ async function acquireChunkEmbeddingsStage(
           `Embedding response returned too few embeddings. batchSize=${batch.length}, got=${embeddings.length}`,
         );
       }
-      plan.embeddingByContentSha.set(chunk.contentSha256, embedding);
+      plan.embeddingByInputSha.set(chunk.embeddingInputSha256, embedding);
     }
 
     writeText(
@@ -287,7 +347,7 @@ function applyChunkWriteStage(
   plan: ChunkDiffPlan,
 ): void {
   for (const planned of plan.plannedChunks) {
-    if (!plan.existingChunkIds.has(planned.chunkId)) continue;
+    if (!plan.existingChunkIdsAfterDelete.has(planned.chunkId)) continue;
     updateChunkMetadata(options.db, {
       chunkId: planned.chunkId,
       path: fileRelPath,
@@ -296,15 +356,16 @@ function applyChunkWriteStage(
       headingPathJson: planned.headingPathJson,
       content: planned.content,
       contentSha256: planned.contentSha256,
+      embeddingInputSha256: planned.embeddingInputSha256,
     });
   }
 
   for (const planned of plan.plannedChunks) {
-    if (plan.existingChunkIds.has(planned.chunkId)) continue;
-    const embedding = plan.embeddingByContentSha.get(planned.contentSha256);
+    if (plan.existingChunkIdsAfterDelete.has(planned.chunkId)) continue;
+    const embedding = plan.embeddingByInputSha.get(planned.embeddingInputSha256);
     if (!embedding) {
       throw new Error(
-        `Missing embedding for chunk insertion. path=${fileRelPath}, contentSha256=${planned.contentSha256}`,
+        `Missing embedding for chunk insertion. path=${fileRelPath}, embeddingInputSha256=${planned.embeddingInputSha256}`,
       );
     }
 
@@ -316,6 +377,7 @@ function applyChunkWriteStage(
       headingPathJson: planned.headingPathJson,
       content: planned.content,
       contentSha256: planned.contentSha256,
+      embeddingInputSha256: planned.embeddingInputSha256,
       embedding,
     });
   }
@@ -354,13 +416,19 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
       logLine(options.logger, `[meta] ${file.relPath}`);
     }
 
-    const body = await syncFileMetadataStage(options, file);
+    const synced = await syncFileMetadataStage(options, file);
 
     if (!needsEmbeddingUpdate) {
       continue;
     }
 
-    const plan = planChunkDiffStage(options.db, file.relPath, body, maxChars);
+    const plan = planChunkDiffStage(
+      options.db,
+      file.relPath,
+      synced.body,
+      maxChars,
+      synced.embeddingInputMeta,
+    );
     applyChunkDeleteStage(options.db, plan.toDelete);
     await acquireChunkEmbeddingsStage(options, plan, batchSize);
     applyChunkWriteStage(options, file.relPath, plan);
