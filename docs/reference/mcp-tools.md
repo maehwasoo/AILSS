@@ -66,10 +66,15 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 
 ### `frontmatter_validate`
 
-- Purpose: scan vault notes and validate required frontmatter keys + `id`/`created` consistency.
+- Purpose: scan vault notes and validate required frontmatter keys + `id`/`created` consistency, and optionally enforce typed-link ontology constraints.
 - Input:
   - `path_prefix` (string, optional)
   - `max_files` (int, default: `20000`, range: `1–100,000`)
+  - `typed_link_constraint_mode` (`"off" | "warn" | "error"`, default: `"warn"`)
+- Output highlights:
+  - `typed_link_constraint_mode`: effective mode used by the validator
+  - `typed_link_diagnostic_count`: number of relation diagnostics
+  - `typed_link_diagnostics`: structured diagnostics (`path`, `rel`, `target`, `reason`, `fix_hint`, `severity`)
 
 ### `find_broken_links`
 
