@@ -76,6 +76,8 @@ Supported keys:
 - `supersedes` (replacement/versioning)
 - `same_as` (equivalence/duplicates)
 
+Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
+
 The supported key list is also encoded in the implementation (see `./typed-links.md` for the “sources of truth” that must be updated together when adding new keys).
 
 ## Layers: definition and classification

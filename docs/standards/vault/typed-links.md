@@ -23,7 +23,9 @@ AILSS indexes and queries typed links by these frontmatter keys:
 - Risk/control/measurement: `blocks`, `mitigates`, `measures`
 - Process output: `produces`
 - Responsibility: `authored_by`, `owned_by`
-- Equivalence / versioning: `same_as`, `supersedes`
+- Equivalence / versioning: `supersedes`, `same_as`
+
+Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
 
 Semantics notes:
 
@@ -36,7 +38,7 @@ If you need a new key, update the rules/ontology first and then use it consisten
 
 Implementation sources of truth (when adding/changing relation keys):
 
-- Code: `packages/core/src/vault/frontmatter.ts` (`AILSS_TYPED_LINK_KEYS`) is the canonical list of frontmatter keys that AILSS recognizes as typed links.
+- Code: `packages/core/src/vault/typedLinkOntology.ts` (`AILSS_TYPED_LINK_ONTOLOGY` → derived `AILSS_TYPED_LINK_KEYS`) is the canonical list of frontmatter keys that AILSS recognizes as typed links.
   - Only keys in this list are extracted from frontmatter and indexed into the `typed_links` table.
 - Template: `packages/mcp/src/lib/ailssNoteTemplate.ts` controls which typed-link keys are emitted (and their order) by `capture_note` and `improve_frontmatter`.
 - Docs: this file + `./frontmatter-schema.md` define the vault writing rules and supported ontology.
@@ -103,7 +105,7 @@ Notes:
   - Recommended: `cites`
 - Document (`entity: document`)
   - Required: `part_of`
-  - Recommended: `cites`, and optionally `same_as` (duplicates), `supersedes` (newer replacement)
+  - Recommended: `cites`, and optionally `supersedes` (newer replacement), `same_as` (duplicates)
 - Project (`entity: project`, strategic)
   - Required: `part_of` (program/area), `depends_on` (core platform/tools)
   - Recommended: `implements` (standards/architectures), `uses`, `owned_by`
@@ -135,7 +137,7 @@ The matrix is a baseline. If more links are justified, add them, but stay within
 - Mitigation relationship recorded when applicable? → `mitigates`
 - Measurement relationship recorded when applicable? → `measures`
 - Output relationship recorded when applicable? → `produces`
-- Equivalence/replacement recorded? → `same_as`, `supersedes`
+- Equivalence/replacement recorded? → `supersedes`, `same_as`
 - Authorship recorded when applicable? → `authored_by`
 - Operational ownership recorded when applicable? → `owned_by`
 
