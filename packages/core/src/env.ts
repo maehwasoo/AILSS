@@ -10,6 +10,13 @@ export type AilssEnv = {
   openaiEmbeddingModel: string;
   enableWriteTools: boolean;
   vaultPath: string | undefined;
+  neo4jEnabled: boolean;
+  neo4jUri: string | undefined;
+  neo4jUsername: string | undefined;
+  neo4jPassword: string | undefined;
+  neo4jDatabase: string;
+  neo4jSyncOnIndex: boolean;
+  neo4jStrictMode: boolean;
 };
 
 function findNearestEnvFile(startDir: string): string | null {
@@ -42,5 +49,12 @@ export function loadEnv(): AilssEnv {
     openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-large",
     enableWriteTools: process.env.AILSS_ENABLE_WRITE_TOOLS === "1",
     vaultPath: process.env.AILSS_VAULT_PATH,
+    neo4jEnabled: process.env.AILSS_NEO4J_ENABLED === "1",
+    neo4jUri: process.env.AILSS_NEO4J_URI,
+    neo4jUsername: process.env.AILSS_NEO4J_USERNAME,
+    neo4jPassword: process.env.AILSS_NEO4J_PASSWORD,
+    neo4jDatabase: process.env.AILSS_NEO4J_DATABASE ?? "neo4j",
+    neo4jSyncOnIndex: process.env.AILSS_NEO4J_SYNC_ON_INDEX !== "0",
+    neo4jStrictMode: process.env.AILSS_NEO4J_STRICT_MODE === "1",
   };
 }

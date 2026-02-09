@@ -632,6 +632,82 @@ export function listKeywords(db: AilssDb, options: { limit?: number } = {}): Key
   return rows;
 }
 
+export type SqliteGraphCounts = {
+  notes: number;
+  typedLinks: number;
+};
+
+export function getSqliteGraphCounts(db: AilssDb): SqliteGraphCounts {
+  const noteRow = db.prepare(`SELECT COUNT(*) AS count FROM notes`).get() as { count: number };
+  const typedLinkRow = db.prepare(`SELECT COUNT(*) AS count FROM typed_links`).get() as {
+    count: number;
+  };
+  return {
+    notes: noteRow.count ?? 0,
+    typedLinks: typedLinkRow.count ?? 0,
+  };
+}
+
+export type GraphSyncNoteRow = {
+  path: string;
+  noteId: string | null;
+  created: string | null;
+  title: string | null;
+  summary: string | null;
+  entity: string | null;
+  layer: string | null;
+  status: string | null;
+  updated: string | null;
+};
+
+export function listNotesForGraphSync(db: AilssDb): GraphSyncNoteRow[] {
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          path,
+          note_id AS noteId,
+          created,
+          title,
+          summary,
+          entity,
+          layer,
+          status,
+          updated
+        FROM notes
+        ORDER BY path
+      `,
+    )
+    .all() as GraphSyncNoteRow[];
+  return rows;
+}
+
+export type GraphSyncTypedLinkRow = {
+  fromPath: string;
+  rel: string;
+  toTarget: string;
+  toWikilink: string;
+  position: number;
+};
+
+export function listTypedLinksForGraphSync(db: AilssDb): GraphSyncTypedLinkRow[] {
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          from_path AS fromPath,
+          rel,
+          to_target AS toTarget,
+          to_wikilink AS toWikilink,
+          position
+        FROM typed_links
+        ORDER BY from_path, position, rel, to_target
+      `,
+    )
+    .all() as GraphSyncTypedLinkRow[];
+  return rows;
+}
+
 export type TypedLinkQuery = {
   rel?: string;
   toTarget?: string;
