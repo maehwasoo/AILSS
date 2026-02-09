@@ -238,6 +238,8 @@ describe("MCP HTTP server (write tools)", () => {
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "blocks")).toBe(false);
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "mitigates")).toBe(false);
         expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "measures")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "produces")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(parsed.frontmatter, "owned_by")).toBe(false);
       });
     });
   });
@@ -270,6 +272,10 @@ describe("MCP HTTP server (write tools)", () => {
           "  - Service Risk A",
           "measures:",
           "  - P95 Latency",
+          "produces:",
+          "  - Daily Report",
+          "owned_by:",
+          "  - Platform Team",
           "---",
           "",
           "body",
@@ -299,6 +305,8 @@ describe("MCP HTTP server (write tools)", () => {
         expect(parsed.frontmatter.verifies).toEqual(["[[Experiment A]]"]);
         expect(parsed.frontmatter.mitigates).toEqual(["[[Service Risk A]]"]);
         expect(parsed.frontmatter.measures).toEqual(["[[P95 Latency]]"]);
+        expect(parsed.frontmatter.produces).toEqual(["[[Daily Report]]"]);
+        expect(parsed.frontmatter.owned_by).toEqual(["[[Platform Team]]"]);
       });
     });
   });

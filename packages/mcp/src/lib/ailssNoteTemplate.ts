@@ -171,7 +171,9 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "blocks",
     "mitigates",
     "measures",
+    "produces",
     "authored_by",
+    "owned_by",
     "supersedes",
     "same_as",
   ] satisfies Array<(typeof AILSS_TYPED_LINK_KEYS)[number]>;

@@ -119,6 +119,10 @@ mitigates:
   - Runtime Risk
 measures:
   - API Latency
+produces:
+  - Daily Report
+owned_by:
+  - SRE Team
 ---
 
 Body
@@ -137,6 +141,8 @@ Body
     expect(meta.frontmatter.blocks).toEqual(["[[Pending Migration]]"]);
     expect(meta.frontmatter.mitigates).toEqual(["[[Runtime Risk]]"]);
     expect(meta.frontmatter.measures).toEqual(["[[API Latency]]"]);
+    expect(meta.frontmatter.produces).toEqual(["[[Daily Report]]"]);
+    expect(meta.frontmatter.owned_by).toEqual(["[[SRE Team]]"]);
 
     expect(meta.typedLinks).toEqual([
       {
@@ -182,6 +188,18 @@ Body
         rel: "measures",
         toTarget: "API Latency",
         toWikilink: "[[API Latency]]",
+        position: 0,
+      },
+      {
+        rel: "produces",
+        toTarget: "Daily Report",
+        toWikilink: "[[Daily Report]]",
+        position: 0,
+      },
+      {
+        rel: "owned_by",
+        toTarget: "SRE Team",
+        toWikilink: "[[SRE Team]]",
         position: 0,
       },
     ]);

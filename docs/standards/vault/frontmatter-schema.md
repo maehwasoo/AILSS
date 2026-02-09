@@ -70,7 +70,9 @@ Supported keys:
 - `blocks` (direct blocker preventing progress of another note)
 - `mitigates` (risk/issue mitigation relation to another note)
 - `measures` (metric/observation relation targeting another note)
+- `produces` (process/pipeline output relation to artifact/dataset/release notes)
 - `authored_by` (authorship/attribution)
+- `owned_by` (current operational ownership; team/person responsible for upkeep)
 - `supersedes` (replacement/versioning)
 - `same_as` (equivalence/duplicates)
 

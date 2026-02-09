@@ -21,13 +21,16 @@ AILSS indexes and queries typed links by these frontmatter keys:
 - Content transformation: `summarizes`, `derived_from`
 - Explanation/evidence: `explains`, `supports`, `contradicts`, `verifies`
 - Risk/control/measurement: `blocks`, `mitigates`, `measures`
-- Authorship / attribution: `authored_by`
+- Process output: `produces`
+- Responsibility: `authored_by`, `owned_by`
 - Equivalence / versioning: `same_as`, `supersedes`
 
 Semantics notes:
 
 - `derived_from` includes extraction/refactoring and translation/paraphrase. Do not add a separate `translates` key.
 - `measures` links to the observed target note (what is measured), not to a numeric value itself.
+- `produces` links a process/procedure/pipeline note to output artifact/data/release notes.
+- `owned_by` is current operational ownership and is distinct from `authored_by` (content author/attribution).
 
 If you need a new key, update the rules/ontology first and then use it consistently.
 
@@ -69,6 +72,8 @@ Notes:
    - “S blocks ?” → `blocks` candidates
    - “S mitigates ?” → `mitigates` candidates
    - “S measures ?” → `measures` candidates
+   - “S produces ?” → `produces` candidates
+   - “S is owned by ?” → `owned_by` candidates
    - “S is same as ?” (synonyms/duplicates) → `same_as` candidates
    - “S supersedes ?” → `supersedes` candidates
 4. Literal verification: use `read_note` to read the actual note text (and confirm you are linking the right target).
@@ -88,6 +93,8 @@ Notes:
 - “This note cannot proceed until X is resolved” → `blocks: [[X]]`
 - “This note reduces risk/impact for X” → `mitigates: [[X]]`
 - “This note records metrics/observations for X” → `measures: [[X]]`
+- “This process/procedure note outputs X” → `produces: [[X]]`
+- “This note’s operational owner is X (team/person)” → `owned_by: [[X]]`
 
 ### Recommended coverage matrix (by entity)
 
@@ -99,10 +106,10 @@ Notes:
   - Recommended: `cites`, and optionally `same_as` (duplicates), `supersedes` (newer replacement)
 - Project (`entity: project`, strategic)
   - Required: `part_of` (program/area), `depends_on` (core platform/tools)
-  - Recommended: `implements` (standards/architectures), `uses`
+  - Recommended: `implements` (standards/architectures), `uses`, `owned_by`
 - Procedure (`entity: procedure`, operational)
   - Required: `implements` (pipeline/policy), `uses` (tools)
-  - Recommended: `cites` (reference docs)
+  - Recommended: `cites` (reference docs), `produces`
 - Software / tool (`entity: software` or `entity: tool`)
   - Recommended: `part_of` (ecosystem/hub), `depends_on` (runtime/framework)
 - Dataset (`entity: dataset`)
@@ -127,8 +134,10 @@ The matrix is a baseline. If more links are justified, add them, but stay within
 - Blocking relationship recorded when applicable? → `blocks`
 - Mitigation relationship recorded when applicable? → `mitigates`
 - Measurement relationship recorded when applicable? → `measures`
+- Output relationship recorded when applicable? → `produces`
 - Equivalence/replacement recorded? → `same_as`, `supersedes`
 - Authorship recorded when applicable? → `authored_by`
+- Operational ownership recorded when applicable? → `owned_by`
 
 ### Writing rules
 
@@ -179,4 +188,8 @@ mitigates:
   - "[[Risk Note]]"
 measures:
   - "[[Service Reliability]]"
+produces:
+  - "[[Daily Metrics Report]]"
+owned_by:
+  - "[[SRE Team]]"
 ```
