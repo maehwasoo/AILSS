@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-import { loadEnv, openAilssDb, resolveDefaultDbPath } from "@ailss/core";
+import { loadEnv, openAilssDb, resolveDefaultDbPath, resolveNeo4jSettings } from "@ailss/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { AsyncMutex } from "./lib/asyncMutex.js";
@@ -18,6 +18,8 @@ import { registerGetVaultTreeTool } from "./tools/getVaultTree.js";
 import { registerImproveFrontmatterTool } from "./tools/improveFrontmatter.js";
 import { registerListKeywordsTool } from "./tools/listKeywords.js";
 import { registerListTagsTool } from "./tools/listTags.js";
+import { registerNeo4jGraphStatusTool } from "./tools/neo4jGraphStatus.js";
+import { registerNeo4jGraphTraverseTool } from "./tools/neo4jGraphTraverse.js";
 import { registerRelocateNoteTool } from "./tools/relocateNote.js";
 import { registerResolveNoteTool } from "./tools/resolveNote.js";
 import { registerSearchNotesTool } from "./tools/searchNotes.js";
@@ -46,6 +48,7 @@ export async function createAilssMcpRuntimeFromEnv(): Promise<AilssMcpRuntime> {
 
   const db = openAilssDb({ dbPath, embeddingModel, embeddingDim });
   const openai = new OpenAI({ apiKey: openaiApiKey });
+  const neo4j = resolveNeo4jSettings(env);
 
   return {
     deps: {
@@ -54,6 +57,7 @@ export async function createAilssMcpRuntimeFromEnv(): Promise<AilssMcpRuntime> {
       vaultPath,
       openai,
       embeddingModel,
+      neo4j,
       writeLock: new AsyncMutex(),
     },
     enableWriteTools: env.enableWriteTools,
@@ -79,6 +83,8 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
   registerListTagsTool(server, deps);
   registerListKeywordsTool(server, deps);
   registerFindTypedLinksIncomingTool(server, deps);
+  registerNeo4jGraphStatusTool(server, deps);
+  registerNeo4jGraphTraverseTool(server, deps);
 
   if (runtime.enableWriteTools) {
     registerCaptureNoteTool(server, deps);

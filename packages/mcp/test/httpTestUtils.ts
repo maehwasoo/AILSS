@@ -16,7 +16,14 @@ type EnvKey =
   | "OPENAI_EMBEDDING_MODEL"
   | "AILSS_DB_PATH"
   | "AILSS_VAULT_PATH"
-  | "AILSS_ENABLE_WRITE_TOOLS";
+  | "AILSS_ENABLE_WRITE_TOOLS"
+  | "AILSS_NEO4J_ENABLED"
+  | "AILSS_NEO4J_URI"
+  | "AILSS_NEO4J_USERNAME"
+  | "AILSS_NEO4J_PASSWORD"
+  | "AILSS_NEO4J_DATABASE"
+  | "AILSS_NEO4J_SYNC_ON_INDEX"
+  | "AILSS_NEO4J_STRICT_MODE";
 
 export type EnvOverrides = Partial<Record<EnvKey, string | undefined>>;
 
@@ -84,6 +91,13 @@ function envForMcpRuntime(
     AILSS_DB_PATH: "",
     AILSS_VAULT_PATH: "",
     AILSS_ENABLE_WRITE_TOOLS: "",
+    AILSS_NEO4J_ENABLED: "",
+    AILSS_NEO4J_URI: "",
+    AILSS_NEO4J_USERNAME: "",
+    AILSS_NEO4J_PASSWORD: "",
+    AILSS_NEO4J_DATABASE: "",
+    AILSS_NEO4J_SYNC_ON_INDEX: "",
+    AILSS_NEO4J_STRICT_MODE: "",
   };
 
   if (options.dbPath) {
