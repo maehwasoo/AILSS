@@ -155,28 +155,7 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "source",
   ] satisfies string[];
 
-  const typedLinkKeys = [
-    "instance_of",
-    "part_of",
-    "depends_on",
-    "uses",
-    "implements",
-    "cites",
-    "summarizes",
-    "derived_from",
-    "explains",
-    "supports",
-    "contradicts",
-    "verifies",
-    "blocks",
-    "mitigates",
-    "measures",
-    "produces",
-    "authored_by",
-    "owned_by",
-    "supersedes",
-    "same_as",
-  ] satisfies Array<(typeof AILSS_TYPED_LINK_KEYS)[number]>;
+  const typedLinkKeys = [...AILSS_TYPED_LINK_KEYS];
 
   const reservedKeys = new Set<string>([...requiredKeys, ...typedLinkKeys]);
 
