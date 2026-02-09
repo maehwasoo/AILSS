@@ -1,6 +1,8 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import type AilssObsidianPlugin from "./main.js";
+import { defaultCodexSkillsRootDir } from "./utils/codexSkillInstaller.js";
+import { CODEX_SKILLS, codexDefaultSkillId, type CodexSkillId } from "./utils/codexPrompts.js";
 import { type PromptKind } from "./utils/promptTemplates.js";
 
 export interface AilssObsidianSettings {
@@ -14,6 +16,10 @@ export interface AilssObsidianSettings {
 	mcpHttpServiceToken: string;
 	mcpHttpServiceShutdownToken: string;
 	mcpHttpServiceEnableWriteTools: boolean;
+	codexSkillId: CodexSkillId;
+	codexSkillsInstallRootDir: string;
+	codexSkillsInstallOverwrite: boolean;
+	codexSkillsInstallBackup: boolean;
 	indexerCommand: string;
 	indexerArgs: string[];
 	autoIndexEnabled: boolean;
@@ -31,6 +37,10 @@ export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	mcpHttpServiceToken: "",
 	mcpHttpServiceShutdownToken: "",
 	mcpHttpServiceEnableWriteTools: false,
+	codexSkillId: codexDefaultSkillId(),
+	codexSkillsInstallRootDir: "",
+	codexSkillsInstallOverwrite: false,
+	codexSkillsInstallBackup: true,
 	indexerCommand: "node",
 	indexerArgs: [],
 	autoIndexEnabled: false,
@@ -99,18 +109,80 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Copy Prometheus Agent skill (Codex)")
+			.setName("Codex skill")
+			.setDesc("Select which skill snapshot to copy/install.")
+			.addDropdown((dropdown) => {
+				for (const skill of CODEX_SKILLS) {
+					dropdown.addOption(skill.id, `${skill.label} — ${skill.description}`);
+				}
+				dropdown.setValue(this.plugin.settings.codexSkillId);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.codexSkillId = value as CodexSkillId;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Codex skills install root")
 			.setDesc(
 				[
-					"Copies a Codex CLI skill snapshot to your clipboard so you can install it under your Codex skills folder.",
-					"Recommended install path: ~/.codex/skills/ailss-prometheus-agent/SKILL.md",
+					"Root path for direct install. The plugin writes to <root>/<skill-name>/SKILL.md.",
+					`Default: ${defaultCodexSkillsRootDir()}`,
+				].join("\n"),
+			)
+			.addText((text) => {
+				text.setPlaceholder(defaultCodexSkillsRootDir());
+				text.setValue(this.plugin.settings.codexSkillsInstallRootDir);
+				text.onChange(async (value) => {
+					this.plugin.settings.codexSkillsInstallRootDir = value.trim();
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Overwrite existing Codex skill")
+			.setDesc("If disabled, install stops when SKILL.md already exists.")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.codexSkillsInstallOverwrite);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.codexSkillsInstallOverwrite = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Backup before overwrite")
+			.setDesc(
+				"When overwrite is enabled, keep a timestamped .bak copy of the previous file.",
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.codexSkillsInstallBackup);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.codexSkillsInstallBackup = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Codex skill actions")
+			.setDesc(
+				[
+					"Install writes the selected skill directly to your Codex skills folder.",
+					"If install fails, the plugin automatically falls back to clipboard copy.",
 					"Note: skill contents are bundled at build time; changes require plugin rebuild + reload.",
 				].join("\n"),
 			)
 			.addButton((button) => {
+				button.setButtonText("Install");
+				button.setCta();
+				button.onClick(() => {
+					void this.plugin.installSelectedCodexSkill();
+				});
+			})
+			.addButton((button) => {
 				button.setButtonText("Copy");
 				button.onClick(() => {
-					void this.plugin.copyCodexPrometheusAgentPromptToClipboard();
+					void this.plugin.copySelectedCodexSkillToClipboard();
 				});
 			});
 

@@ -41,7 +41,7 @@ This directory contains the **Obsidian community plugin** for AILSS.
 - Path/arg resolution + misc utils: `packages/obsidian-plugin/src/utils/*`
     - Vault/plugin paths + child process args: `packages/obsidian-plugin/src/utils/pluginPaths.ts`
     - Prompt install (vault root): `packages/obsidian-plugin/src/utils/vaultRootPromptInstaller.ts`
-    - Clipboard helpers: `packages/obsidian-plugin/src/utils/clipboard.ts`, `packages/obsidian-plugin/src/utils/codexClipboardService.ts`
+    - Codex skill install/copy helpers: `packages/obsidian-plugin/src/utils/codexSkillInstaller.ts`, `packages/obsidian-plugin/src/utils/codexClipboardService.ts`, `packages/obsidian-plugin/src/utils/clipboard.ts`
 
 ## What to follow
 
