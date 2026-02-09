@@ -16,7 +16,8 @@ type EnvKey =
   | "OPENAI_EMBEDDING_MODEL"
   | "AILSS_DB_PATH"
   | "AILSS_VAULT_PATH"
-  | "AILSS_ENABLE_WRITE_TOOLS";
+  | "AILSS_ENABLE_WRITE_TOOLS"
+  | "AILSS_MCP_HTTP_MAX_SESSIONS";
 
 export type EnvOverrides = Partial<Record<EnvKey, string | undefined>>;
 
