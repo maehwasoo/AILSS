@@ -7,6 +7,7 @@ import { AsyncMutex } from "./lib/asyncMutex.js";
 import { embeddingDimForModel } from "./lib/openaiEmbeddings.js";
 import type { McpToolDeps } from "./mcpDeps.js";
 import { registerCaptureNoteTool } from "./tools/captureNote.js";
+import { registerCanonicalizeTypedLinksTool } from "./tools/canonicalizeTypedLinks.js";
 import { registerEditNoteTool } from "./tools/editNote.js";
 import { registerExpandTypedLinksOutgoingTool } from "./tools/expandTypedLinksOutgoing.js";
 import { registerFindBrokenLinksTool } from "./tools/findBrokenLinks.js";
@@ -82,6 +83,7 @@ export function createAilssMcpServerFromRuntime(runtime: AilssMcpRuntime): {
 
   if (runtime.enableWriteTools) {
     registerCaptureNoteTool(server, deps);
+    registerCanonicalizeTypedLinksTool(server, deps);
     registerEditNoteTool(server, deps);
     registerImproveFrontmatterTool(server, deps);
     registerRelocateNoteTool(server, deps);

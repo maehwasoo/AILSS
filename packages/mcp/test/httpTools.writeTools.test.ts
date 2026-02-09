@@ -5,6 +5,8 @@ import path from "node:path";
 
 import { parseMarkdownNote } from "@ailss/core";
 import {
+  assertArray,
+  assertRecord,
   assertString,
   getStructuredContent,
   mcpInitialize,
@@ -308,6 +310,157 @@ describe("MCP HTTP server (write tools)", () => {
         expect(parsed.frontmatter.produces).toEqual(["[[Daily Report]]"]);
         expect(parsed.frontmatter.owned_by).toEqual(["[[Platform Team]]"]);
       });
+    });
+  });
+
+  it("canonicalizes frontmatter typed links via canonicalize_typed_links", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      const relPath = "Source.md";
+      await fs.writeFile(
+        path.join(vaultPath, relPath),
+        [
+          "---",
+          'id: "20260108123456"',
+          'created: "2026-01-08T12:34:56"',
+          'title: "Source"',
+          "summary:",
+          "aliases: []",
+          "entity:",
+          "layer: conceptual",
+          "tags: []",
+          "keywords: []",
+          "status: draft",
+          'updated: "2026-01-08T12:34:56"',
+          "source: []",
+          "depends_on:",
+          '  - "[[Deterministic]]"',
+          '  - "[[Duplicate]]"',
+          '  - "[[Folder/Strict#H2|Strict Label]]"',
+          '  - "[[Missing]]"',
+          '  - "[[Nested/Note]]"',
+          'uses: "[[Deterministic|Shown]]"',
+          "---",
+          "",
+          "Body should stay exactly here.",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await withMcpHttpServer(
+        {
+          vaultPath,
+          enableWriteTools: true,
+          beforeStart: async (runtime) => {
+            const now = new Date().toISOString().slice(0, 19);
+
+            const fileStmt = runtime.deps.db.prepare(
+              "INSERT INTO files(path, mtime_ms, size_bytes, sha256, updated_at) VALUES (?, ?, ?, ?, ?)",
+            );
+            const noteStmt = runtime.deps.db.prepare(
+              "INSERT INTO notes(path, note_id, created, title, summary, entity, layer, status, updated, frontmatter_json, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            );
+
+            const insertNote = (notePath: string, noteId: string, title: string): void => {
+              fileStmt.run(notePath, 0, 0, "0", now);
+              noteStmt.run(
+                notePath,
+                noteId,
+                now,
+                title,
+                null,
+                null,
+                "conceptual",
+                "draft",
+                now,
+                JSON.stringify({ id: noteId, title, tags: [] }),
+                now,
+              );
+            };
+
+            insertNote("Topics/Deterministic.md", "N1", "Deterministic");
+            insertNote("Duplicate.md", "N2", "Duplicate");
+            insertNote("Folder/Duplicate.md", "N3", "Duplicate");
+            insertNote("Folder/Strict.md", "N4", "Strict");
+            insertNote("X/Nested/Note.md", "N5", "Nested Note");
+          },
+        },
+        async ({ url, token }) => {
+          const sessionId = await mcpInitialize(url, token, "client-a");
+
+          const dryRun = await mcpToolsCall(url, token, sessionId, "canonicalize_typed_links", {
+            path: relPath,
+            apply: false,
+            reindex_after_apply: false,
+          });
+          const dryStructured = getStructuredContent(dryRun);
+
+          expect(dryStructured["applied"]).toBe(false);
+          expect(dryStructured["changed"]).toBe(true);
+
+          const editsRaw = dryStructured["edits"];
+          assertArray(editsRaw, "canonicalize_typed_links.edits");
+          expect(editsRaw).toHaveLength(3);
+
+          const afterValues = editsRaw
+            .map((entry) => {
+              assertRecord(entry, "canonicalize_typed_links.edits[i]");
+              return String(entry["after"] ?? "");
+            })
+            .sort();
+          expect(afterValues).toEqual([
+            "[[Folder/Strict|Strict Label]]",
+            "[[Topics/Deterministic|Deterministic]]",
+            "[[Topics/Deterministic|Shown]]",
+          ]);
+
+          const ambiguousRaw = dryStructured["ambiguous"];
+          assertArray(ambiguousRaw, "canonicalize_typed_links.ambiguous");
+          expect(ambiguousRaw).toHaveLength(1);
+          assertRecord(ambiguousRaw[0], "canonicalize_typed_links.ambiguous[0]");
+          expect(ambiguousRaw[0]["target"]).toBe("Duplicate");
+          assertArray(
+            ambiguousRaw[0]["candidates"],
+            "canonicalize_typed_links.ambiguous[0].candidates",
+          );
+
+          const unresolvedRaw = dryStructured["unresolved"];
+          assertArray(unresolvedRaw, "canonicalize_typed_links.unresolved");
+          const unresolvedTargets = unresolvedRaw
+            .map((entry) => {
+              assertRecord(entry, "canonicalize_typed_links.unresolved[i]");
+              return String(entry["target"] ?? "");
+            })
+            .sort();
+          expect(unresolvedTargets).toEqual(["Missing", "Nested/Note"]);
+
+          const beforeDryApply = await fs.readFile(path.join(vaultPath, relPath), "utf8");
+          expect(beforeDryApply).toContain('  - "[[Deterministic]]"');
+          const beforeParsed = parseMarkdownNote(beforeDryApply);
+
+          const applied = await mcpToolsCall(url, token, sessionId, "canonicalize_typed_links", {
+            path: relPath,
+            apply: true,
+            reindex_after_apply: false,
+          });
+          const appliedStructured = getStructuredContent(applied);
+          expect(appliedStructured["applied"]).toBe(true);
+          expect(appliedStructured["changed"]).toBe(true);
+
+          const written = await fs.readFile(path.join(vaultPath, relPath), "utf8");
+          const parsed = parseMarkdownNote(written);
+
+          expect(parsed.body).toBe(beforeParsed.body);
+          expect(parsed.frontmatter.depends_on).toEqual([
+            "[[Topics/Deterministic|Deterministic]]",
+            "[[Duplicate]]",
+            "[[Folder/Strict|Strict Label]]",
+            "[[Missing]]",
+            "[[Nested/Note]]",
+          ]);
+          expect(parsed.frontmatter.uses).toBe("[[Topics/Deterministic|Shown]]");
+        },
+      );
     });
   });
 });
