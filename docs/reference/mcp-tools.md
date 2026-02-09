@@ -113,6 +113,7 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Input: none
 - Notes:
   - Always available as a read tool.
+  - Includes mirror metadata: `active_run_id`, `mirror_status`, `last_success_at`, `last_error`, `last_error_at`.
   - When Neo4j is disabled/unavailable, returns non-fatal fallback status (`available=false`) with SQLite counts.
 
 ### `neo4j_graph_traverse`
@@ -128,6 +129,7 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `include_unresolved_targets` (boolean, default: `false`)
 - Notes:
   - When Neo4j is unavailable, tool falls back to SQLite-based outgoing traversal and reports `backend="sqlite_fallback"`.
+  - When Neo4j is reachable but mirror counts are inconsistent with SQLite, it also falls back to SQLite and reports the inconsistency reason.
   - Fallback mode supports outgoing traversal semantics only.
 
 ## Write tools (gated)

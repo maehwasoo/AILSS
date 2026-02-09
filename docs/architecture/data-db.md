@@ -80,11 +80,16 @@ Example `to_wikilink` value:
 ## Optional Neo4j hybrid mirror (phase 1)
 
 - SQLite remains the source of truth for indexing/retrieval.
-- When enabled, the indexer mirrors graph structures into Neo4j after indexing:
-  - `(:AilssNote {path})` from SQLite `notes`
-  - `(:AilssTarget {target})` from SQLite `typed_links.to_target`
-  - `(:AilssNote)-[:AILSS_TYPED_LINK]->(:AilssTarget)` (one edge per SQLite `typed_links` row)
-  - `(:AilssTarget)-[:AILSS_RESOLVES_TO]->(:AilssNote)` (derived target resolution links)
+- When enabled, the indexer mirrors graph structures into Neo4j after indexing using a staged `run_id` snapshot.
+- Cutover safety:
+  - A new snapshot is fully built first.
+  - The active mirror pointer (`AilssMirrorState.active_run_id`) is switched only after consistency checks pass.
+  - If sync fails, the previous active snapshot remains available (no destructive pre-delete of active data).
+- Mirror model (per `run_id`):
+  - `(:AilssNote {run_id, path})` from SQLite `notes`
+  - `(:AilssTarget {run_id, target})` from SQLite `typed_links.to_target`
+  - `(:AilssNote)-[:AILSS_TYPED_LINK {run_id}]->(:AilssTarget)` (one edge per SQLite `typed_links` row)
+  - `(:AilssTarget)-[:AILSS_RESOLVES_TO {run_id}]->(:AilssNote)` (derived target resolution links)
 - MCP read tools can query Neo4j (`neo4j_graph_status`, `neo4j_graph_traverse`) and fall back safely when Neo4j is disabled/unavailable.
 
 ## Query support (current)

@@ -65,10 +65,11 @@ Frontmatter query support (current):
 
 - AILSS stores normalized frontmatter in SQLite for retrieval and graph building.
 - Optional Neo4j hybrid mode mirrors `notes` + `typed_links` into Neo4j without replacing SQLite as source of truth.
+  - Mirror sync is staged by `run_id` and switched via an active pointer only after consistency checks pass.
 - The MCP surface supports both:
   - semantic retrieval via `get_context`
   - metadata filtering via `search_notes` + typed-link navigation/backrefs via `expand_typed_links_outgoing` / `find_typed_links_incoming`
-  - graph-native checks/traversal via `neo4j_graph_status` / `neo4j_graph_traverse`
+  - graph-native checks/traversal via `neo4j_graph_status` / `neo4j_graph_traverse` (auto fallback to SQLite when Neo4j is unavailable or inconsistent)
 
 Read-first tools (planned):
 
