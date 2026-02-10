@@ -125,25 +125,18 @@ function splitTargetAndDisplay(raw: string): {
     };
   }
 
-  if (trimmed.startsWith("[[") && trimmed.endsWith("]]")) {
-    const inner = trimmed.slice(2, -2).trim();
-    const pipeIndex = inner.indexOf("|");
-    const left = (pipeIndex >= 0 ? inner.slice(0, pipeIndex) : inner).trim();
-    const right = (pipeIndex >= 0 ? inner.slice(pipeIndex + 1) : "").trim();
-    const targetForResolution = left.split("#")[0]?.trim() ?? "";
-    const displayForCanonicalLink = right || left || inner;
+  const inner =
+    trimmed.startsWith("[[") && trimmed.endsWith("]]") ? trimmed.slice(2, -2).trim() : trimmed;
 
-    return {
-      target_for_resolution: targetForResolution || left || inner,
-      display_for_canonical_link: displayForCanonicalLink,
-    };
-  }
+  const pipeIndex = inner.indexOf("|");
+  const left = (pipeIndex >= 0 ? inner.slice(0, pipeIndex) : inner).trim();
+  const right = (pipeIndex >= 0 ? inner.slice(pipeIndex + 1) : "").trim();
+  const targetForResolution = left.split("#")[0]?.trim() ?? "";
+  const displayForCanonicalLink = right || left || inner;
 
-  const targetWithoutDisplay = trimmed.split("|")[0]?.trim() ?? "";
-  const targetForResolution = targetWithoutDisplay.split("#")[0]?.trim() ?? "";
   return {
-    target_for_resolution: targetForResolution || trimmed,
-    display_for_canonical_link: trimmed,
+    target_for_resolution: targetForResolution || left || inner,
+    display_for_canonical_link: displayForCanonicalLink,
   };
 }
 

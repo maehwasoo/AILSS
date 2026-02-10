@@ -339,6 +339,7 @@ describe("MCP HTTP server (write tools)", () => {
           '  - "[[Missing]]"',
           '  - "[[Nested/Note]]"',
           'uses: "[[Deterministic|Shown]]"',
+          'summarizes: "Deterministic|Alias Plain"',
           "---",
           "",
           "Body should stay exactly here.",
@@ -400,7 +401,7 @@ describe("MCP HTTP server (write tools)", () => {
 
           const editsRaw = dryStructured["edits"];
           assertArray(editsRaw, "canonicalize_typed_links.edits");
-          expect(editsRaw).toHaveLength(3);
+          expect(editsRaw).toHaveLength(4);
 
           const afterValues = editsRaw
             .map((entry) => {
@@ -410,6 +411,7 @@ describe("MCP HTTP server (write tools)", () => {
             .sort();
           expect(afterValues).toEqual([
             "[[Folder/Strict|Strict Label]]",
+            "[[Topics/Deterministic|Alias Plain]]",
             "[[Topics/Deterministic|Deterministic]]",
             "[[Topics/Deterministic|Shown]]",
           ]);
@@ -459,6 +461,7 @@ describe("MCP HTTP server (write tools)", () => {
             "[[Nested/Note]]",
           ]);
           expect(parsed.frontmatter.uses).toBe("[[Topics/Deterministic|Shown]]");
+          expect(parsed.frontmatter.summarizes).toBe("[[Topics/Deterministic|Alias Plain]]");
         },
       );
     });
