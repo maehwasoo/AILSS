@@ -103,15 +103,23 @@ function computeStableChunkIds(fileRelPath: string, chunks: MarkdownChunk[]): Pl
   });
 }
 
-export async function indexVault(options: IndexVaultOptions): Promise<IndexVaultSummary> {
-  const maxChars = Math.max(1, options.maxChars ?? 4000);
-  const batchSize = Math.max(1, options.batchSize ?? 32);
+type IndexedMarkdownFile = Awaited<ReturnType<typeof statMarkdownFile>>;
 
+type ResolvedIndexTargets = {
+  requestedPaths: string[];
+  absPaths: string[];
+  existingRelPaths: Set<string> | null;
+  isFullVaultRun: boolean;
+  deletedFiles: number;
+};
+
+async function resolveIndexTargetsStage(options: IndexVaultOptions): Promise<ResolvedIndexTargets> {
   const requestedPaths = (options.paths ?? []).map((p) => p.trim()).filter(Boolean);
   const absPaths: string[] = [];
+  const isFullVaultRun = requestedPaths.length === 0;
   let deletedFiles = 0;
 
-  if (requestedPaths.length > 0) {
+  if (!isFullVaultRun) {
     const vaultRoot = path.resolve(options.vaultPath);
     const seenAbsPaths = new Set<string>();
 
@@ -124,14 +132,10 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
         throw new Error(`Refusing to index a path outside the vault: ${inputPath}`);
       }
 
-      if (!candidateAbs.toLowerCase().endsWith(".md")) {
-        continue;
-      }
+      if (!candidateAbs.toLowerCase().endsWith(".md")) continue;
 
       const relPath = relPathFromAbs(options.vaultPath, candidateAbs);
-      if (isDefaultIgnoredVaultRelPath(relPath)) {
-        continue;
-      }
+      if (isDefaultIgnoredVaultRelPath(relPath)) continue;
 
       try {
         await fs.stat(candidateAbs);
@@ -147,10 +151,59 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
     absPaths.push(...(await listMarkdownFiles(options.vaultPath)));
   }
 
-  const existingRelPaths =
-    requestedPaths.length > 0
-      ? null
-      : new Set(absPaths.map((absPath) => relPathFromAbs(options.vaultPath, absPath)));
+  return {
+    requestedPaths,
+    absPaths,
+    existingRelPaths: isFullVaultRun
+      ? new Set(absPaths.map((absPath) => relPathFromAbs(options.vaultPath, absPath)))
+      : null,
+    isFullVaultRun,
+    deletedFiles,
+  };
+}
+
+async function syncFileMetadataStage(
+  options: IndexVaultOptions,
+  file: IndexedMarkdownFile,
+): Promise<string> {
+  const markdown = await readUtf8File(file.absPath);
+  const parsed = parseMarkdownNote(markdown);
+  const noteMeta = normalizeAilssNoteMeta(parsed.frontmatter);
+
+  upsertFile(options.db, {
+    path: file.relPath,
+    mtimeMs: file.mtimeMs,
+    sizeBytes: file.size,
+    sha256: file.sha256,
+  });
+
+  upsertNote(options.db, {
+    path: file.relPath,
+    noteId: noteMeta.noteId,
+    created: noteMeta.created,
+    title: noteMeta.title,
+    summary: noteMeta.summary,
+    entity: noteMeta.entity,
+    layer: noteMeta.layer,
+    status: noteMeta.status,
+    updated: noteMeta.updated,
+    frontmatterJson: JSON.stringify(noteMeta.frontmatter),
+  });
+  replaceNoteTags(options.db, file.relPath, noteMeta.tags);
+  replaceNoteKeywords(options.db, file.relPath, noteMeta.keywords);
+  replaceNoteSources(options.db, file.relPath, noteMeta.sources);
+  replaceTypedLinks(options.db, file.relPath, noteMeta.typedLinks);
+
+  return parsed.body;
+}
+
+export async function indexVault(options: IndexVaultOptions): Promise<IndexVaultSummary> {
+  const maxChars = Math.max(1, options.maxChars ?? 4000);
+  const batchSize = Math.max(1, options.batchSize ?? 32);
+
+  const targets = await resolveIndexTargetsStage(options);
+  const { absPaths, existingRelPaths, isFullVaultRun } = targets;
+  let deletedFiles = targets.deletedFiles;
 
   logLine(options.logger, `[ailss-indexer] vault=${options.vaultPath}`);
   logLine(options.logger, `[ailss-indexer] db=${options.dbPathForLog ?? "<in-process>"}`);
@@ -164,7 +217,6 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
     const prevSha = getFileSha256(options.db, file.relPath);
 
     const shaUnchanged = !!prevSha && prevSha === file.sha256;
-    const isFullVaultRun = requestedPaths.length === 0;
 
     if (shaUnchanged && !isFullVaultRun) continue;
 
@@ -178,34 +230,8 @@ export async function indexVault(options: IndexVaultOptions): Promise<IndexVault
       logLine(options.logger, `[meta] ${file.relPath}`);
     }
 
-    const markdown = await readUtf8File(file.absPath);
-    const parsed = parseMarkdownNote(markdown);
-    const chunks = needsEmbeddingUpdate ? chunkMarkdownByHeadings(parsed.body, { maxChars }) : [];
-    const noteMeta = normalizeAilssNoteMeta(parsed.frontmatter);
-
-    upsertFile(options.db, {
-      path: file.relPath,
-      mtimeMs: file.mtimeMs,
-      sizeBytes: file.size,
-      sha256: file.sha256,
-    });
-
-    upsertNote(options.db, {
-      path: file.relPath,
-      noteId: noteMeta.noteId,
-      created: noteMeta.created,
-      title: noteMeta.title,
-      summary: noteMeta.summary,
-      entity: noteMeta.entity,
-      layer: noteMeta.layer,
-      status: noteMeta.status,
-      updated: noteMeta.updated,
-      frontmatterJson: JSON.stringify(noteMeta.frontmatter),
-    });
-    replaceNoteTags(options.db, file.relPath, noteMeta.tags);
-    replaceNoteKeywords(options.db, file.relPath, noteMeta.keywords);
-    replaceNoteSources(options.db, file.relPath, noteMeta.sources);
-    replaceTypedLinks(options.db, file.relPath, noteMeta.typedLinks);
+    const body = await syncFileMetadataStage(options, file);
+    const chunks = needsEmbeddingUpdate ? chunkMarkdownByHeadings(body, { maxChars }) : [];
 
     if (!needsEmbeddingUpdate) {
       continue;
