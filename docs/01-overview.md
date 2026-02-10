@@ -33,6 +33,8 @@ Read-first tools (implemented in this repo):
   - Default `top_k` can be set via `AILSS_GET_CONTEXT_DEFAULT_TOP_K` (applies only when the caller omits `top_k`; clamped to 1–50; default: 10)
   - Returns note metadata + stitched evidence chunks by default (file-start previews are disabled unless explicitly enabled)
   - Default `max_chars_per_note` is 800 (applies only when the caller omits it; clamped to 200–50,000; used for file-start previews when enabled)
+  - Optional scoped candidate filters are available: `path_prefix` (literal path prefix), `tags_any`, `tags_all`
+  - Retrieval metadata includes `applied_filters` so callers can verify which scope filters were applied
 - `expand_typed_links_outgoing`: expand outgoing typed links from a specified note path into a bounded graph (DB-backed; metadata only)
 - `find_typed_links_incoming`: find notes that reference a target via typed links (incoming edges)
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)

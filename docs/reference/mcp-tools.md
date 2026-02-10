@@ -11,6 +11,9 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Purpose: semantic retrieval over the index DB (returns note metadata + stitched evidence chunks; optional file-start previews).
 - Input:
   - `query` (string, required)
+  - `path_prefix` (string, optional) — literal vault-relative prefix match for candidate notes (not SQL wildcard semantics)
+  - `tags_any` (string[], default: `[]`) — candidate notes must include at least one tag
+  - `tags_all` (string[], default: `[]`) — candidate notes must include all tags
   - `top_k` (int, default: `10`, range: `1–50`)
   - `expand_top_k` (int, default: `5`, range: `0–50`) — how many of the top_k notes include stitched evidence text
   - `hit_chunks_per_note` (int, default: `2`, range: `1–5`)
@@ -18,6 +21,10 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `max_evidence_chars_per_note` (int, default: `1500`, range: `200–20,000`)
   - `include_file_preview` (boolean, default: `false`) — when true, includes file-start preview (requires `AILSS_VAULT_PATH`)
   - `max_chars_per_note` (int, default: `800`, range: `200–50,000`) — file-start preview size when `include_file_preview=true`
+- Output (selected):
+  - `applied_filters.path_prefix` (`string | null`) — normalized path prefix applied to candidate filtering
+  - `applied_filters.tags_any` (`string[]`) — normalized ANY-tag filter applied to candidate filtering
+  - `applied_filters.tags_all` (`string[]`) — normalized ALL-tag filter applied to candidate filtering
 
 ### `expand_typed_links_outgoing`
 
