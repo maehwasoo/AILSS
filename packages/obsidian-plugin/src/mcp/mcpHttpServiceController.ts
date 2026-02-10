@@ -37,6 +37,13 @@ type PortNegotiationResult = {
 	shutdownSucceeded: boolean;
 };
 
+type SpawnPlan = {
+	command: string;
+	args: string[];
+	cwd: string | null;
+	env: NodeJS.ProcessEnv;
+};
+
 export class McpHttpServiceController {
 	private proc: ChildProcess | null = null;
 	private stopRequested = false;
@@ -90,96 +97,13 @@ export class McpHttpServiceController {
 				return;
 			}
 
-			const env: Record<string, string> = {
-				OPENAI_API_KEY: preflight.openaiApiKey,
-				OPENAI_EMBEDDING_MODEL:
-					preflight.settings.openaiEmbeddingModel.trim() ||
-					DEFAULT_SETTINGS.openaiEmbeddingModel,
-				AILSS_VAULT_PATH: preflight.vaultPath,
-				AILSS_MCP_HTTP_HOST: preflight.host,
-				AILSS_MCP_HTTP_PORT: String(preflight.port),
-				AILSS_MCP_HTTP_PATH: "/mcp",
-				AILSS_MCP_HTTP_TOKEN: preflight.token,
-				AILSS_MCP_HTTP_SHUTDOWN_TOKEN: preflight.shutdownToken,
-				AILSS_GET_CONTEXT_DEFAULT_TOP_K: String(preflight.topK),
-			};
-
-			if (preflight.settings.mcpHttpServiceEnableWriteTools) {
-				env.AILSS_ENABLE_WRITE_TOOLS = "1";
-			}
-
-			const cwd = this.deps.getPluginDirRealpathOrNull();
-			const spawnEnv = { ...process.env, ...env };
-			const resolved = resolveSpawnCommandAndEnv(preflight.mcpCommand, spawnEnv);
-			if (resolved.command === "node") {
-				throw new Error(nodeNotFoundMessage("MCP"));
-			}
-
-			this.liveStdout = "";
-			this.liveStderr = "";
-			this.startedAt = nowIso();
-			this.lastExitCode = null;
-			this.lastStoppedAt = null;
-			this.lastErrorMessage = null;
-
-			const child = spawn(resolved.command, preflight.mcpArgs, {
-				stdio: ["ignore", "pipe", "pipe"],
-				...(cwd ? { cwd } : {}),
-				env: resolved.env,
-			});
-
+			const plan = this.buildSpawnPlan(preflight);
+			this.resetStartupState();
+			const child = this.spawnServiceProcess(plan);
 			this.proc = child;
 			this.deps.onStatusChanged();
 
-			child.stdout?.on("data", (chunk: unknown) => {
-				const text = typeof chunk === "string" ? chunk : String(chunk);
-				this.liveStdout = appendLimited(this.liveStdout, text, 40_000);
-			});
-
-			child.stderr?.on("data", (chunk: unknown) => {
-				const text = typeof chunk === "string" ? chunk : String(chunk);
-				this.liveStderr = appendLimited(this.liveStderr, text, 40_000);
-			});
-
-			child.on("error", (error) => {
-				const message = error instanceof Error ? error.message : String(error);
-				this.lastErrorMessage = message;
-				this.proc = null;
-				this.deps.onStatusChanged();
-				new Notice(`AILSS MCP service failed: ${message}`);
-			});
-
-			child.on("close", (code, signal) => {
-				this.lastExitCode = code;
-				this.lastStoppedAt = nowIso();
-				this.proc = null;
-
-				const stopRequested = this.stopRequested;
-				this.stopRequested = false;
-
-				if (stopRequested) {
-					this.lastErrorMessage = null;
-				} else if ((code !== null && code !== 0) || (code === null && signal)) {
-					const stderr = this.liveStderr.trim();
-					const stderrTail = stderr
-						? stderr.split(/\r?\n/).slice(-10).join("\n").trim()
-						: "";
-					const suffix = code === null ? `signal ${signal}` : `exit ${code}`;
-					this.lastErrorMessage = stderrTail
-						? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}`
-						: `Unexpected stop (${suffix}).`;
-				} else {
-					this.lastErrorMessage = null;
-				}
-
-				this.deps.onStatusChanged();
-
-				if (this.deps.getSettings().mcpHttpServiceEnabled) {
-					const suffix =
-						code === null ? (signal ? ` (${signal})` : "") : ` (exit ${code})`;
-					new Notice(`AILSS MCP service stopped${suffix}.`);
-				}
-			});
+			this.attachChildProcessListeners(child);
 
 			new Notice(`AILSS MCP service started: ${this.deps.getUrl()}`);
 			this.deps.onStatusChanged();
@@ -365,6 +289,117 @@ export class McpHttpServiceController {
 		}
 
 		return baseMessage;
+	}
+
+	private buildSpawnPlan(preflight: StartupPreflight): SpawnPlan {
+		const env = this.buildServiceEnv(preflight);
+		const spawnEnv = { ...process.env, ...env };
+		const resolved = resolveSpawnCommandAndEnv(preflight.mcpCommand, spawnEnv);
+		if (resolved.command === "node") {
+			throw new Error(nodeNotFoundMessage("MCP"));
+		}
+
+		return {
+			command: resolved.command,
+			args: preflight.mcpArgs,
+			cwd: this.deps.getPluginDirRealpathOrNull(),
+			env: resolved.env,
+		};
+	}
+
+	private buildServiceEnv(preflight: StartupPreflight): Record<string, string> {
+		const env: Record<string, string> = {
+			OPENAI_API_KEY: preflight.openaiApiKey,
+			OPENAI_EMBEDDING_MODEL:
+				preflight.settings.openaiEmbeddingModel.trim() ||
+				DEFAULT_SETTINGS.openaiEmbeddingModel,
+			AILSS_VAULT_PATH: preflight.vaultPath,
+			AILSS_MCP_HTTP_HOST: preflight.host,
+			AILSS_MCP_HTTP_PORT: String(preflight.port),
+			AILSS_MCP_HTTP_PATH: "/mcp",
+			AILSS_MCP_HTTP_TOKEN: preflight.token,
+			AILSS_MCP_HTTP_SHUTDOWN_TOKEN: preflight.shutdownToken,
+			AILSS_GET_CONTEXT_DEFAULT_TOP_K: String(preflight.topK),
+		};
+
+		if (preflight.settings.mcpHttpServiceEnableWriteTools) {
+			env.AILSS_ENABLE_WRITE_TOOLS = "1";
+		}
+
+		return env;
+	}
+
+	private resetStartupState(): void {
+		this.liveStdout = "";
+		this.liveStderr = "";
+		this.startedAt = nowIso();
+		this.lastExitCode = null;
+		this.lastStoppedAt = null;
+		this.lastErrorMessage = null;
+	}
+
+	private spawnServiceProcess(plan: SpawnPlan): ChildProcess {
+		return spawn(plan.command, plan.args, {
+			stdio: ["ignore", "pipe", "pipe"],
+			...(plan.cwd ? { cwd: plan.cwd } : {}),
+			env: plan.env,
+		});
+	}
+
+	private attachChildProcessListeners(child: ChildProcess): void {
+		child.stdout?.on("data", (chunk: unknown) => {
+			const text = typeof chunk === "string" ? chunk : String(chunk);
+			this.liveStdout = appendLimited(this.liveStdout, text, 40_000);
+		});
+
+		child.stderr?.on("data", (chunk: unknown) => {
+			const text = typeof chunk === "string" ? chunk : String(chunk);
+			this.liveStderr = appendLimited(this.liveStderr, text, 40_000);
+		});
+
+		child.on("error", (error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			this.lastErrorMessage = message;
+			this.proc = null;
+			this.deps.onStatusChanged();
+			new Notice(`AILSS MCP service failed: ${message}`);
+		});
+
+		child.on("close", (code, signal) => {
+			this.lastExitCode = code;
+			this.lastStoppedAt = nowIso();
+			this.proc = null;
+
+			const stopRequested = this.stopRequested;
+			this.stopRequested = false;
+
+			if (stopRequested) {
+				this.lastErrorMessage = null;
+			} else if ((code !== null && code !== 0) || (code === null && signal)) {
+				this.lastErrorMessage = this.composeUnexpectedStopErrorMessage(code, signal);
+			} else {
+				this.lastErrorMessage = null;
+			}
+
+			this.deps.onStatusChanged();
+
+			if (this.deps.getSettings().mcpHttpServiceEnabled) {
+				const suffix = code === null ? (signal ? ` (${signal})` : "") : ` (exit ${code})`;
+				new Notice(`AILSS MCP service stopped${suffix}.`);
+			}
+		});
+	}
+
+	private composeUnexpectedStopErrorMessage(
+		code: number | null,
+		signal: NodeJS.Signals | null,
+	): string {
+		const stderr = this.liveStderr.trim();
+		const stderrTail = stderr ? stderr.split(/\r?\n/).slice(-10).join("\n").trim() : "";
+		const suffix = code === null ? `signal ${signal}` : `exit ${code}`;
+		return stderrTail
+			? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}`
+			: `Unexpected stop (${suffix}).`;
 	}
 
 	private async requestShutdown(options: {
