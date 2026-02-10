@@ -2,7 +2,7 @@
 name: Documentation issue (Markdown)
 about: Report missing/incorrect docs (Markdown template)
 title: "docs: "
-labels: ["documentation"]
+labels: ["docs"]
 ---
 
 Please avoid adding component/scope to the title (no `docs(ops): ...`, no `mcp: ...`).
