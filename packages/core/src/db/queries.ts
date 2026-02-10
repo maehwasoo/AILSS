@@ -414,13 +414,21 @@ function normalizeStringList(input: string | string[] | undefined): string[] | u
   return undefined;
 }
 
+function escapeSqlLikeLiteral(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+function toLiteralPrefixLikePattern(prefix: string): string {
+  return `${escapeSqlLikeLiteral(prefix)}%`;
+}
+
 export function searchNotes(db: AilssDb, filters: SearchNotesFilters = {}): SearchNotesResult[] {
   const where: string[] = [];
   const params: unknown[] = [];
 
   if (filters.pathPrefix) {
-    where.push(`notes.path LIKE ?`);
-    params.push(`${filters.pathPrefix}%`);
+    where.push(`notes.path LIKE ? ESCAPE '\\'`);
+    params.push(toLiteralPrefixLikePattern(filters.pathPrefix));
   }
 
   if (filters.titleQuery) {
@@ -916,8 +924,8 @@ export function semanticSearch(
   const candidateParams: unknown[] = [];
 
   if (pathPrefix) {
-    candidateWhere.push(`c.path LIKE ?`);
-    candidateParams.push(`${pathPrefix}%`);
+    candidateWhere.push(`c.path LIKE ? ESCAPE '\\'`);
+    candidateParams.push(toLiteralPrefixLikePattern(pathPrefix));
   }
 
   if (tagsAny.length > 0) {

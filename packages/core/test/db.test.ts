@@ -183,6 +183,56 @@ describe("openAilssDb() + semanticSearch()", () => {
     }
   });
 
+  it("treats pathPrefix as a literal prefix when filtering semantic candidates", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "project_v2/alpha.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-alpha",
+      });
+      upsertFile(db, {
+        path: "projectXv2/beta.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-beta",
+      });
+
+      insertChunkWithEmbedding(db, {
+        chunkId: "alpha",
+        path: "project_v2/alpha.md",
+        chunkIndex: 0,
+        heading: "Alpha",
+        headingPathJson: JSON.stringify(["Alpha"]),
+        content: "alpha",
+        contentSha256: "sha-alpha",
+        embedding: [0.3, 0, 0],
+      });
+      insertChunkWithEmbedding(db, {
+        chunkId: "beta",
+        path: "projectXv2/beta.md",
+        chunkIndex: 0,
+        heading: "Beta",
+        headingPathJson: JSON.stringify(["Beta"]),
+        content: "beta",
+        contentSha256: "sha-beta",
+        embedding: [0, 0, 0],
+      });
+
+      const unscoped = semanticSearch(db, [0, 0, 0], 2);
+      expect(unscoped.map((r) => r.chunkId)).toEqual(["beta", "alpha"]);
+
+      const scoped = semanticSearch(db, [0, 0, 0], 2, { pathPrefix: "project_v2/" });
+      expect(scoped.map((r) => r.chunkId)).toEqual(["alpha"]);
+    } finally {
+      db.close();
+    }
+  });
+
   it("deleteChunksByPath() also removes vec0 rows", async () => {
     const dir = await mkTempDir();
     const dbPath = path.join(dir, "index.sqlite");
@@ -343,6 +393,57 @@ describe("searchNotes()", () => {
           sources: [],
         },
       ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("treats pathPrefix as a literal prefix", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "project_v2/alpha.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-alpha",
+      });
+      upsertFile(db, {
+        path: "projectXv2/beta.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-beta",
+      });
+
+      upsertNote(db, {
+        path: "project_v2/alpha.md",
+        noteId: "note-alpha",
+        created: null,
+        title: "Alpha",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+      upsertNote(db, {
+        path: "projectXv2/beta.md",
+        noteId: "note-beta",
+        created: null,
+        title: "Beta",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+
+      const results = searchNotes(db, { pathPrefix: "project_v2/" });
+      expect(results.map((r) => r.path)).toEqual(["project_v2/alpha.md"]);
     } finally {
       db.close();
     }

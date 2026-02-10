@@ -429,6 +429,88 @@ describe("MCP HTTP server (get_context)", () => {
     });
   });
 
+  it("treats path_prefix as a literal prefix", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+      const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+      const queryEmbedding = [0, 0, 0];
+      const openaiStub = {
+        embeddings: {
+          create: async () => ({ data: [{ embedding: queryEmbedding }] }),
+        },
+      } as unknown as AilssMcpRuntime["deps"]["openai"];
+
+      const runtime: AilssMcpRuntime = {
+        deps: {
+          db,
+          dbPath,
+          vaultPath: undefined,
+          openai: openaiStub,
+          embeddingModel: "test-embeddings",
+          writeLock: new AsyncMutex(),
+        },
+        enableWriteTools: false,
+      };
+
+      upsertFile(db, { path: "project_v2/Alpha.md", mtimeMs: 0, sizeBytes: 0, sha256: "a" });
+      upsertFile(db, { path: "projectXv2/Beta.md", mtimeMs: 0, sizeBytes: 0, sha256: "b" });
+
+      insertChunkWithEmbedding(db, {
+        chunkId: "alpha",
+        path: "project_v2/Alpha.md",
+        chunkIndex: 0,
+        heading: "Alpha",
+        headingPathJson: JSON.stringify(["Alpha"]),
+        content: "alpha",
+        contentSha256: "sha-alpha",
+        embedding: [0.3, 0, 0],
+      });
+      insertChunkWithEmbedding(db, {
+        chunkId: "beta",
+        path: "projectXv2/Beta.md",
+        chunkIndex: 0,
+        heading: "Beta",
+        headingPathJson: JSON.stringify(["Beta"]),
+        content: "beta",
+        contentSha256: "sha-beta",
+        embedding: [0, 0, 0],
+      });
+
+      const { close, url } = await startAilssMcpHttpServer({
+        runtime,
+        config: { host: "127.0.0.1", port: 0, path: "/mcp", token: TEST_TOKEN },
+        maxSessions: 5,
+        idleTtlMs: 60_000,
+      });
+
+      try {
+        const sessionId = await mcpInitialize(url, TEST_TOKEN, "client-a");
+        const res = await mcpToolsCall(url, TEST_TOKEN, sessionId, "get_context", {
+          query: "query",
+          path_prefix: "project_v2/",
+          top_k: 2,
+          expand_top_k: 0,
+        });
+
+        throwIfToolCallFailed(res);
+        const structured = getStructuredContent(res);
+        expect(structured["applied_filters"]).toEqual({
+          path_prefix: "project_v2/",
+          tags_any: [],
+          tags_all: [],
+        });
+
+        const results = structured["results"] as Array<Record<string, unknown>>;
+        expect(results).toHaveLength(1);
+        expect(results[0]?.path).toBe("project_v2/Alpha.md");
+      } finally {
+        await close();
+        db.close();
+      }
+    });
+  });
+
   it.each([
     { env: undefined, expected: 10 },
     { env: "not-a-number", expected: 10 },
