@@ -111,6 +111,7 @@ When filing an issue, optimize for fast, high-confidence triage.
   - `docs` template → `docs: ...` title + `docs` label
   - `question` template → `question: ...` title + `question` label
   - `refactor` template → `refactor: ...` title + `refactor` label (do not combine with `enhancement`)
+  - `test` template → `test: ...` title + `test` label
 - Avoid encoding component or scope in the title (no `type(scope): ...` and no `component: ...` prefixes); use labels (and template fields when present) instead.
 - Problem statement: what you were trying to do and why.
 - Reproduction: numbered steps starting from a clean state; include minimal config/snippets when possible.
