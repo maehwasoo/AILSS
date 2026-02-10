@@ -19,8 +19,10 @@ function createRequest(options?: {
   const req = new PassThrough() as IncomingMessage & PassThrough;
   req.url = options?.url ?? "/";
   req.headers = options?.headers ?? {};
-  (req as IncomingMessage & { headersDistinct?: Record<string, string[]> }).headersDistinct =
-    options?.headersDistinct;
+  if (options?.headersDistinct) {
+    (req as IncomingMessage & { headersDistinct: Record<string, string[]> }).headersDistinct =
+      options.headersDistinct;
+  }
   return req;
 }
 
