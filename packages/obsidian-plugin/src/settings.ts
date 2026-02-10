@@ -49,8 +49,20 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "AILSS Obsidian" });
+		this.renderHeader(containerEl);
+		this.renderPromptInstallerSection(containerEl);
+		this.renderOpenAiSection(containerEl);
+		this.renderMcpServiceSection(containerEl);
+		this.renderIndexMaintenanceSection(containerEl);
+		this.renderAutoIndexSection(containerEl);
+		this.renderAdvancedSection(containerEl);
+	}
 
+	private renderHeader(containerEl: HTMLElement): void {
+		containerEl.createEl("h2", { text: "AILSS Obsidian" });
+	}
+
+	private renderPromptInstallerSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Prompt installer (vault root)" });
 
 		let selectedKind: PromptKind = "AGENTS";
@@ -113,7 +125,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 					void this.plugin.copyCodexPrometheusAgentPromptToClipboard();
 				});
 			});
+	}
 
+	private renderOpenAiSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName("OpenAI API key")
 			.setDesc("Stored locally in Obsidian settings. Required for indexing and MCP queries.")
@@ -170,7 +184,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+	}
 
+	private renderMcpServiceSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "MCP service (Codex, localhost)" });
 
 		new Setting(containerEl)
@@ -259,7 +275,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				button.setButtonText("Restart service");
 				button.onClick(() => void this.plugin.restartMcpHttpService());
 			});
+	}
 
+	private renderIndexMaintenanceSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Index maintenance" });
 
 		new Setting(containerEl)
@@ -307,7 +325,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 						});
 				});
 			});
+	}
 
+	private renderAutoIndexSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Auto indexing (optional)" });
 
 		new Setting(containerEl)
@@ -335,7 +355,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+	}
 
+	private renderAdvancedSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
 		const details = containerEl.createEl("details");
 		details.createEl("summary", {
