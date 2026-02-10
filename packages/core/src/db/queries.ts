@@ -892,20 +892,70 @@ export type SemanticSearchResult = {
   distance: number;
 };
 
+export type SemanticSearchFilters = {
+  pathPrefix?: string;
+  tagsAny?: string[];
+  tagsAll?: string[];
+};
+
+function normalizeFilterStrings(values: string[] | undefined): string[] {
+  return (values ?? []).map((v) => v.trim()).filter(Boolean);
+}
+
 export function semanticSearch(
   db: AilssDb,
   queryEmbedding: number[],
   topK: number,
+  filters: SemanticSearchFilters = {},
 ): SemanticSearchResult[] {
+  const pathPrefix = filters.pathPrefix?.trim();
+  const tagsAny = normalizeFilterStrings(filters.tagsAny);
+  const tagsAll = normalizeFilterStrings(filters.tagsAll);
+
+  const candidateWhere: string[] = [];
+  const candidateParams: unknown[] = [];
+
+  if (pathPrefix) {
+    candidateWhere.push(`c.path LIKE ?`);
+    candidateParams.push(`${pathPrefix}%`);
+  }
+
+  if (tagsAny.length > 0) {
+    candidateWhere.push(
+      `EXISTS (SELECT 1 FROM note_tags t WHERE t.path = c.path AND t.tag IN (${tagsAny
+        .map(() => "?")
+        .join(", ")}))`,
+    );
+    candidateParams.push(...tagsAny);
+  }
+
+  for (const tag of tagsAll) {
+    candidateWhere.push(`EXISTS (SELECT 1 FROM note_tags t WHERE t.path = c.path AND t.tag = ?)`);
+    candidateParams.push(tag);
+  }
+
+  const hasCandidateScope = candidateWhere.length > 0;
+  const candidatesCte = hasCandidateScope
+    ? `
+    candidates AS (
+      SELECT r.rowid AS rowid
+      FROM chunks c
+      JOIN chunk_rowids r ON r.chunk_id = c.chunk_id
+      WHERE ${candidateWhere.join(" AND ")}
+    ),`
+    : "";
+
   // vec0 search query
   // - sqlite-vec requires LIMIT or `k = ?` for KNN queries
   // - When JOINs are involved, LIMIT detection can break, so split via a CTE
   const stmt = db.prepare(`
-    WITH matches AS (
+    WITH ${candidatesCte}
+    matches AS (
       SELECT rowid, distance
       FROM chunk_embeddings
       WHERE embedding MATCH ?
         AND k = ?
+        ${hasCandidateScope ? "AND rowid IN (SELECT rowid FROM candidates)" : ""}
       ORDER BY distance
     )
     SELECT
@@ -922,7 +972,10 @@ export function semanticSearch(
     ORDER BY m.distance
   `);
 
-  const rows = stmt.all(JSON.stringify(queryEmbedding), topK) as Array<{
+  const searchParams = hasCandidateScope
+    ? [...candidateParams, JSON.stringify(queryEmbedding), topK]
+    : [JSON.stringify(queryEmbedding), topK];
+  const rows = stmt.all(...searchParams) as Array<{
     chunkId: string;
     path: string;
     chunkIndex: number;
