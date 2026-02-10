@@ -18,6 +18,25 @@ export type McpHttpServiceControllerDeps = {
 	onStatusChanged: () => void;
 };
 
+type StartupPreflight = {
+	settings: AilssObsidianSettings;
+	host: string;
+	port: number;
+	topK: number;
+	token: string;
+	shutdownToken: string;
+	openaiApiKey: string;
+	mcpCommand: string;
+	mcpArgs: string[];
+	vaultPath: string;
+};
+
+type PortNegotiationResult = {
+	available: boolean;
+	shutdownAttempted: boolean;
+	shutdownSucceeded: boolean;
+};
+
 export class McpHttpServiceController {
 	private proc: ChildProcess | null = null;
 	private stopRequested = false;
@@ -60,104 +79,38 @@ export class McpHttpServiceController {
 
 		try {
 			this.stopRequested = false;
-			const settings = this.deps.getSettings();
-			const token = settings.mcpHttpServiceToken.trim();
-			if (!token) {
-				throw new Error("Missing MCP service token.");
-			}
-			const shutdownToken = settings.mcpHttpServiceShutdownToken.trim();
-			if (!shutdownToken) {
-				throw new Error("Missing MCP shutdown token.");
-			}
-
-			const vaultPath = this.deps.getVaultPath();
-			const openaiApiKey = settings.openaiApiKey.trim();
-			if (!openaiApiKey) {
-				throw new Error(
-					"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
-				);
-			}
-
-			const mcpCommand = settings.mcpCommand.trim();
-			const mcpArgs = this.deps.resolveMcpHttpArgs();
-			if (!mcpCommand || mcpArgs.length === 0) {
-				throw new Error(
-					"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
-				);
-			}
-
-			const port = clampPort(settings.mcpHttpServicePort);
-			if (port !== settings.mcpHttpServicePort) {
-				settings.mcpHttpServicePort = port;
-				await this.deps.saveSettings();
-			}
-
-			const topK = clampTopK(settings.topK);
-			if (topK !== settings.topK) {
-				settings.topK = topK;
-				await this.deps.saveSettings();
-			}
-
-			const host = "127.0.0.1";
-			let portAvailable = await waitForTcpPortToBeAvailable({
-				host,
-				port,
-				timeoutMs: 3_000,
+			const preflight = await this.prepareStartupPreflight();
+			const portState = await this.negotiatePortAvailability({
+				host: preflight.host,
+				port: preflight.port,
+				tokens: [preflight.shutdownToken, preflight.token],
 			});
-			let shutdownAttempted = false;
-			let shutdownSucceeded = false;
-
-			if (!portAvailable) {
-				shutdownAttempted = true;
-				const shutdownOk = await this.requestShutdown({
-					host,
-					port,
-					tokens: [shutdownToken, token],
-				});
-				shutdownSucceeded = shutdownOk;
-
-				if (shutdownOk) {
-					portAvailable = await waitForTcpPortToBeAvailable({
-						host,
-						port,
-						timeoutMs: 5_000,
-					});
-				}
-			}
-
-			if (!portAvailable) {
-				const baseMessage = `Port ${port} is already in use (${host}). Stop the process using it, or change the port in settings.`;
-				const message =
-					shutdownAttempted && !shutdownSucceeded && this.lastErrorMessage
-						? `${this.lastErrorMessage}\n\n${baseMessage}`
-						: baseMessage;
-
-				this.lastErrorMessage = message;
-				new Notice(`AILSS MCP service failed: ${message}`);
-				this.deps.onStatusChanged();
+			if (!portState.available) {
+				this.handlePortNegotiationFailure(preflight, portState);
 				return;
 			}
 
 			const env: Record<string, string> = {
-				OPENAI_API_KEY: openaiApiKey,
+				OPENAI_API_KEY: preflight.openaiApiKey,
 				OPENAI_EMBEDDING_MODEL:
-					settings.openaiEmbeddingModel.trim() || DEFAULT_SETTINGS.openaiEmbeddingModel,
-				AILSS_VAULT_PATH: vaultPath,
-				AILSS_MCP_HTTP_HOST: host,
-				AILSS_MCP_HTTP_PORT: String(port),
+					preflight.settings.openaiEmbeddingModel.trim() ||
+					DEFAULT_SETTINGS.openaiEmbeddingModel,
+				AILSS_VAULT_PATH: preflight.vaultPath,
+				AILSS_MCP_HTTP_HOST: preflight.host,
+				AILSS_MCP_HTTP_PORT: String(preflight.port),
 				AILSS_MCP_HTTP_PATH: "/mcp",
-				AILSS_MCP_HTTP_TOKEN: token,
-				AILSS_MCP_HTTP_SHUTDOWN_TOKEN: shutdownToken,
-				AILSS_GET_CONTEXT_DEFAULT_TOP_K: String(topK),
+				AILSS_MCP_HTTP_TOKEN: preflight.token,
+				AILSS_MCP_HTTP_SHUTDOWN_TOKEN: preflight.shutdownToken,
+				AILSS_GET_CONTEXT_DEFAULT_TOP_K: String(preflight.topK),
 			};
 
-			if (settings.mcpHttpServiceEnableWriteTools) {
+			if (preflight.settings.mcpHttpServiceEnableWriteTools) {
 				env.AILSS_ENABLE_WRITE_TOOLS = "1";
 			}
 
 			const cwd = this.deps.getPluginDirRealpathOrNull();
 			const spawnEnv = { ...process.env, ...env };
-			const resolved = resolveSpawnCommandAndEnv(mcpCommand, spawnEnv);
+			const resolved = resolveSpawnCommandAndEnv(preflight.mcpCommand, spawnEnv);
 			if (resolved.command === "node") {
 				throw new Error(nodeNotFoundMessage("MCP"));
 			}
@@ -169,7 +122,7 @@ export class McpHttpServiceController {
 			this.lastStoppedAt = null;
 			this.lastErrorMessage = null;
 
-			const child = spawn(resolved.command, mcpArgs, {
+			const child = spawn(resolved.command, preflight.mcpArgs, {
 				stdio: ["ignore", "pipe", "pipe"],
 				...(cwd ? { cwd } : {}),
 				env: resolved.env,
@@ -289,6 +242,129 @@ export class McpHttpServiceController {
 		if (this.deps.getSettings().mcpHttpServiceEnabled) {
 			await this.start();
 		}
+	}
+
+	private async prepareStartupPreflight(): Promise<StartupPreflight> {
+		const settings = this.deps.getSettings();
+		const token = settings.mcpHttpServiceToken.trim();
+		if (!token) {
+			throw new Error("Missing MCP service token.");
+		}
+
+		const shutdownToken = settings.mcpHttpServiceShutdownToken.trim();
+		if (!shutdownToken) {
+			throw new Error("Missing MCP shutdown token.");
+		}
+
+		const openaiApiKey = settings.openaiApiKey.trim();
+		if (!openaiApiKey) {
+			throw new Error(
+				"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
+			);
+		}
+
+		const mcpCommand = settings.mcpCommand.trim();
+		const mcpArgs = this.deps.resolveMcpHttpArgs();
+		if (!mcpCommand || mcpArgs.length === 0) {
+			throw new Error(
+				"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
+			);
+		}
+
+		const { port, topK } = await this.normalizeStartupSettings(settings);
+		return {
+			settings,
+			host: "127.0.0.1",
+			port,
+			topK,
+			token,
+			shutdownToken,
+			openaiApiKey,
+			mcpCommand,
+			mcpArgs,
+			vaultPath: this.deps.getVaultPath(),
+		};
+	}
+
+	private async normalizeStartupSettings(settings: AilssObsidianSettings): Promise<{
+		port: number;
+		topK: number;
+	}> {
+		const port = clampPort(settings.mcpHttpServicePort);
+		if (port !== settings.mcpHttpServicePort) {
+			settings.mcpHttpServicePort = port;
+			await this.deps.saveSettings();
+		}
+
+		const topK = clampTopK(settings.topK);
+		if (topK !== settings.topK) {
+			settings.topK = topK;
+			await this.deps.saveSettings();
+		}
+
+		return { port, topK };
+	}
+
+	private async negotiatePortAvailability(options: {
+		host: string;
+		port: number;
+		tokens: string[];
+	}): Promise<PortNegotiationResult> {
+		let available = await waitForTcpPortToBeAvailable({
+			host: options.host,
+			port: options.port,
+			timeoutMs: 3_000,
+		});
+		let shutdownAttempted = false;
+		let shutdownSucceeded = false;
+
+		if (!available) {
+			shutdownAttempted = true;
+			shutdownSucceeded = await this.requestShutdown({
+				host: options.host,
+				port: options.port,
+				tokens: options.tokens,
+			});
+
+			if (shutdownSucceeded) {
+				available = await waitForTcpPortToBeAvailable({
+					host: options.host,
+					port: options.port,
+					timeoutMs: 5_000,
+				});
+			}
+		}
+
+		return { available, shutdownAttempted, shutdownSucceeded };
+	}
+
+	private handlePortNegotiationFailure(
+		preflight: StartupPreflight,
+		portState: PortNegotiationResult,
+	): void {
+		const message = this.composePortInUseErrorMessage({
+			host: preflight.host,
+			port: preflight.port,
+			shutdownAttempted: portState.shutdownAttempted,
+			shutdownSucceeded: portState.shutdownSucceeded,
+		});
+		this.lastErrorMessage = message;
+		new Notice(`AILSS MCP service failed: ${message}`);
+		this.deps.onStatusChanged();
+	}
+
+	private composePortInUseErrorMessage(options: {
+		host: string;
+		port: number;
+		shutdownAttempted: boolean;
+		shutdownSucceeded: boolean;
+	}): string {
+		const baseMessage = `Port ${options.port} is already in use (${options.host}). Stop the process using it, or change the port in settings.`;
+		if (options.shutdownAttempted && !options.shutdownSucceeded && this.lastErrorMessage) {
+			return `${this.lastErrorMessage}\n\n${baseMessage}`;
+		}
+
+		return baseMessage;
 	}
 
 	private async requestShutdown(options: {
