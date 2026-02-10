@@ -29,6 +29,11 @@ function resolveTsFromJsImport() {
 
 export default defineConfig({
   plugins: [resolveTsFromJsImport()],
+  resolve: {
+    alias: {
+      obsidian: path.resolve(__dirname, "packages/obsidian-plugin/test/mocks/obsidian.ts"),
+    },
+  },
   test: {
     environment: "node",
     include: ["packages/**/test/**/*.test.ts"],
