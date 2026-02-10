@@ -12,6 +12,7 @@ import {
   insertChunkWithEmbedding,
   listFilePaths,
   openAilssDb,
+  replaceNoteTags,
   searchNotes,
   semanticSearch,
   upsertFile,
@@ -62,6 +63,171 @@ describe("openAilssDb() + semanticSearch()", () => {
       expect(results[0]?.chunkId).toBe("chunk-1");
       expect(results[0]?.path).toBe("notes/a.md");
       expect(results[0]?.headingPath).toEqual(["A"]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("applies optional path/tag filters to candidate chunks before ranking", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "projects/a.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-a",
+      });
+      upsertFile(db, {
+        path: "projects/c.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-c",
+      });
+      upsertFile(db, {
+        path: "personal/b.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-b",
+      });
+
+      upsertNote(db, {
+        path: "projects/a.md",
+        noteId: "a",
+        created: null,
+        title: "A",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+      upsertNote(db, {
+        path: "projects/c.md",
+        noteId: "c",
+        created: null,
+        title: "C",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+      upsertNote(db, {
+        path: "personal/b.md",
+        noteId: "b",
+        created: null,
+        title: "B",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+
+      replaceNoteTags(db, "projects/a.md", ["project"]);
+      replaceNoteTags(db, "projects/c.md", ["project", "urgent"]);
+      replaceNoteTags(db, "personal/b.md", ["personal"]);
+
+      insertChunkWithEmbedding(db, {
+        chunkId: "chunk-a",
+        path: "projects/a.md",
+        chunkIndex: 0,
+        heading: "A",
+        headingPathJson: JSON.stringify(["A"]),
+        content: "project-a",
+        contentSha256: "content-a",
+        embedding: [0.3, 0, 0],
+      });
+      insertChunkWithEmbedding(db, {
+        chunkId: "chunk-c",
+        path: "projects/c.md",
+        chunkIndex: 0,
+        heading: "C",
+        headingPathJson: JSON.stringify(["C"]),
+        content: "project-c",
+        contentSha256: "content-c",
+        embedding: [0.1, 0, 0],
+      });
+      insertChunkWithEmbedding(db, {
+        chunkId: "chunk-b",
+        path: "personal/b.md",
+        chunkIndex: 0,
+        heading: "B",
+        headingPathJson: JSON.stringify(["B"]),
+        content: "personal-b",
+        contentSha256: "content-b",
+        embedding: [0, 0, 0],
+      });
+
+      const unscoped = semanticSearch(db, [0, 0, 0], 3);
+      expect(unscoped.map((r) => r.chunkId)).toEqual(["chunk-b", "chunk-c", "chunk-a"]);
+
+      const pathScoped = semanticSearch(db, [0, 0, 0], 3, { pathPrefix: "projects/" });
+      expect(pathScoped.map((r) => r.chunkId)).toEqual(["chunk-c", "chunk-a"]);
+
+      const tagsAnyScoped = semanticSearch(db, [0, 0, 0], 3, { tagsAny: ["project"] });
+      expect(tagsAnyScoped.map((r) => r.chunkId)).toEqual(["chunk-c", "chunk-a"]);
+
+      const tagsAllScoped = semanticSearch(db, [0, 0, 0], 3, {
+        tagsAll: ["project", "urgent"],
+      });
+      expect(tagsAllScoped.map((r) => r.chunkId)).toEqual(["chunk-c"]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("treats pathPrefix as a literal prefix when filtering semantic candidates", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "project_v2/alpha.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-alpha",
+      });
+      upsertFile(db, {
+        path: "projectXv2/beta.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-beta",
+      });
+
+      insertChunkWithEmbedding(db, {
+        chunkId: "alpha",
+        path: "project_v2/alpha.md",
+        chunkIndex: 0,
+        heading: "Alpha",
+        headingPathJson: JSON.stringify(["Alpha"]),
+        content: "alpha",
+        contentSha256: "sha-alpha",
+        embedding: [0.3, 0, 0],
+      });
+      insertChunkWithEmbedding(db, {
+        chunkId: "beta",
+        path: "projectXv2/beta.md",
+        chunkIndex: 0,
+        heading: "Beta",
+        headingPathJson: JSON.stringify(["Beta"]),
+        content: "beta",
+        contentSha256: "sha-beta",
+        embedding: [0, 0, 0],
+      });
+
+      const unscoped = semanticSearch(db, [0, 0, 0], 2);
+      expect(unscoped.map((r) => r.chunkId)).toEqual(["beta", "alpha"]);
+
+      const scoped = semanticSearch(db, [0, 0, 0], 2, { pathPrefix: "project_v2/" });
+      expect(scoped.map((r) => r.chunkId)).toEqual(["alpha"]);
     } finally {
       db.close();
     }
@@ -227,6 +393,57 @@ describe("searchNotes()", () => {
           sources: [],
         },
       ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("treats pathPrefix as a literal prefix", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      upsertFile(db, {
+        path: "project_v2/alpha.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-alpha",
+      });
+      upsertFile(db, {
+        path: "projectXv2/beta.md",
+        mtimeMs: 0,
+        sizeBytes: 0,
+        sha256: "file-beta",
+      });
+
+      upsertNote(db, {
+        path: "project_v2/alpha.md",
+        noteId: "note-alpha",
+        created: null,
+        title: "Alpha",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+      upsertNote(db, {
+        path: "projectXv2/beta.md",
+        noteId: "note-beta",
+        created: null,
+        title: "Beta",
+        summary: null,
+        entity: null,
+        layer: null,
+        status: null,
+        updated: null,
+        frontmatterJson: "{}",
+      });
+
+      const results = searchNotes(db, { pathPrefix: "project_v2/" });
+      expect(results.map((r) => r.path)).toEqual(["project_v2/alpha.md"]);
     } finally {
       db.close();
     }
