@@ -24,8 +24,8 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
-  - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
+- Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
+- Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `canonicalize_typed_links`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: status modals for indexing and the localhost MCP service
@@ -156,6 +156,9 @@ Write tools (explicit apply):
 - `capture_note`: create a new note in `<vault>/100. Inbox/` (default) with full frontmatter (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run (preview) and never overwrites existing notes by default
   - By default reindexes the created path (set `reindex_after_apply=false` to skip)
+- `canonicalize_typed_links`: canonicalize frontmatter typed-link targets in a single note to vault-relative paths when resolution is unique (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run (preview); keeps unresolved/ambiguous targets unchanged and reports them
+  - For targets containing `/`, resolution is strict path match only (no suffix matching)
 - `edit_note`: apply line-based patch ops to an existing `.md` note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run (preview); line numbers are 1-based; append via `insert_lines` at `lineCount+1`
   - Optional `expected_sha256` guard; by default reindexes the edited path (set `reindex_after_apply=false` to skip)
@@ -279,6 +282,7 @@ Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 - Status: implemented
 - Expose explicit write tools over the localhost MCP server when enabled:
+  - `canonicalize_typed_links` (canonicalize frontmatter typed-link targets in one note; default apply=false)
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
   - `relocate_note` (move/rename a note; updates frontmatter `updated` when present)

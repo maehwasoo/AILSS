@@ -75,6 +75,7 @@ Read-first tools (planned):
 Explicit write tools (apply, implemented):
 
 - `capture_note`: capture a new inbox note with required frontmatter (default folder: `100. Inbox`; supports dry-run)
+- `canonicalize_typed_links`: canonicalize frontmatter typed-link targets in one note to vault-relative paths when resolution is unique (supports dry-run; never guesses ambiguous/missing targets)
 - `edit_note`: apply line-based patch ops to an existing note (supports dry-run and optional sha256 guard; reindexes by default)
   - Example: `ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }]`
 - `improve_frontmatter`: normalize/add required frontmatter keys for a note (supports dry-run; can optionally fix identity mismatches)
