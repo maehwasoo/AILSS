@@ -49,8 +49,20 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "AILSS Obsidian" });
+		this.renderHeader(containerEl);
+		this.renderPromptInstallerSection(containerEl);
+		this.renderOpenAiSection(containerEl);
+		this.renderMcpServiceSection(containerEl);
+		this.renderIndexMaintenanceSection(containerEl);
+		this.renderAutoIndexSection(containerEl);
+		this.renderAdvancedSection(containerEl);
+	}
 
+	private renderHeader(containerEl: HTMLElement): void {
+		containerEl.createEl("h2", { text: "AILSS Obsidian" });
+	}
+
+	private renderPromptInstallerSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Prompt installer (vault root)" });
 
 		let selectedKind: PromptKind = "AGENTS";
@@ -113,7 +125,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 					void this.plugin.copyCodexPrometheusAgentPromptToClipboard();
 				});
 			});
+	}
 
+	private renderOpenAiSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName("OpenAI API key")
 			.setDesc("Stored locally in Obsidian settings. Required for indexing and MCP queries.")
@@ -122,8 +136,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder("sk-…");
 				text.setValue(this.plugin.settings.openaiApiKey);
 				text.onChange(async (value) => {
-					this.plugin.settings.openaiApiKey = value.trim();
-					await this.plugin.saveSettings();
+					await this.updateSetting("openaiApiKey", value.trim());
 				});
 			});
 
@@ -151,8 +164,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				dropdown.setValue(current);
 
 				dropdown.onChange(async (value) => {
-					this.plugin.settings.openaiEmbeddingModel = value;
-					await this.plugin.saveSettings();
+					await this.updateSetting("openaiEmbeddingModel", value);
 				});
 			});
 
@@ -163,14 +175,15 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder("10");
 				text.setValue(String(this.plugin.settings.topK));
 				text.onChange(async (value) => {
-					const parsed = Number(value);
-					this.plugin.settings.topK = Number.isFinite(parsed)
-						? parsed
-						: DEFAULT_SETTINGS.topK;
-					await this.plugin.saveSettings();
+					await this.updateSetting(
+						"topK",
+						this.parseFiniteNumber(value, DEFAULT_SETTINGS.topK),
+					);
 				});
 			});
+	}
 
+	private renderMcpServiceSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "MCP service (Codex, localhost)" });
 
 		new Setting(containerEl)
@@ -181,8 +194,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.mcpHttpServiceEnabled);
 				toggle.onChange(async (value) => {
-					this.plugin.settings.mcpHttpServiceEnabled = value;
-					await this.plugin.saveSettings();
+					await this.updateSetting("mcpHttpServiceEnabled", value);
 					if (value) {
 						await this.plugin.startMcpHttpService();
 					} else {
@@ -198,14 +210,12 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder(String(DEFAULT_SETTINGS.mcpHttpServicePort));
 				text.setValue(String(this.plugin.settings.mcpHttpServicePort));
 				text.onChange(async (value) => {
-					const parsed = Number(value);
-					this.plugin.settings.mcpHttpServicePort = Number.isFinite(parsed)
-						? Math.floor(parsed)
-						: DEFAULT_SETTINGS.mcpHttpServicePort;
-					await this.plugin.saveSettings();
-					if (this.plugin.settings.mcpHttpServiceEnabled) {
-						await this.plugin.restartMcpHttpService();
-					}
+					await this.updateSettingAndRestartMcpIfEnabled(
+						"mcpHttpServicePort",
+						this.parseFiniteNumber(value, DEFAULT_SETTINGS.mcpHttpServicePort, {
+							integer: true,
+						}),
+					);
 				});
 			});
 
@@ -215,11 +225,10 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.mcpHttpServiceEnableWriteTools);
 				toggle.onChange(async (value) => {
-					this.plugin.settings.mcpHttpServiceEnableWriteTools = value;
-					await this.plugin.saveSettings();
-					if (this.plugin.settings.mcpHttpServiceEnabled) {
-						await this.plugin.restartMcpHttpService();
-					}
+					await this.updateSettingAndRestartMcpIfEnabled(
+						"mcpHttpServiceEnableWriteTools",
+						value,
+					);
 				});
 			});
 
@@ -233,11 +242,10 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder("(auto-generated)");
 				text.setValue(this.plugin.settings.mcpHttpServiceToken);
 				text.onChange(async (value) => {
-					this.plugin.settings.mcpHttpServiceToken = value.trim();
-					await this.plugin.saveSettings();
-					if (this.plugin.settings.mcpHttpServiceEnabled) {
-						await this.plugin.restartMcpHttpService();
-					}
+					await this.updateSettingAndRestartMcpIfEnabled(
+						"mcpHttpServiceToken",
+						value.trim(),
+					);
 				});
 			})
 			.addButton((button) => {
@@ -259,7 +267,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				button.setButtonText("Restart service");
 				button.onClick(() => void this.plugin.restartMcpHttpService());
 			});
+	}
 
+	private renderIndexMaintenanceSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Index maintenance" });
 
 		new Setting(containerEl)
@@ -307,7 +317,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 						});
 				});
 			});
+	}
 
+	private renderAutoIndexSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Auto indexing (optional)" });
 
 		new Setting(containerEl)
@@ -316,8 +328,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.autoIndexEnabled);
 				toggle.onChange(async (value) => {
-					this.plugin.settings.autoIndexEnabled = value;
-					await this.plugin.saveSettings();
+					await this.updateSetting("autoIndexEnabled", value);
 				});
 			});
 
@@ -328,14 +339,15 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder("5000");
 				text.setValue(String(this.plugin.settings.autoIndexDebounceMs));
 				text.onChange(async (value) => {
-					const parsed = Number(value);
-					this.plugin.settings.autoIndexDebounceMs = Number.isFinite(parsed)
-						? parsed
-						: DEFAULT_SETTINGS.autoIndexDebounceMs;
-					await this.plugin.saveSettings();
+					await this.updateSetting(
+						"autoIndexDebounceMs",
+						this.parseFiniteNumber(value, DEFAULT_SETTINGS.autoIndexDebounceMs),
+					);
 				});
 			});
+	}
 
+	private renderAdvancedSection(containerEl: HTMLElement): void {
 		containerEl.createEl("h3", { text: "Advanced (spawn overrides)" });
 		const details = containerEl.createEl("details");
 		details.createEl("summary", {
@@ -353,8 +365,10 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder("node");
 				text.setValue(this.plugin.settings.mcpCommand);
 				text.onChange(async (value) => {
-					this.plugin.settings.mcpCommand = value.trim() || DEFAULT_SETTINGS.mcpCommand;
-					await this.plugin.saveSettings();
+					await this.updateSetting(
+						"mcpCommand",
+						value.trim() || DEFAULT_SETTINGS.mcpCommand,
+					);
 				});
 			});
 
@@ -370,11 +384,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			.addTextArea((text) => {
 				text.setValue(this.plugin.settings.mcpArgs.join("\n"));
 				text.onChange(async (value) => {
-					this.plugin.settings.mcpArgs = value
-						.split("\n")
-						.map((line) => line.trim())
-						.filter(Boolean);
-					await this.plugin.saveSettings();
+					await this.updateSetting("mcpArgs", this.parseArgs(value));
 				});
 			});
 
@@ -388,9 +398,10 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 				text.setPlaceholder("node");
 				text.setValue(this.plugin.settings.indexerCommand);
 				text.onChange(async (value) => {
-					this.plugin.settings.indexerCommand =
-						value.trim() || DEFAULT_SETTINGS.indexerCommand;
-					await this.plugin.saveSettings();
+					await this.updateSetting(
+						"indexerCommand",
+						value.trim() || DEFAULT_SETTINGS.indexerCommand,
+					);
 				});
 			});
 
@@ -406,12 +417,43 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			.addTextArea((text) => {
 				text.setValue(this.plugin.settings.indexerArgs.join("\n"));
 				text.onChange(async (value) => {
-					this.plugin.settings.indexerArgs = value
-						.split("\n")
-						.map((line) => line.trim())
-						.filter(Boolean);
-					await this.plugin.saveSettings();
+					await this.updateSetting("indexerArgs", this.parseArgs(value));
 				});
 			});
+	}
+
+	private async updateSetting<K extends keyof AilssObsidianSettings>(
+		key: K,
+		value: AilssObsidianSettings[K],
+	): Promise<void> {
+		this.plugin.settings[key] = value;
+		await this.plugin.saveSettings();
+	}
+
+	private async updateSettingAndRestartMcpIfEnabled<K extends keyof AilssObsidianSettings>(
+		key: K,
+		value: AilssObsidianSettings[K],
+	): Promise<void> {
+		await this.updateSetting(key, value);
+		if (this.plugin.settings.mcpHttpServiceEnabled) {
+			await this.plugin.restartMcpHttpService();
+		}
+	}
+
+	private parseArgs(value: string): string[] {
+		return value
+			.split("\n")
+			.map((line) => line.trim())
+			.filter(Boolean);
+	}
+
+	private parseFiniteNumber(
+		value: string,
+		fallback: number,
+		options?: { integer?: boolean },
+	): number {
+		const parsed = Number(value);
+		if (!Number.isFinite(parsed)) return fallback;
+		return options?.integer ? Math.floor(parsed) : parsed;
 	}
 }
