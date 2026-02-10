@@ -35,6 +35,15 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
         "Builds a context set for a query: semantic search over indexed chunks, then returns the top matching notes with note metadata and stitched evidence chunks (optionally with file-start previews).",
       inputSchema: {
         query: z.string().min(1).describe("User question/task to retrieve related notes for"),
+        path_prefix: z.string().min(1).optional().describe("Optional vault-relative path prefix"),
+        tags_any: z
+          .array(z.string().min(1))
+          .default([])
+          .describe("Match notes that have ANY of these tags"),
+        tags_all: z
+          .array(z.string().min(1))
+          .default([])
+          .describe("Match notes that have ALL of these tags"),
         top_k: z
           .number()
           .int()
@@ -93,6 +102,11 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
         top_k: z.number().int(),
         db: z.string(),
         used_chunks_k: z.number().int(),
+        applied_filters: z.object({
+          path_prefix: z.string().nullable(),
+          tags_any: z.array(z.string()),
+          tags_all: z.array(z.string()),
+        }),
         params: z.object({
           expand_top_k: z.number().int(),
           hit_chunks_per_note: z.number().int(),
@@ -132,6 +146,16 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
     },
     async (args) => {
       const queryEmbedding = await embedQuery(deps.openai, deps.embeddingModel, args.query);
+      const appliedFilters = {
+        path_prefix: args.path_prefix?.trim() || null,
+        tags_any: normalizeFilterStrings(args.tags_any),
+        tags_all: normalizeFilterStrings(args.tags_all),
+      };
+      const semanticFilters = {
+        tagsAny: appliedFilters.tags_any,
+        tagsAll: appliedFilters.tags_all,
+        ...(appliedFilters.path_prefix ? { pathPrefix: appliedFilters.path_prefix } : {}),
+      };
 
       const desiredNotes = Math.max(1, Math.min(args.top_k, 50));
       const hitChunksPerNote = Math.max(1, Math.min(args.hit_chunks_per_note, 5));
@@ -140,13 +164,13 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
       // - Default cap is conservative (vaults can have many short sections).
       const maxChunksK = 500;
       let usedChunksK = Math.min(maxChunksK, Math.max(50, desiredNotes * 15));
-      let chunkHits = semanticSearch(deps.db, queryEmbedding, usedChunksK);
+      let chunkHits = semanticSearch(deps.db, queryEmbedding, usedChunksK, semanticFilters);
       for (let i = 0; i < 3; i += 1) {
         const uniquePaths = new Set(chunkHits.map((h) => h.path)).size;
         if (uniquePaths >= desiredNotes) break;
         if (usedChunksK >= maxChunksK) break;
         usedChunksK = Math.min(maxChunksK, usedChunksK * 2);
-        chunkHits = semanticSearch(deps.db, queryEmbedding, usedChunksK);
+        chunkHits = semanticSearch(deps.db, queryEmbedding, usedChunksK, semanticFilters);
       }
 
       // Keep per-note top hits (distance-ordered globally, so first N per path are best).
@@ -294,6 +318,7 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
         top_k: args.top_k,
         db: deps.dbPath,
         used_chunks_k: usedChunksK,
+        applied_filters: appliedFilters,
         params: {
           expand_top_k: expandTopK,
           hit_chunks_per_note: hitChunksPerNote,
@@ -361,4 +386,8 @@ function parseDefaultTopKFromEnv(raw: string | undefined): number {
   if (n < 1) return 1;
   if (n > 50) return 50;
   return n;
+}
+
+function normalizeFilterStrings(values: string[] | undefined): string[] {
+  return (values ?? []).map((v) => v.trim()).filter(Boolean);
 }
