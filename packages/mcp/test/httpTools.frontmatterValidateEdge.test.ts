@@ -355,4 +355,56 @@ describe("MCP HTTP server (frontmatter_validate edge cases)", () => {
       });
     });
   });
+
+  it("resolves typed-link targets across the whole vault even when path_prefix is set", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await fs.mkdir(path.join(vaultPath, "Folder"), { recursive: true });
+      await fs.mkdir(path.join(vaultPath, "People"), { recursive: true });
+
+      await fs.writeFile(
+        path.join(vaultPath, "People", "Owner.md"),
+        noteWithFrontmatter({
+          id: "20260108123520",
+          created: "2026-01-08T12:35:20",
+          title: "Owner",
+          entity: "person",
+        }),
+        "utf8",
+      );
+
+      await fs.writeFile(
+        path.join(vaultPath, "Folder", "Procedure.md"),
+        noteWithFrontmatter({
+          id: "20260108123521",
+          created: "2026-01-08T12:35:21",
+          title: "Procedure",
+          entity: "procedure",
+          layer: "operational",
+          typedLinks: ['produces: ["[[Owner]]"]'],
+        }),
+        "utf8",
+      );
+
+      await withMcpHttpServer({ vaultPath, enableWriteTools: false }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+        const res = await mcpToolsCall(url, token, sessionId, "frontmatter_validate", {
+          path_prefix: "Folder/",
+        });
+
+        const structured = getStructuredContent(res);
+        expect(structured["files_scanned"]).toBe(1);
+        expect(structured["typed_link_diagnostic_count"]).toBe(1);
+        expect(structured["ok_count"]).toBe(1);
+        expect(structured["issue_count"]).toBe(0);
+
+        const diagnostics = structured["typed_link_diagnostics"];
+        assertArray(diagnostics, "typed_link_diagnostics");
+        assertRecord(diagnostics[0], "typed_link_diagnostics[0]");
+        expect(diagnostics[0]["path"]).toBe("Folder/Procedure.md");
+        expect(diagnostics[0]["reason"]).toBe(
+          'target entity "person" is incompatible with relation "produces"',
+        );
+      });
+    });
+  });
 });

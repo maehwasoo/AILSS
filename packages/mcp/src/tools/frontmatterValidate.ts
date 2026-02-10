@@ -56,6 +56,11 @@ type ScannedNote = {
   typed_links: TypedLinkRecord[];
 };
 
+type TargetLookupNote = Pick<
+  ScannedNote,
+  "path" | "parsed_frontmatter" | "note_id" | "title" | "entity"
+>;
+
 type TypedLinkDiagnostic = {
   path: string;
   rel: string;
@@ -114,14 +119,16 @@ function normalizeValueForLookup(value: string | null): string | null {
 
 function collectTypedLinkDiagnostics(
   notes: ScannedNote[],
+  lookupNotes: TargetLookupNote[],
   mode: Exclude<TypedLinkConstraintMode, "off">,
 ): TypedLinkDiagnostic[] {
-  const noteIdIndex = new Map<string, ScannedNote[]>();
-  const titleIndex = new Map<string, ScannedNote[]>();
+  const noteIdIndex = new Map<string, TargetLookupNote[]>();
+  const titleIndex = new Map<string, TargetLookupNote[]>();
 
   const parseableNotes = notes.filter((note) => note.parsed_frontmatter);
+  const parseableLookupNotes = lookupNotes.filter((note) => note.parsed_frontmatter);
 
-  for (const note of parseableNotes) {
+  for (const note of parseableLookupNotes) {
     const noteId = normalizeValueForLookup(note.note_id);
     if (noteId) {
       const existing = noteIdIndex.get(noteId) ?? [];
@@ -146,15 +153,15 @@ function collectTypedLinkDiagnostics(
     const targetNoExt = trimmed.toLowerCase().endsWith(".md") ? trimmed.slice(0, -3) : trimmed;
     const targetWithExt = trimmed.toLowerCase().endsWith(".md") ? trimmed : `${trimmed}.md`;
 
-    const matches: ScannedNote[] = [];
+    const matches: TargetLookupNote[] = [];
     const seenPaths = new Set<string>();
-    const addMatch = (candidate: ScannedNote): void => {
+    const addMatch = (candidate: TargetLookupNote): void => {
       if (seenPaths.has(candidate.path)) return;
       seenPaths.add(candidate.path);
       matches.push(candidate);
     };
 
-    for (const note of parseableNotes) {
+    for (const note of parseableLookupNotes) {
       if (note.path === targetWithExt || note.path.endsWith(`/${targetWithExt}`)) addMatch(note);
     }
 
@@ -285,7 +292,7 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
     {
       title: "Frontmatter validate",
       description:
-        "Scans vault markdown notes and validates YAML frontmatter presence + required key presence. Also checks that `id` matches the first 14 digits of `created` (YYYYMMDDHHmmss).",
+        "Scans vault markdown notes and validates YAML frontmatter presence + required key presence, `id`/`created` consistency, and optional typed-link ontology constraints.",
       inputSchema: {
         path_prefix: z
           .string()
@@ -421,10 +428,50 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         });
       }
 
+      let targetLookupNotes: TargetLookupNote[] = scannedNotes.map((note) => ({
+        path: note.path,
+        parsed_frontmatter: note.parsed_frontmatter,
+        note_id: note.note_id,
+        title: note.title,
+        entity: note.entity,
+      }));
+
+      // Prefix scan policy
+      // - source-note set is limited by path_prefix/max_files
+      // - target resolution uses vault-wide metadata for better relation validation accuracy
+      if (prefix) {
+        const scannedPathSet = new Set(scannedNotes.map((note) => note.path));
+        const additionalLookupNotes: TargetLookupNote[] = [];
+
+        for (const relPath of relFiles) {
+          if (scannedPathSet.has(relPath)) continue;
+          const absPath = path.join(vaultPath, relPath);
+          const markdown = await fs.readFile(absPath, "utf8");
+          const hasFm = hasFrontmatterBlock(markdown);
+          const parsed = parseMarkdownNote(markdown);
+          const fm = parsed.frontmatter ?? {};
+          const normalizedMeta = normalizeAilssNoteMeta(fm);
+
+          additionalLookupNotes.push({
+            path: relPath,
+            parsed_frontmatter: hasFm && Object.keys(fm).length > 0,
+            note_id: normalizedMeta.noteId,
+            title: normalizedMeta.title,
+            entity: normalizeEntity(normalizedMeta.entity),
+          });
+        }
+
+        targetLookupNotes = [...targetLookupNotes, ...additionalLookupNotes];
+      }
+
       const typedLinkDiagnostics =
         args.typed_link_constraint_mode === "off"
           ? []
-          : collectTypedLinkDiagnostics(scannedNotes, args.typed_link_constraint_mode);
+          : collectTypedLinkDiagnostics(
+              scannedNotes,
+              targetLookupNotes,
+              args.typed_link_constraint_mode,
+            );
 
       const diagnosticsByPath = new Map<string, TypedLinkDiagnostic[]>();
       for (const diag of typedLinkDiagnostics) {

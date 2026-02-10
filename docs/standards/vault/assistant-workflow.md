@@ -49,7 +49,7 @@ Global working rules for the AILSS Obsidian vault.
 - `expand_typed_links_outgoing`: expands outgoing typed links into a bounded graph (metadata only).
 - `find_typed_links_incoming`: find notes that link _to_ a target via typed links (incoming edges).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
-- `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
+- `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency, and can also emit typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
 - `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
 - `capture_note`: creates a new note (`apply=false` preview → `apply=true` auto-apply by default).
 - `edit_note`: applies line-based patch ops to a note (`apply=false` preview → `apply=true` auto-apply by default).
