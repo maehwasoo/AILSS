@@ -24,6 +24,33 @@ type StitchResult = {
   used_chunk_ids: string[];
 };
 
+type SemanticSearchHit = ReturnType<typeof semanticSearch>[number];
+
+type AppliedFilters = {
+  path_prefix: string | null;
+  tags_any: string[];
+  tags_all: string[];
+};
+
+type SemanticFilters = {
+  tagsAny: string[];
+  tagsAll: string[];
+  pathPrefix?: string;
+};
+
+type OrderedHitRow = {
+  path: string;
+  hits: SemanticSearchHit[];
+  best: SemanticSearchHit;
+};
+
+type RetrievalPlan = {
+  desiredNotes: number;
+  hitChunksPerNote: number;
+  usedChunksK: number;
+  ordered: OrderedHitRow[];
+};
+
 export function registerGetContextTool(server: McpServer, deps: McpToolDeps): void {
   const defaultTopK = parseDefaultTopKFromEnv(process.env.AILSS_GET_CONTEXT_DEFAULT_TOP_K);
 
@@ -33,171 +60,20 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
       title: "Get context",
       description:
         "Builds a context set for a query: semantic search over indexed chunks, then returns the top matching notes with note metadata and stitched evidence chunks (optionally with file-start previews).",
-      inputSchema: {
-        query: z.string().min(1).describe("User question/task to retrieve related notes for"),
-        path_prefix: z.string().min(1).optional().describe("Optional vault-relative path prefix"),
-        tags_any: z
-          .array(z.string().min(1))
-          .default([])
-          .describe("Match notes that have ANY of these tags"),
-        tags_all: z
-          .array(z.string().min(1))
-          .default([])
-          .describe("Match notes that have ALL of these tags"),
-        top_k: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .default(defaultTopK)
-          .describe("Maximum number of note results to return (1–50)"),
-        expand_top_k: z
-          .number()
-          .int()
-          .min(0)
-          .max(50)
-          .default(5)
-          .describe(
-            "How many of the top_k notes should include stitched evidence text (0–50). The rest return metadata only.",
-          ),
-        hit_chunks_per_note: z
-          .number()
-          .int()
-          .min(1)
-          .max(5)
-          .default(2)
-          .describe("How many best-matching chunks to keep per note (1–5)"),
-        neighbor_window: z
-          .number()
-          .int()
-          .min(0)
-          .max(3)
-          .default(1)
-          .describe("How many neighbor chunks (±window) to stitch around the best hit (0–3)"),
-        max_evidence_chars_per_note: z
-          .number()
-          .int()
-          .min(200)
-          .max(20_000)
-          .default(1500)
-          .describe("Evidence text budget per expanded note (characters)"),
-        include_file_preview: z
-          .boolean()
-          .default(false)
-          .describe(
-            "When true, include a file-start preview (max_chars_per_note) in addition to evidence text (requires AILSS_VAULT_PATH).",
-          ),
-        max_chars_per_note: z
-          .number()
-          .int()
-          .min(200)
-          .max(50_000)
-          .default(800)
-          .describe(
-            "File-start preview size per note (characters), when include_file_preview=true",
-          ),
-      },
-      outputSchema: z.object({
-        query: z.string(),
-        top_k: z.number().int(),
-        db: z.string(),
-        used_chunks_k: z.number().int(),
-        applied_filters: z.object({
-          path_prefix: z.string().nullable(),
-          tags_any: z.array(z.string()),
-          tags_all: z.array(z.string()),
-        }),
-        params: z.object({
-          expand_top_k: z.number().int(),
-          hit_chunks_per_note: z.number().int(),
-          neighbor_window: z.number().int(),
-          max_evidence_chars_per_note: z.number().int(),
-          include_file_preview: z.boolean(),
-          max_chars_per_note: z.number().int(),
-        }),
-        results: z.array(
-          z.object({
-            path: z.string(),
-            distance: z.number(),
-            title: z.string().nullable(),
-            summary: z.string().nullable(),
-            tags: z.array(z.string()),
-            keywords: z.array(z.string()),
-            heading: z.string().nullable(),
-            heading_path: z.array(z.string()),
-            snippet: z.string(),
-            evidence_text: z.string().nullable(),
-            evidence_truncated: z.boolean(),
-            evidence_chunks: z.array(
-              z.object({
-                chunk_id: z.string(),
-                chunk_index: z.number().int(),
-                kind: z.enum(["hit", "neighbor"]),
-                distance: z.number().nullable(),
-                heading: z.string().nullable(),
-                heading_path: z.array(z.string()),
-              }),
-            ),
-            preview: z.string().nullable(),
-            preview_truncated: z.boolean(),
-          }),
-        ),
-      }),
+      inputSchema: buildGetContextInputSchema(defaultTopK),
+      outputSchema: buildGetContextOutputSchema(),
     },
     async (args) => {
       const queryEmbedding = await embedQuery(deps.openai, deps.embeddingModel, args.query);
-      const appliedFilters = {
-        path_prefix: args.path_prefix?.trim() || null,
-        tags_any: normalizeFilterStrings(args.tags_any),
-        tags_all: normalizeFilterStrings(args.tags_all),
-      };
-      const semanticFilters = {
-        tagsAny: appliedFilters.tags_any,
-        tagsAll: appliedFilters.tags_all,
-        ...(appliedFilters.path_prefix ? { pathPrefix: appliedFilters.path_prefix } : {}),
-      };
-
-      const desiredNotes = Math.max(1, Math.min(args.top_k, 50));
-      const hitChunksPerNote = Math.max(1, Math.min(args.hit_chunks_per_note, 5));
-
-      // Over-fetch chunks so we can return enough unique note paths.
-      // - Default cap is conservative (vaults can have many short sections).
-      const maxChunksK = 500;
-      let usedChunksK = Math.min(maxChunksK, Math.max(50, desiredNotes * 15));
-      let chunkHits = semanticSearch(deps.db, queryEmbedding, usedChunksK, semanticFilters);
-      for (let i = 0; i < 3; i += 1) {
-        const uniquePaths = new Set(chunkHits.map((h) => h.path)).size;
-        if (uniquePaths >= desiredNotes) break;
-        if (usedChunksK >= maxChunksK) break;
-        usedChunksK = Math.min(maxChunksK, usedChunksK * 2);
-        chunkHits = semanticSearch(deps.db, queryEmbedding, usedChunksK, semanticFilters);
-      }
-
-      // Keep per-note top hits (distance-ordered globally, so first N per path are best).
-      const hitsByPath = new Map<string, (typeof chunkHits)[number][]>();
-      for (const hit of chunkHits) {
-        const existing = hitsByPath.get(hit.path);
-        if (!existing) {
-          hitsByPath.set(hit.path, [hit]);
-          continue;
-        }
-        if (existing.length >= hitChunksPerNote) continue;
-        existing.push(hit);
-      }
-
-      const ordered = Array.from(hitsByPath.entries())
-        .map(([path, hits]) => ({ path, hits, best: hits[0] }))
-        .filter(
-          (
-            row,
-          ): row is {
-            path: string;
-            hits: (typeof chunkHits)[number][];
-            best: (typeof chunkHits)[number];
-          } => Boolean(row.best),
-        )
-        .sort((a, b) => a.best.distance - b.best.distance)
-        .slice(0, desiredNotes);
+      const appliedFilters = buildAppliedFilters(args.path_prefix, args.tags_any, args.tags_all);
+      const semanticFilters = buildSemanticFilters(appliedFilters);
+      const { desiredNotes, hitChunksPerNote, usedChunksK, ordered } = planRetrieval({
+        db: deps.db,
+        queryEmbedding,
+        semanticFilters,
+        topK: args.top_k,
+        hitChunksPerNote: args.hit_chunks_per_note,
+      });
 
       const results: Array<{
         path: string;
@@ -336,6 +212,222 @@ export function registerGetContextTool(server: McpServer, deps: McpToolDeps): vo
       };
     },
   );
+}
+
+function buildGetContextInputSchema(defaultTopK: number) {
+  return {
+    query: z.string().min(1).describe("User question/task to retrieve related notes for"),
+    path_prefix: z.string().min(1).optional().describe("Optional vault-relative path prefix"),
+    tags_any: z
+      .array(z.string().min(1))
+      .default([])
+      .describe("Match notes that have ANY of these tags"),
+    tags_all: z
+      .array(z.string().min(1))
+      .default([])
+      .describe("Match notes that have ALL of these tags"),
+    top_k: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .default(defaultTopK)
+      .describe("Maximum number of note results to return (1–50)"),
+    expand_top_k: z
+      .number()
+      .int()
+      .min(0)
+      .max(50)
+      .default(5)
+      .describe(
+        "How many of the top_k notes should include stitched evidence text (0–50). The rest return metadata only.",
+      ),
+    hit_chunks_per_note: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .default(2)
+      .describe("How many best-matching chunks to keep per note (1–5)"),
+    neighbor_window: z
+      .number()
+      .int()
+      .min(0)
+      .max(3)
+      .default(1)
+      .describe("How many neighbor chunks (±window) to stitch around the best hit (0–3)"),
+    max_evidence_chars_per_note: z
+      .number()
+      .int()
+      .min(200)
+      .max(20_000)
+      .default(1500)
+      .describe("Evidence text budget per expanded note (characters)"),
+    include_file_preview: z
+      .boolean()
+      .default(false)
+      .describe(
+        "When true, include a file-start preview (max_chars_per_note) in addition to evidence text (requires AILSS_VAULT_PATH).",
+      ),
+    max_chars_per_note: z
+      .number()
+      .int()
+      .min(200)
+      .max(50_000)
+      .default(800)
+      .describe("File-start preview size per note (characters), when include_file_preview=true"),
+  };
+}
+
+function buildGetContextOutputSchema() {
+  return z.object({
+    query: z.string(),
+    top_k: z.number().int(),
+    db: z.string(),
+    used_chunks_k: z.number().int(),
+    applied_filters: z.object({
+      path_prefix: z.string().nullable(),
+      tags_any: z.array(z.string()),
+      tags_all: z.array(z.string()),
+    }),
+    params: z.object({
+      expand_top_k: z.number().int(),
+      hit_chunks_per_note: z.number().int(),
+      neighbor_window: z.number().int(),
+      max_evidence_chars_per_note: z.number().int(),
+      include_file_preview: z.boolean(),
+      max_chars_per_note: z.number().int(),
+    }),
+    results: z.array(
+      z.object({
+        path: z.string(),
+        distance: z.number(),
+        title: z.string().nullable(),
+        summary: z.string().nullable(),
+        tags: z.array(z.string()),
+        keywords: z.array(z.string()),
+        heading: z.string().nullable(),
+        heading_path: z.array(z.string()),
+        snippet: z.string(),
+        evidence_text: z.string().nullable(),
+        evidence_truncated: z.boolean(),
+        evidence_chunks: z.array(
+          z.object({
+            chunk_id: z.string(),
+            chunk_index: z.number().int(),
+            kind: z.enum(["hit", "neighbor"]),
+            distance: z.number().nullable(),
+            heading: z.string().nullable(),
+            heading_path: z.array(z.string()),
+          }),
+        ),
+        preview: z.string().nullable(),
+        preview_truncated: z.boolean(),
+      }),
+    ),
+  });
+}
+
+function buildAppliedFilters(
+  pathPrefix: string | undefined,
+  tagsAny: string[] | undefined,
+  tagsAll: string[] | undefined,
+): AppliedFilters {
+  return {
+    path_prefix: pathPrefix?.trim() || null,
+    tags_any: normalizeFilterStrings(tagsAny),
+    tags_all: normalizeFilterStrings(tagsAll),
+  };
+}
+
+function buildSemanticFilters(appliedFilters: AppliedFilters): SemanticFilters {
+  return {
+    tagsAny: appliedFilters.tags_any,
+    tagsAll: appliedFilters.tags_all,
+    ...(appliedFilters.path_prefix ? { pathPrefix: appliedFilters.path_prefix } : {}),
+  };
+}
+
+function planRetrieval(params: {
+  db: McpToolDeps["db"];
+  queryEmbedding: number[];
+  semanticFilters: SemanticFilters;
+  topK: number;
+  hitChunksPerNote: number;
+}): RetrievalPlan {
+  const desiredNotes = Math.max(1, Math.min(params.topK, 50));
+  const hitChunksPerNote = Math.max(1, Math.min(params.hitChunksPerNote, 5));
+  const { chunkHits, usedChunksK } = overfetchChunkHits({
+    db: params.db,
+    queryEmbedding: params.queryEmbedding,
+    desiredNotes,
+    semanticFilters: params.semanticFilters,
+  });
+  const ordered = buildOrderedRows(chunkHits, desiredNotes, hitChunksPerNote);
+
+  return {
+    desiredNotes,
+    hitChunksPerNote,
+    usedChunksK,
+    ordered,
+  };
+}
+
+function overfetchChunkHits(params: {
+  db: McpToolDeps["db"];
+  queryEmbedding: number[];
+  desiredNotes: number;
+  semanticFilters: SemanticFilters;
+}): { chunkHits: SemanticSearchHit[]; usedChunksK: number } {
+  // Over-fetch chunks so we can return enough unique note paths.
+  // - Default cap is conservative (vaults can have many short sections).
+  const maxChunksK = 500;
+  let usedChunksK = Math.min(maxChunksK, Math.max(50, params.desiredNotes * 15));
+  let chunkHits = semanticSearch(
+    params.db,
+    params.queryEmbedding,
+    usedChunksK,
+    params.semanticFilters,
+  );
+
+  for (let i = 0; i < 3; i += 1) {
+    const uniquePaths = new Set(chunkHits.map((h) => h.path)).size;
+    if (uniquePaths >= params.desiredNotes) break;
+    if (usedChunksK >= maxChunksK) break;
+    usedChunksK = Math.min(maxChunksK, usedChunksK * 2);
+    chunkHits = semanticSearch(
+      params.db,
+      params.queryEmbedding,
+      usedChunksK,
+      params.semanticFilters,
+    );
+  }
+
+  return { chunkHits, usedChunksK };
+}
+
+function buildOrderedRows(
+  chunkHits: SemanticSearchHit[],
+  desiredNotes: number,
+  hitChunksPerNote: number,
+): OrderedHitRow[] {
+  // Keep per-note top hits (distance-ordered globally, so first N per path are best).
+  const hitsByPath = new Map<string, SemanticSearchHit[]>();
+  for (const hit of chunkHits) {
+    const existing = hitsByPath.get(hit.path);
+    if (!existing) {
+      hitsByPath.set(hit.path, [hit]);
+      continue;
+    }
+    if (existing.length >= hitChunksPerNote) continue;
+    existing.push(hit);
+  }
+
+  return Array.from(hitsByPath.entries())
+    .map(([path, hits]) => ({ path, hits, best: hits[0] }))
+    .filter((row): row is OrderedHitRow => Boolean(row.best))
+    .sort((a, b) => a.best.distance - b.best.distance)
+    .slice(0, desiredNotes);
 }
 
 function stitchChunkContents(
