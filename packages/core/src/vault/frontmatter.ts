@@ -1,30 +1,10 @@
 // AILSS frontmatter utilities
 // - normalization for stable indexing and querying
 
-export const AILSS_TYPED_LINK_KEYS = [
-  "instance_of",
-  "part_of",
-  "depends_on",
-  "uses",
-  "implements",
-  "cites",
-  "summarizes",
-  "derived_from",
-  "explains",
-  "supports",
-  "contradicts",
-  "verifies",
-  "blocks",
-  "mitigates",
-  "measures",
-  "produces",
-  "authored_by",
-  "owned_by",
-  "supersedes",
-  "same_as",
-] as const;
+import { AILSS_TYPED_LINK_KEYS } from "./typedLinkOntology.js";
 
-export type AilssTypedLinkKey = (typeof AILSS_TYPED_LINK_KEYS)[number];
+export { AILSS_TYPED_LINK_KEYS };
+export type { AilssTypedLinkKey } from "./typedLinkOntology.js";
 
 export type TypedLink = {
   rel: string;

@@ -62,7 +62,8 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 ### Structure + validation
 
 - Use `get_vault_tree` when you need a filesystem folder tree for the vault.
-- Use `frontmatter_validate` when you need to audit frontmatter health (required keys + `id`/`created` consistency).
+- Use `frontmatter_validate` when you need to audit frontmatter health (required keys + `id`/`created` consistency), or to inspect typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
+  - `path_prefix` limits only the source-note scan set; typed-link target resolution for diagnostics is vault-wide.
 - Use `find_broken_links` when you need to detect unresolved wikilinks/typed links after moves/renames.
 - Use `find_typed_links_incoming` when you need incoming edges/backrefs for a target.
 
@@ -90,6 +91,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 - `layer`: `strategic` | `conceptual` | `logical` | `physical` | `operational`
 - `status`: `draft` | `in-review` | `active` | `archived`
 - Typed-link keys (only include when non-empty; omit key when you have no values): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
+- Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
 - `entity` candidates (use one of these; do not invent new values):
   - `concept` | `document` | `project` | `artifact` | `person` | `organization` | `place` | `event` | `task` | `method` | `tool` | `idea` | `principle` | `heuristic` | `pattern` | `definition` | `question` | `software` | `dataset` | `pipeline` | `procedure` | `dashboard` | `checklist` | `workflow` | `decide` | `review` | `plan` | `implement` | `approve` | `reject` | `observe` | `measure` | `test` | `verify` | `learn` | `research` | `summarize` | `publish` | `meet` | `audit` | `deploy` | `rollback` | `refactor` | `design` | `delete` | `update` | `create` | `schedule` | `migrate` | `reference` | `hub` | `interface` | `guide` | `log` | `structure` | `architecture` | `analyze`
 - External vs internal sources:

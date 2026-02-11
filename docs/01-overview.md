@@ -40,7 +40,7 @@ Read-first tools (implemented in this repo):
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed)
-- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
+- `frontmatter_validate`: scan vault notes and validate required frontmatter keys + `id`/`created` consistency, with typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`, default `warn`)
 - `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
