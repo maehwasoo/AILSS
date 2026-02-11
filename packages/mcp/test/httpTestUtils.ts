@@ -257,6 +257,41 @@ export async function mcpDeleteSession(
   await res.text();
 }
 
+function expectSessionNotFoundWithRecoveryHint(payload: unknown): void {
+  assertRecord(payload, "JSON-RPC session-not-found payload");
+  const error = payload["error"];
+  assertRecord(error, "JSON-RPC error");
+
+  expect(error["code"]).toBe(-32001);
+  expect(error["message"]).toBe("Session not found");
+
+  const data = error["data"];
+  assertRecord(data, "JSON-RPC error.data");
+  expect(data).toMatchObject({
+    reason: "session_expired_or_evicted",
+    reinitializeRequired: true,
+    retryRequest: true,
+  });
+}
+
+export async function mcpDeleteSessionExpectSessionNotFound(
+  url: string,
+  token: string,
+  sessionId: string,
+): Promise<void> {
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Mcp-Session-Id": sessionId,
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+    },
+  });
+
+  expect(res.status).toBe(404);
+  expectSessionNotFoundWithRecoveryHint(await res.json());
+}
+
 export async function mcpToolsCall(
   url: string,
   token: string,
@@ -337,24 +372,7 @@ export async function mcpToolsListExpectSessionNotFound(
   });
 
   expect(res.status).toBe(404);
-  const payload = (await res.json()) as {
-    error?: {
-      code?: number;
-      message?: string;
-      data?: {
-        reason?: string;
-        reinitializeRequired?: boolean;
-        retryRequest?: boolean;
-      };
-    };
-  };
-  expect(payload.error?.code).toBe(-32001);
-  expect(payload.error?.message).toBe("Session not found");
-  expect(payload.error?.data).toMatchObject({
-    reason: "session_expired_or_evicted",
-    reinitializeRequired: true,
-    retryRequest: true,
-  });
+  expectSessionNotFoundWithRecoveryHint(await res.json());
 }
 
 export async function mcpToolsListExpectBadRequest(url: string, token: string): Promise<void> {
