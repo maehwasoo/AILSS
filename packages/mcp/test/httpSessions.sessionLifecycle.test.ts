@@ -4,6 +4,7 @@ import path from "node:path";
 
 import {
   mcpDeleteSession,
+  mcpDeleteSessionExpectSessionNotFound,
   mcpInitialize,
   mcpInitializeExpectUnauthorized,
   mcpToolsList,
@@ -62,6 +63,7 @@ describe("MCP HTTP server (multi-session)", () => {
           await mcpToolsList(url, token, sessionId);
 
           await mcpDeleteSession(url, token, sessionId);
+          await mcpDeleteSessionExpectSessionNotFound(url, token, sessionId);
           await mcpToolsListExpectSessionNotFound(url, token, sessionId);
         },
       );
