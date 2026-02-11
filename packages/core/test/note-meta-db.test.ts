@@ -7,9 +7,11 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  AILSS_TYPED_LINK_KEYS,
   findNotesByTypedLink,
   listKeywords,
   listTags,
+  listTypedLinkRels,
   replaceNoteSources,
   resolveNotePathsByWikilinkTarget,
   openAilssDb,
@@ -134,6 +136,7 @@ describe("notes + typed_links queries", () => {
       replaceTypedLinks(db, "notes/a.md", [
         { rel: "part_of", toTarget: "WorldAce", toWikilink: "[[WorldAce]]", position: 0 },
         { rel: "depends_on", toTarget: "Vite", toWikilink: "[[Vite]]", position: 0 },
+        { rel: "links_to", toTarget: "LegacyHub", toWikilink: "[[LegacyHub]]", position: 0 },
       ]);
 
       const backrefs = findNotesByTypedLink(db, { rel: "part_of", toTarget: "WorldAce" });
@@ -142,6 +145,64 @@ describe("notes + typed_links queries", () => {
       expect(backrefs[0]?.fromTitle).toBe("A");
       expect(backrefs[0]?.rel).toBe("part_of");
       expect(backrefs[0]?.toTarget).toBe("WorldAce");
+
+      const canonicalBackrefs = findNotesByTypedLink(db, {
+        rels: [...AILSS_TYPED_LINK_KEYS],
+        limit: 20,
+      });
+      expect(canonicalBackrefs.map((b) => b.rel)).toEqual(["depends_on", "part_of"]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("listTypedLinkRels() summarizes relation counts with ordering and path prefix", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+    const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+    try {
+      for (const notePath of ["notes/a.md", "notes/b.md"]) {
+        upsertFile(db, { path: notePath, mtimeMs: 0, sizeBytes: 0, sha256: notePath });
+        upsertNote(db, {
+          path: notePath,
+          noteId: null,
+          created: null,
+          title: notePath.toUpperCase(),
+          summary: null,
+          entity: null,
+          layer: null,
+          status: null,
+          updated: null,
+          frontmatterJson: "{}",
+        });
+      }
+
+      replaceTypedLinks(db, "notes/a.md", [
+        { rel: "part_of", toTarget: "WorldAce", toWikilink: "[[WorldAce]]", position: 0 },
+        { rel: "links_to", toTarget: "LegacyHub", toWikilink: "[[LegacyHub]]", position: 1 },
+      ]);
+      replaceTypedLinks(db, "notes/b.md", [
+        { rel: "part_of", toTarget: "WorldAce", toWikilink: "[[WorldAce]]", position: 0 },
+        { rel: "cites", toTarget: "RFC-1", toWikilink: "[[RFC-1]]", position: 1 },
+      ]);
+
+      expect(listTypedLinkRels(db, { limit: 10 })).toEqual([
+        { rel: "part_of", count: 2 },
+        { rel: "cites", count: 1 },
+        { rel: "links_to", count: 1 },
+      ]);
+
+      expect(listTypedLinkRels(db, { orderBy: "rel_asc", limit: 10 })).toEqual([
+        { rel: "cites", count: 1 },
+        { rel: "links_to", count: 1 },
+        { rel: "part_of", count: 2 },
+      ]);
+
+      expect(listTypedLinkRels(db, { pathPrefix: "notes/b", limit: 10 })).toEqual([
+        { rel: "cites", count: 1 },
+        { rel: "part_of", count: 1 },
+      ]);
     } finally {
       db.close();
     }
