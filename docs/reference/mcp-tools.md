@@ -50,6 +50,15 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `rel` (string, optional; e.g. `part_of`, `cites`)
   - `to_target` (string, optional; normalized wikilink target)
   - `limit` (int, default: `100`, range: `1–1000`)
+  - `canonical_only` (boolean, default: `true`) — when true, restricts results to canonical typed-link keys only
+
+### `list_typed_link_rels`
+
+- Purpose: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification (DB-only).
+- Input:
+  - `path_prefix` (string, optional)
+  - `limit` (int, default: `200`, range: `1–5000`)
+  - `order_by` (`"count_desc" | "rel_asc"`, default: `"count_desc"`)
 
 ### `read_note`
 

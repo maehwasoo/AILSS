@@ -45,6 +45,7 @@ Read-first tools (implemented in this repo):
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
+- `list_typed_link_rels`: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification
 
 Client guidance (Codex):
 
@@ -67,6 +68,7 @@ Frontmatter query support (current):
 - The MCP surface supports both:
   - semantic retrieval via `get_context`
   - metadata filtering via `search_notes` + typed-link navigation/backrefs via `expand_typed_links_outgoing` / `find_typed_links_incoming`
+  - typed-link relation diagnostics via `list_typed_link_rels`
 
 Read-first tools (planned):
 

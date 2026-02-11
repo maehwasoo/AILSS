@@ -24,7 +24,7 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-- Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
+- Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `list_typed_link_rels`
 - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `canonicalize_typed_links`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
@@ -131,11 +131,13 @@ Implemented:
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
+- `list_typed_link_rels`: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification
 
 Notes on queryability (current):
 
 - AILSS stores normalized frontmatter + typed links in SQLite (used for graph expansion and retrieval).
 - The MCP surface supports both semantic retrieval (`get_context`) and structured navigation/filtering (`expand_typed_links_outgoing`, `find_typed_links_incoming`, `search_notes`).
+- Relation-level diagnostics are available via `list_typed_link_rels` (for legacy/non-canonical rel visibility).
 - Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:
