@@ -62,6 +62,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
 
 - Use `get_vault_tree` when you need a filesystem folder tree for the vault.
 - Use `frontmatter_validate` when you need to audit frontmatter health (required keys + `id`/`created` consistency), or to inspect typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
+  - `path_prefix` limits only the source-note scan set; typed-link target resolution for diagnostics is vault-wide.
 - Use `find_broken_links` when you need to detect unresolved wikilinks/typed links after moves/renames.
 - Use `find_typed_links_incoming` when you need incoming edges/backrefs for a target.
 

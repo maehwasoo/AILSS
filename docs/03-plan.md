@@ -125,7 +125,8 @@ Implemented:
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
-- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency, with optional typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`)
+- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency, with optional typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
+  - `path_prefix` limits source-note scanning, while typed-link target resolution for diagnostics uses vault-wide note metadata.
 - `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
