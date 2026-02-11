@@ -23,6 +23,14 @@ type CreateHttpRequestHandlerOptions = {
   close: () => Promise<void>;
 };
 
+type JsonRpcErrorData = Record<string, unknown>;
+
+const SESSION_NOT_FOUND_RECOVERY_DATA: JsonRpcErrorData = {
+  reason: "session_expired_or_evicted",
+  reinitializeRequired: true,
+  retryRequest: true,
+};
+
 function sendText(res: ServerResponse, code: number, message: string): void {
   res.statusCode = code;
   res.setHeader("content-type", "text/plain; charset=utf-8");
@@ -34,13 +42,22 @@ function sendJsonRpcError(
   code: number,
   mcpErrorCode: number,
   message: string,
+  data?: JsonRpcErrorData,
 ): void {
+  const errorPayload: { code: number; message: string; data?: JsonRpcErrorData } = {
+    code: mcpErrorCode,
+    message,
+  };
+  if (data !== undefined) {
+    errorPayload.data = data;
+  }
+
   res.statusCode = code;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(
     JSON.stringify({
       jsonrpc: "2.0",
-      error: { code: mcpErrorCode, message },
+      error: errorPayload,
       id: null,
     }),
   );
@@ -144,7 +161,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       const session = options.sessionStore.touchSession(sessionIdHeader);
       if (!session) {
-        sendJsonRpcError(res, 404, -32001, "Session not found");
+        sendJsonRpcError(res, 404, -32001, "Session not found", SESSION_NOT_FOUND_RECOVERY_DATA);
         return;
       }
 

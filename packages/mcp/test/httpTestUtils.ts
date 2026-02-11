@@ -337,8 +337,24 @@ export async function mcpToolsListExpectSessionNotFound(
   });
 
   expect(res.status).toBe(404);
-  const payload = (await res.json()) as { error?: { code?: number; message?: string } };
+  const payload = (await res.json()) as {
+    error?: {
+      code?: number;
+      message?: string;
+      data?: {
+        reason?: string;
+        reinitializeRequired?: boolean;
+        retryRequest?: boolean;
+      };
+    };
+  };
   expect(payload.error?.code).toBe(-32001);
+  expect(payload.error?.message).toBe("Session not found");
+  expect(payload.error?.data).toMatchObject({
+    reason: "session_expired_or_evicted",
+    reinitializeRequired: true,
+    retryRequest: true,
+  });
 }
 
 export async function mcpToolsListExpectBadRequest(url: string, token: string): Promise<void> {
