@@ -236,7 +236,28 @@ export async function mcpInitializeExpectUnauthorized(url: string, token: string
 
   expect(res.status).toBe(401);
   expect(res.headers.get("mcp-session-id")).toBeFalsy();
-  expect(await res.text()).toBe("unauthorized");
+  expectJsonRpcError(await res.json(), {
+    code: -32000,
+    messagePrefix: "Unauthorized",
+  });
+}
+
+export async function mcpInitializeExpectBadRequest(url: string, token: string): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: "{",
+  });
+
+  expect(res.status).toBe(400);
+  expectJsonRpcError(await res.json(), {
+    code: -32000,
+    messagePrefix: "Bad Request:",
+  });
 }
 
 export async function mcpDeleteSession(
@@ -272,6 +293,19 @@ function expectSessionNotFoundWithRecoveryHint(payload: unknown): void {
     reinitializeRequired: true,
     retryRequest: true,
   });
+}
+
+function expectJsonRpcError(
+  payload: unknown,
+  expected: { code: number; messagePrefix: string },
+): void {
+  assertRecord(payload, "JSON-RPC error payload");
+  const error = payload["error"];
+  assertRecord(error, "JSON-RPC error");
+
+  expect(error["code"]).toBe(expected.code);
+  expect(typeof error["message"]).toBe("string");
+  expect((error["message"] as string).startsWith(expected.messagePrefix)).toBe(true);
 }
 
 export async function mcpDeleteSessionExpectSessionNotFound(
