@@ -4,6 +4,7 @@ import type { AilssDb } from "../db.js";
 import { nowIso } from "../migrate.js";
 
 import type { NoteMeta } from "./notes.js";
+import { toLiteralPrefixLikePattern } from "./shared.js";
 
 export type TypedLinkInput = {
   rel: string;
@@ -37,6 +38,7 @@ export function replaceTypedLinks(db: AilssDb, fromPath: string, links: TypedLin
 
 export type TypedLinkQuery = {
   rel?: string;
+  rels?: string[];
   toTarget?: string;
   limit?: number;
 };
@@ -63,6 +65,14 @@ export function findNotesByTypedLink(db: AilssDb, query: TypedLinkQuery): TypedL
     params.push(query.toTarget);
   }
 
+  if (query.rels && query.rels.length > 0) {
+    const rels = query.rels.map((r) => r.trim()).filter(Boolean);
+    if (rels.length > 0) {
+      where.push(`tl.rel IN (${rels.map(() => "?").join(", ")})`);
+      params.push(...rels);
+    }
+  }
+
   const limit = Math.min(Math.max(1, query.limit ?? 100), 1000);
 
   const sql = `
@@ -80,6 +90,46 @@ export function findNotesByTypedLink(db: AilssDb, query: TypedLinkQuery): TypedL
   `;
 
   return db.prepare(sql).all(...params, limit) as TypedLinkBackref[];
+}
+
+export type TypedLinkRelFacet = {
+  rel: string;
+  count: number;
+};
+
+export type TypedLinkRelFacetQuery = {
+  pathPrefix?: string;
+  limit?: number;
+  orderBy?: "count_desc" | "rel_asc";
+};
+
+export function listTypedLinkRels(
+  db: AilssDb,
+  query: TypedLinkRelFacetQuery = {},
+): TypedLinkRelFacet[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  const pathPrefix = query.pathPrefix?.trim();
+  if (pathPrefix) {
+    where.push(`from_path LIKE ? ESCAPE '\\'`);
+    params.push(toLiteralPrefixLikePattern(pathPrefix));
+  }
+
+  const limit = Math.min(Math.max(1, query.limit ?? 200), 5000);
+  const orderByClause =
+    query.orderBy === "rel_asc" ? "ORDER BY rel ASC, count DESC" : "ORDER BY count DESC, rel ASC";
+
+  const sql = `
+    SELECT rel, COUNT(*) AS count
+    FROM typed_links
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    GROUP BY rel
+    ${orderByClause}
+    LIMIT ?
+  `;
+
+  return db.prepare(sql).all(...params, limit) as TypedLinkRelFacet[];
 }
 
 export type ResolvedNoteTarget = {

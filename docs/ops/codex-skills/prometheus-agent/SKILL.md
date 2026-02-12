@@ -14,6 +14,7 @@ mcp_tools:
   - search_notes
   - list_tags
   - list_keywords
+  - list_typed_link_rels
   - get_tool_failure_report
   # Only when write tools are enabled (AILSS_ENABLE_WRITE_TOOLS=1)
   - capture_note
@@ -67,6 +68,7 @@ Treat the Obsidian vault as the Single Source of Truth (SSOT): always ground cla
   - `path_prefix` limits only the source-note scan set; typed-link target resolution for diagnostics is vault-wide.
 - Use `find_broken_links` when you need to detect unresolved wikilinks/typed links after moves/renames.
 - Use `find_typed_links_incoming` when you need incoming edges/backrefs for a target.
+- Use `list_typed_link_rels` when you need relation-level diagnostics (for example, legacy/non-canonical rels such as `links_to`).
 
 ### Safe edits (explicit apply only)
 

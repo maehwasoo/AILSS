@@ -46,8 +46,9 @@ Global working rules for the AILSS Obsidian vault.
 - `search_notes`: DB-backed metadata filtering (frontmatter-derived fields, tags/keywords/sources); no embeddings calls.
 - `list_tags`: list indexed tags and counts (use to reuse existing vocabulary).
 - `list_keywords`: list indexed keywords and counts (use to reuse existing vocabulary).
+- `list_typed_link_rels`: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification.
 - `expand_typed_links_outgoing`: expands outgoing typed links into a bounded graph (metadata only).
-- `find_typed_links_incoming`: find notes that link _to_ a target via typed links (incoming edges).
+- `find_typed_links_incoming`: find notes that link _to_ a target via typed links (incoming edges; `canonical_only=true` by default).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
 - `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency, and can also emit typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
   - `path_prefix` limits the source-note scan set, but typed-link target resolution for diagnostics still uses vault-wide metadata.
