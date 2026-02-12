@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 vi.mock("../../src/utils/tcp.js", () => ({
 	waitForTcpPortToBeAvailable: vi.fn(),
@@ -35,6 +38,9 @@ type ControllerInternals = {
 		port: number;
 		tokens: string[];
 	}) => Promise<boolean>;
+	resetStartupState: () => void;
+	appendDurableLogChunk: (stream: "stdout" | "stderr", chunk: string) => void;
+	durableLogWriteQueue: Promise<void>;
 	lastErrorMessage: string | null;
 };
 
@@ -66,6 +72,7 @@ function createController(
 	options: {
 		settings?: TestSettings;
 		resolveMcpHttpArgs?: () => string[];
+		vaultPath?: string;
 	} = {},
 ) {
 	const settings = options.settings ?? createSettings();
@@ -75,7 +82,7 @@ function createController(
 	const deps: McpHttpServiceControllerDeps = {
 		getSettings: () => settings,
 		saveSettings,
-		getVaultPath: () => "/vault",
+		getVaultPath: () => options.vaultPath ?? "/vault",
 		getPluginDirRealpathOrNull: () => "/plugin",
 		resolveMcpHttpArgs: options.resolveMcpHttpArgs ?? (() => settings.mcpArgs),
 		getUrl: () => "http://127.0.0.1:31415/mcp",
@@ -310,6 +317,73 @@ describe("McpHttpServiceController startup helper unit branches", () => {
 			expect(message).toBe(
 				"Port 31415 is already in use (127.0.0.1). Stop the process using it, or change the port in settings.",
 			);
+		});
+	});
+
+	describe("durable log persistence", () => {
+		it("writes stdout/stderr chunks to a vault log file", async () => {
+			const vaultPath = await fs.mkdtemp(path.join(os.tmpdir(), "ailss-mcp-log-"));
+
+			try {
+				const { controller } = createController({ vaultPath });
+				const internals = asInternals(controller);
+				internals.resetStartupState();
+
+				internals.appendDurableLogChunk("stdout", "service ready\n");
+				internals.appendDurableLogChunk("stderr", "decode failure\n");
+				await internals.durableLogWriteQueue;
+
+				const logPath = path.join(vaultPath, ".ailss", "ailss-mcp-http-last.log");
+				const content = await fs.readFile(logPath, "utf8");
+				expect(content).toContain("[event] mcp-http-service-start");
+				expect(content).toContain("[stream] stdout");
+				expect(content).toContain("service ready");
+				expect(content).toContain("[stream] stderr");
+				expect(content).toContain("decode failure");
+			} finally {
+				await fs.rm(vaultPath, { recursive: true, force: true });
+			}
+		});
+
+		it("preserves durable log ordering across restart boundaries", async () => {
+			const vaultPath = await fs.mkdtemp(path.join(os.tmpdir(), "ailss-mcp-log-"));
+
+			try {
+				const { controller } = createController({ vaultPath });
+				const internals = asInternals(controller);
+				internals.resetStartupState();
+				await internals.durableLogWriteQueue;
+
+				const originalAppendFile = fs.appendFile.bind(fs);
+				let releaseBlockedAppend = () => {};
+				const blockedAppend = new Promise<void>((resolve) => {
+					releaseBlockedAppend = resolve;
+				});
+
+				const appendSpy = vi.spyOn(fs, "appendFile");
+				appendSpy.mockImplementationOnce(async (...args) => {
+					await blockedAppend;
+					const typedArgs = args as Parameters<typeof fs.appendFile>;
+					return originalAppendFile(...typedArgs);
+				});
+
+				internals.appendDurableLogChunk("stderr", "run1-pending\n");
+				internals.resetStartupState();
+				internals.appendDurableLogChunk("stdout", "run2-ready\n");
+
+				releaseBlockedAppend();
+				await internals.durableLogWriteQueue;
+
+				const logPath = path.join(vaultPath, ".ailss", "ailss-mcp-http-last.log");
+				const content = await fs.readFile(logPath, "utf8");
+				expect(content).toContain("[event] mcp-http-service-start");
+				expect(content).toContain("run2-ready");
+				expect(content).not.toContain("run1-pending");
+
+				appendSpy.mockRestore();
+			} finally {
+				await fs.rm(vaultPath, { recursive: true, force: true });
+			}
 		});
 	});
 });

@@ -1,6 +1,8 @@
 import { Notice } from "obsidian";
 import { spawn, type ChildProcess } from "node:child_process";
+import fs from "node:fs";
 import http from "node:http";
+import path from "node:path";
 
 import { DEFAULT_SETTINGS, type AilssObsidianSettings } from "../settings.js";
 import { clampPort, clampTopK } from "../utils/clamp.js";
@@ -44,6 +46,9 @@ type SpawnPlan = {
 	env: NodeJS.ProcessEnv;
 };
 
+const MCP_HTTP_LOG_DIR = ".ailss";
+const MCP_HTTP_LOG_FILE = "ailss-mcp-http-last.log";
+
 export class McpHttpServiceController {
 	private proc: ChildProcess | null = null;
 	private stopRequested = false;
@@ -53,6 +58,8 @@ export class McpHttpServiceController {
 	private lastExitCode: number | null = null;
 	private lastStoppedAt: string | null = null;
 	private lastErrorMessage: string | null = null;
+	private durableLogPath: string | null = null;
+	private durableLogWriteQueue: Promise<void> = Promise.resolve();
 
 	constructor(private readonly deps: McpHttpServiceControllerDeps) {}
 
@@ -336,6 +343,45 @@ export class McpHttpServiceController {
 		this.lastExitCode = null;
 		this.lastStoppedAt = null;
 		this.lastErrorMessage = null;
+		this.initializeDurableLog();
+	}
+
+	private initializeDurableLog(): void {
+		const vaultPath = this.deps.getVaultPath().trim();
+		if (!vaultPath) {
+			this.durableLogPath = null;
+			return;
+		}
+
+		const dir = path.join(vaultPath, MCP_HTTP_LOG_DIR);
+		const filePath = path.join(dir, MCP_HTTP_LOG_FILE);
+		this.durableLogPath = filePath;
+
+		const header = [`[time] ${nowIso()}`, "[event] mcp-http-service-start", ""].join("\n");
+		this.enqueueDurableLogWrite(async () => {
+			await fs.promises.mkdir(dir, { recursive: true });
+			await fs.promises.writeFile(filePath, header, "utf8");
+		});
+	}
+
+	private enqueueDurableLogWrite(task: () => Promise<void>): void {
+		this.durableLogWriteQueue = this.durableLogWriteQueue.then(task).catch((error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			console.error(`[ailss-mcp-http] durable log write failed: ${message}`);
+		});
+	}
+
+	private appendDurableLogChunk(stream: "stdout" | "stderr", chunk: string): void {
+		const filePath = this.durableLogPath;
+		if (!filePath || !chunk) return;
+
+		const content = chunk.trimEnd();
+		if (!content) return;
+
+		const entry = [`[time] ${nowIso()}`, `[stream] ${stream}`, content, ""].join("\n");
+		this.enqueueDurableLogWrite(async () => {
+			await fs.promises.appendFile(filePath, entry, "utf8");
+		});
 	}
 
 	private spawnServiceProcess(plan: SpawnPlan): ChildProcess {
@@ -350,11 +396,13 @@ export class McpHttpServiceController {
 		child.stdout?.on("data", (chunk: unknown) => {
 			const text = typeof chunk === "string" ? chunk : String(chunk);
 			this.liveStdout = appendLimited(this.liveStdout, text, 40_000);
+			this.appendDurableLogChunk("stdout", text);
 		});
 
 		child.stderr?.on("data", (chunk: unknown) => {
 			const text = typeof chunk === "string" ? chunk : String(chunk);
 			this.liveStderr = appendLimited(this.liveStderr, text, 40_000);
+			this.appendDurableLogChunk("stderr", text);
 		});
 
 		child.on("error", (error) => {
@@ -397,9 +445,10 @@ export class McpHttpServiceController {
 		const stderr = this.liveStderr.trim();
 		const stderrTail = stderr ? stderr.split(/\r?\n/).slice(-10).join("\n").trim() : "";
 		const suffix = code === null ? `signal ${signal}` : `exit ${code}`;
+		const logHint = this.durableLogPath ? `\nMCP log file: ${this.durableLogPath}` : "";
 		return stderrTail
-			? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}`
-			: `Unexpected stop (${suffix}).`;
+			? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}${logHint}`
+			: `Unexpected stop (${suffix}).${logHint}`;
 	}
 
 	private async requestShutdown(options: {
