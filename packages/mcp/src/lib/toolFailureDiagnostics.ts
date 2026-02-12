@@ -84,6 +84,22 @@ function toRequestId(value: unknown): string | number | null {
   return null;
 }
 
+function safeJsonStringify(value: unknown): string | null {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+}
+
+function safeToString(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    return "[unstringifiable error value]";
+  }
+}
+
 function extractPrimaryInputPath(args: unknown): string | null {
   if (!isRecord(args)) return null;
 
@@ -117,11 +133,14 @@ function normalizeError(error: unknown): {
   if (isRecord(error)) {
     const code = toNullableString(error["code"]);
     const name = toNullableString(error["name"]);
-    const message = toNullableString(error["message"]) ?? JSON.stringify(error);
+    const message =
+      toNullableString(error["message"]) ??
+      safeJsonStringify(error) ??
+      "[unserializable error object]";
     return { code, name, message };
   }
 
-  return { code: null, name: null, message: String(error) };
+  return { code: null, name: null, message: safeToString(error) };
 }
 
 function correlationIdFor(
@@ -270,26 +289,28 @@ export function createMcpToolFailureDiagnostics(options: {
   const logToolFailure = async (logOptions: LogMcpToolFailureOptions): Promise<void> => {
     if (!enabled) return;
 
-    const inputPath = extractPrimaryInputPath(logOptions.args);
-    const requestId = toRequestId(logOptions.requestId);
-    const sessionId = toNullableString(logOptions.sessionId);
-
-    const event: McpToolFailureEvent = {
-      timestamp: new Date().toISOString(),
-      tool: logOptions.tool,
-      operation: logOptions.operation ?? "tool_call",
-      input_path: inputPath,
-      resolved_path: toResolvedPath(vaultRoot, inputPath),
-      error: normalizeError(logOptions.error),
-      cwd: options.cwd,
-      vault_root: vaultRoot,
-      request_id: requestId,
-      session_id: sessionId,
-      correlation_id: correlationIdFor(requestId, sessionId),
-    };
-
     try {
-      await enqueueWrite(JSON.stringify(event));
+      const inputPath = extractPrimaryInputPath(logOptions.args);
+      const requestId = toRequestId(logOptions.requestId);
+      const sessionId = toNullableString(logOptions.sessionId);
+
+      const event: McpToolFailureEvent = {
+        timestamp: new Date().toISOString(),
+        tool: logOptions.tool,
+        operation: logOptions.operation ?? "tool_call",
+        input_path: inputPath,
+        resolved_path: toResolvedPath(vaultRoot, inputPath),
+        error: normalizeError(logOptions.error),
+        cwd: options.cwd,
+        vault_root: vaultRoot,
+        request_id: requestId,
+        session_id: sessionId,
+        correlation_id: correlationIdFor(requestId, sessionId),
+      };
+
+      const line = safeJsonStringify(event);
+      if (!line) return;
+      await enqueueWrite(line);
     } catch {
       // Never fail a tool call because diagnostics logging failed.
     }

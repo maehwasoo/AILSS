@@ -86,14 +86,18 @@ function installToolFailureDiagnostics(server: McpServer, deps: McpToolDeps): vo
       try {
         return await cb(...toolCallbackArgs);
       } catch (error) {
-        await diagnostics.logToolFailure({
-          tool: name,
-          operation: "tool_call",
-          args: toolArgs,
-          error,
-          requestId: extra?.requestId,
-          sessionId: extra?.sessionId,
-        });
+        try {
+          await diagnostics.logToolFailure({
+            tool: name,
+            operation: "tool_call",
+            args: toolArgs,
+            error,
+            requestId: extra?.requestId,
+            sessionId: extra?.sessionId,
+          });
+        } catch {
+          // Fail-open diagnostics
+        }
         throw error;
       }
     })) as McpServer["registerTool"];

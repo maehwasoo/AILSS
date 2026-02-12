@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   assertArray,
   assertRecord,
+  assertString,
   getStructuredContent,
   mcpInitialize,
   mcpToolsCall,
@@ -18,6 +19,21 @@ function expectToolCallErrorResult(payload: unknown): void {
   const result = payload["result"];
   assertRecord(result, "JSON-RPC result");
   expect(result["isError"]).toBe(true);
+}
+
+function getToolCallFailureMessage(payload: unknown): string {
+  assertRecord(payload, "JSON-RPC payload");
+  const result = payload["result"];
+  assertRecord(result, "JSON-RPC result");
+  expect(result["isError"]).toBe(true);
+
+  const content = result["content"];
+  assertArray(content, "JSON-RPC result.content");
+  assertRecord(content[0], "JSON-RPC result.content[0]");
+  expect(content[0]["type"]).toBe("text");
+  const text = content[0]["text"];
+  assertString(text, "JSON-RPC result.content[0].text");
+  return text;
 }
 
 describe("MCP HTTP server (tool failure diagnostics)", () => {
@@ -140,6 +156,38 @@ describe("MCP HTTP server (tool failure diagnostics)", () => {
           const recentEvents = structured["recent_events"];
           assertArray(recentEvents, "recent_events");
           expect(recentEvents.length).toBe(0);
+        },
+      );
+    });
+  });
+
+  it("preserves original tool failure when diagnostics logger throws", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await withMcpHttpServer(
+        {
+          vaultPath,
+          enableWriteTools: false,
+          beforeStart: (runtime) => {
+            const diagnostics = runtime.deps.toolFailureDiagnostics;
+            if (!diagnostics) return;
+            runtime.deps.toolFailureDiagnostics = {
+              ...diagnostics,
+              logToolFailure: async () => {
+                throw new Error("diagnostics failed");
+              },
+            };
+          },
+        },
+        async ({ url, token }) => {
+          const sessionId = await mcpInitialize(url, token, "client-a");
+          const failed = await mcpToolsCall(url, token, sessionId, "read_note", {
+            path: "Missing/Doc.md",
+            max_chars: 1_000,
+          });
+
+          const message = getToolCallFailureMessage(failed);
+          expect(message).toContain("ENOENT");
+          expect(message).not.toContain("diagnostics failed");
         },
       );
     });
