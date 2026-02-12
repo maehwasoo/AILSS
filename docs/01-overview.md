@@ -45,6 +45,7 @@ Read-first tools (implemented in this repo):
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
+- `get_tool_failure_report`: summarize MCP tool failure logs from `<vault>/.ailss/logs` (recent events + top recurring error types)
 
 Client guidance (Codex):
 
