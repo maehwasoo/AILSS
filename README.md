@@ -7,7 +7,7 @@ Your Obsidian vault is the single source of truth.
 
 AILSS connects AI tooling to an Obsidian vault by building a local index database and exposing retrieval tools over MCP.
 
-## Problem
+## What AILSS Solves
 
 AILSS is not an agent-owned memory layer.
 Instead, it keeps context in your vault: notes you can read, edit, and maintain.
@@ -36,12 +36,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  vault["Obsidian vault\\n(Markdown notes)"]
-  db["Local index DB\\n<vault>/.ailss/index.sqlite"]
+  vault["Obsidian vault<br/>(Markdown notes)"]
+  db["Local index DB<br/><vault>/.ailss/index.sqlite"]
 
-  indexer["Indexer\\n(@ailss/indexer)"]
-  mcpServer["MCP server\\n(@ailss/mcp)"]
-  clients["AI clients\\n(Codex CLI, Claude Code, ...)"]
+  indexer["Indexer<br/>(@ailss/indexer)"]
+  mcpServer["MCP server<br/>(@ailss/mcp)"]
+  clients["AI clients<br/>(Codex CLI, Claude Code, ...)"]
   obsidian["Obsidian plugin"]
 
   vault -->|read| indexer -->|write| db
@@ -57,27 +57,27 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph core["@ailss/core"]
-    core_vault["src/vault/*\\n(frontmatter + typed links)"]
-    core_db["src/db/*\\n(SQLite schema + queries)"]
-    core_indexing["src/indexing/*\\n(chunking helpers)"]
+    core_vault["src/vault/*<br/>(frontmatter + typed links)"]
+    core_db["src/db/*<br/>(SQLite schema + queries)"]
+    core_indexing["src/indexing/*<br/>(chunking helpers)"]
   end
 
   subgraph indexer["@ailss/indexer"]
-    indexer_cli["src/cli.ts\\n(ailss-indexer)"]
-    indexer_flow["src/indexVault.ts\\n(scan + embedding + upsert)"]
+    indexer_cli["src/cli.ts<br/>(ailss-indexer)"]
+    indexer_flow["src/indexVault.ts<br/>(scan + embedding + upsert)"]
   end
 
   subgraph mcp["@ailss/mcp"]
-    mcp_stdio["src/stdio.ts\\n(ailss-mcp)"]
-    mcp_http["src/http.ts\\n(ailss-mcp-http)"]
-    mcp_tools["src/tools/*\\n(MCP tool implementations)"]
+    mcp_stdio["src/stdio.ts<br/>(ailss-mcp)"]
+    mcp_http["src/http.ts<br/>(ailss-mcp-http)"]
+    mcp_tools["src/tools/*<br/>(MCP tool implementations)"]
   end
 
   subgraph plugin["obsidian-plugin"]
-    plugin_main["src/main.ts\\n(Obsidian entry)"]
-    plugin_mcp["src/mcp/*\\n(MCP service wrapper)"]
-    plugin_indexer["src/indexer/*\\n(indexer runner)"]
-    plugin_ui["src/ui/*\\n(Obsidian UI)"]
+    plugin_main["src/main.ts<br/>(Obsidian entry)"]
+    plugin_mcp["src/mcp/*<br/>(MCP service wrapper)"]
+    plugin_indexer["src/indexer/*<br/>(indexer runner)"]
+    plugin_ui["src/ui/*<br/>(Obsidian UI)"]
   end
 ```
 
