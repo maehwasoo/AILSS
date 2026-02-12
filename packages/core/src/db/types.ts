@@ -15,5 +15,6 @@ export type IndexedChunkRow = {
   heading_path_json: string;
   content: string;
   content_sha256: string;
+  embedding_input_sha256: string;
   updated_at: string;
 };

@@ -29,6 +29,7 @@ describe("indexVault() per-chunk reuse", () => {
           'id: "20260108123456"',
           'created: "2026-01-08T12:34:56"',
           'title: "Note"',
+          'summary: "Short summary"',
           "---",
           "",
           "# A",
@@ -65,7 +66,13 @@ describe("indexVault() per-chunk reuse", () => {
 
         expect(first.changedFiles).toBe(1);
         expect(first.indexedChunks).toBe(3);
-        expect(embedCalls).toEqual([["# A\nhello", "# B\nworld", "# C\nagain"]]);
+        expect(embedCalls).toEqual([
+          [
+            "Title: Note\nSummary: Short summary\nHeading path: A\n---\n# A\nhello",
+            "Title: Note\nSummary: Short summary\nHeading path: B\n---\n# B\nworld",
+            "Title: Note\nSummary: Short summary\nHeading path: C\n---\n# C\nagain",
+          ],
+        ]);
 
         // Edit only the middle chunk.
         await fs.writeFile(
@@ -75,6 +82,7 @@ describe("indexVault() per-chunk reuse", () => {
             'id: "20260108123456"',
             'created: "2026-01-08T12:34:56"',
             'title: "Note"',
+            'summary: "Short summary"',
             "---",
             "",
             "# A",
@@ -102,7 +110,9 @@ describe("indexVault() per-chunk reuse", () => {
 
         expect(second.changedFiles).toBe(1);
         expect(second.indexedChunks).toBe(3);
-        expect(embedCalls[1]).toEqual(["# B\nworld!"]);
+        expect(embedCalls[1]).toEqual([
+          "Title: Note\nSummary: Short summary\nHeading path: B\n---\n# B\nworld!",
+        ]);
 
         const chunkCount = db
           .prepare("SELECT COUNT(*) as count FROM chunks WHERE path = ?")
@@ -127,6 +137,7 @@ describe("indexVault() per-chunk reuse", () => {
           'id: "20260108123456"',
           'created: "2026-01-08T12:34:56"',
           'title: "Note"',
+          'summary: "Order summary"',
           "---",
           "",
           "# A",
@@ -178,6 +189,7 @@ describe("indexVault() per-chunk reuse", () => {
             'id: "20260108123456"',
             'created: "2026-01-08T12:34:56"',
             'title: "Note"',
+            'summary: "Order summary"',
             "---",
             "",
             "# B",
@@ -230,7 +242,9 @@ describe("indexVault() per-chunk reuse", () => {
 
         expect(summary.changedFiles).toBe(1);
         expect(summary.indexedChunks).toBe(2);
-        expect(embedCalls).toEqual([["# B\nbravo!"]]);
+        expect(embedCalls).toEqual([
+          ["Title: Note\nSummary: Order summary\nHeading path: B\n---\n# B\nbravo!"],
+        ]);
         expect(embedPhase).toEqual({ oldBCount: 0, oldAChunkIndex: 0, newBCount: 0 });
 
         const finalChunks = db
@@ -243,6 +257,85 @@ describe("indexVault() per-chunk reuse", () => {
         expect(finalChunks.map((chunk) => chunk.content)).toEqual(["# B\nbravo!", "# A\nalpha"]);
         expect(finalChunks[1]?.chunkId).toBe(oldA.chunkId);
         expect(finalChunks.some((chunk) => chunk.chunkId === oldB.chunkId)).toBe(false);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  it("re-embeds chunks when summary changes with unchanged body", async () => {
+    await withTempDir("ailss-core-", async (dir) => {
+      const vaultPath = path.join(dir, "vault");
+      await fs.mkdir(vaultPath, { recursive: true });
+
+      const notePath = path.join(vaultPath, "Note.md");
+      await fs.writeFile(
+        notePath,
+        [
+          "---",
+          'id: "20260108123456"',
+          'created: "2026-01-08T12:34:56"',
+          'title: "Note"',
+          'summary: "Initial summary"',
+          "---",
+          "",
+          "# A",
+          "hello",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const dbPath = path.join(dir, "index.sqlite");
+      const db = openAilssDb({ dbPath, embeddingModel: "test-embeddings", embeddingDim: 3 });
+
+      const embedCalls: string[][] = [];
+      const embedTexts = async (inputs: string[]): Promise<number[][]> => {
+        embedCalls.push(inputs);
+        return inputs.map((_, i) => [0.1 + i, 0.2 + i, 0.3 + i]);
+      };
+
+      try {
+        await indexVault({
+          db,
+          vaultPath,
+          embeddingModel: "test-embeddings",
+          embedTexts,
+          maxChars: 4000,
+          batchSize: 32,
+        });
+
+        await fs.writeFile(
+          notePath,
+          [
+            "---",
+            'id: "20260108123456"',
+            'created: "2026-01-08T12:34:56"',
+            'title: "Note"',
+            'summary: "Updated summary"',
+            "---",
+            "",
+            "# A",
+            "hello",
+            "",
+          ].join("\n"),
+          "utf8",
+        );
+
+        await indexVault({
+          db,
+          vaultPath,
+          embeddingModel: "test-embeddings",
+          embedTexts,
+          paths: ["Note.md"],
+          maxChars: 4000,
+          batchSize: 32,
+        });
+
+        expect(embedCalls).toEqual([
+          ["Title: Note\nSummary: Initial summary\nHeading path: A\n---\n# A\nhello"],
+          ["Title: Note\nSummary: Updated summary\nHeading path: A\n---\n# A\nhello"],
+        ]);
       } finally {
         db.close();
       }

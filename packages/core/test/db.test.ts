@@ -502,4 +502,33 @@ describe("openAilssDb() embedding config validation", () => {
       /does not record the embedding model\/dimension/i,
     );
   });
+
+  it("refuses to guess embedding input format for a non-empty DB without version meta", async () => {
+    const dir = await mkTempDir();
+    const dbPath = path.join(dir, "index.sqlite");
+
+    const db = openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 3 });
+    try {
+      upsertFile(db, { path: "notes/a.md", mtimeMs: 0, sizeBytes: 0, sha256: "file-sha" });
+      insertChunkWithEmbedding(db, {
+        chunkId: "chunk-1",
+        path: "notes/a.md",
+        chunkIndex: 0,
+        heading: "A",
+        headingPathJson: JSON.stringify(["A"]),
+        content: "hello world",
+        contentSha256: "content-sha",
+        embeddingInputSha256: "embedding-input-sha",
+        embedding: [0.1, 0.2, 0.3],
+      });
+
+      db.prepare(`DELETE FROM db_meta WHERE key = ?`).run("embedding_input_version");
+    } finally {
+      db.close();
+    }
+
+    expect(() => openAilssDb({ dbPath, embeddingModel: "model-a", embeddingDim: 3 })).toThrow(
+      /does not record the embedding input format version/i,
+    );
+  });
 });

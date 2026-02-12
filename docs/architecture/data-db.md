@@ -26,6 +26,7 @@ Stores chunk-level text and metadata.
 - `chunk_index` (0-based order within the file)
 - `heading`, `heading_path_json`
 - `content`, `content_sha256`
+- `embedding_input_sha256`: sha256 of the actual embedding input string
 
 ### `db_meta` table
 
@@ -100,7 +101,14 @@ Example `to_wikilink` value:
    - Delete chunks that no longer exist (including vec0 rows)
    - Update metadata for chunks that still exist (heading path, content, sha, timestamps)
 7. Generate embeddings via the OpenAI embeddings API only for chunks that need them
-   - Unchanged chunks reuse existing embeddings
+   - Embedding input format:
+     - `Title: <note title>`
+     - `Summary: <note summary>`
+     - `Heading path: <full heading path joined by " > ">`
+     - `---`
+     - `<chunk.content>` (stored chunk body; unchanged in DB)
+   - Reuse/dedupe is keyed by `embedding_input_sha256` (not just raw chunk body hash)
+   - If note title/summary/heading path changes, chunks are re-embedded even when chunk body text is unchanged
 8. Insert new `chunks`, `chunk_embeddings`, and `chunk_rowids` for newly introduced chunks
 
 ## Search flow

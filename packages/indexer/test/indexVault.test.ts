@@ -26,7 +26,14 @@ describe("indexVault (wrapper)", () => {
       await fs.mkdir(vaultPath, { recursive: true });
       await fs.writeFile(
         path.join(vaultPath, "Note.md"),
-        ["---", "id: 20260108123456", "---", "Hello"].join("\n") + "\n",
+        [
+          "---",
+          "id: 20260108123456",
+          "title: Note",
+          "summary: Wrapper test summary",
+          "---",
+          "Hello",
+        ].join("\n") + "\n",
         "utf8",
       );
 
@@ -70,7 +77,7 @@ describe("indexVault (wrapper)", () => {
         expect(calls.length).toBe(1);
         expect(calls[0]).toEqual({
           model: embeddingModel,
-          input: ["Hello"],
+          input: ["Title: Note\nSummary: Wrapper test summary\nHeading path: \n---\nHello"],
           encoding_format: "float",
         });
 
