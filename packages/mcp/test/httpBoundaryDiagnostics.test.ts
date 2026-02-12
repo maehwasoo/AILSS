@@ -105,18 +105,18 @@ describe("MCP HTTP server (boundary diagnostics)", () => {
   });
 });
 
-function parseBoundaryEvents(warnSpy: ReturnType<typeof vi.spyOn>): BoundaryEvent[] {
+function parseBoundaryEvents(warnSpy: { mock: { calls: unknown[][] } }): BoundaryEvent[] {
   return warnSpy.mock.calls
-    .map((call) => call[0])
-    .filter((line): line is string => typeof line === "string")
-    .map((line) => {
+    .map((call: unknown[]) => call[0])
+    .filter((line: unknown): line is string => typeof line === "string")
+    .map((line: string) => {
       try {
         return JSON.parse(line) as unknown;
       } catch {
         return null;
       }
     })
-    .filter((value): value is BoundaryEvent => {
+    .filter((value: unknown): value is BoundaryEvent => {
       if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
       if ((value as Record<string, unknown>)["event"] !== "mcp_http_boundary_early_return") {
         return false;
