@@ -350,14 +350,12 @@ export class McpHttpServiceController {
 		const vaultPath = this.deps.getVaultPath().trim();
 		if (!vaultPath) {
 			this.durableLogPath = null;
-			this.durableLogWriteQueue = Promise.resolve();
 			return;
 		}
 
 		const dir = path.join(vaultPath, MCP_HTTP_LOG_DIR);
 		const filePath = path.join(dir, MCP_HTTP_LOG_FILE);
 		this.durableLogPath = filePath;
-		this.durableLogWriteQueue = Promise.resolve();
 
 		const header = [`[time] ${nowIso()}`, "[event] mcp-http-service-start", ""].join("\n");
 		this.enqueueDurableLogWrite(async () => {

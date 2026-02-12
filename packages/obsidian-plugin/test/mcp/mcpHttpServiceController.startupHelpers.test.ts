@@ -344,5 +344,46 @@ describe("McpHttpServiceController startup helper unit branches", () => {
 				await fs.rm(vaultPath, { recursive: true, force: true });
 			}
 		});
+
+		it("preserves durable log ordering across restart boundaries", async () => {
+			const vaultPath = await fs.mkdtemp(path.join(os.tmpdir(), "ailss-mcp-log-"));
+
+			try {
+				const { controller } = createController({ vaultPath });
+				const internals = asInternals(controller);
+				internals.resetStartupState();
+				await internals.durableLogWriteQueue;
+
+				const originalAppendFile = fs.appendFile.bind(fs);
+				let releaseBlockedAppend = () => {};
+				const blockedAppend = new Promise<void>((resolve) => {
+					releaseBlockedAppend = resolve;
+				});
+
+				const appendSpy = vi.spyOn(fs, "appendFile");
+				appendSpy.mockImplementationOnce(async (...args) => {
+					await blockedAppend;
+					const typedArgs = args as Parameters<typeof fs.appendFile>;
+					return originalAppendFile(...typedArgs);
+				});
+
+				internals.appendDurableLogChunk("stderr", "run1-pending\n");
+				internals.resetStartupState();
+				internals.appendDurableLogChunk("stdout", "run2-ready\n");
+
+				releaseBlockedAppend();
+				await internals.durableLogWriteQueue;
+
+				const logPath = path.join(vaultPath, ".ailss", "ailss-mcp-http-last.log");
+				const content = await fs.readFile(logPath, "utf8");
+				expect(content).toContain("[event] mcp-http-service-start");
+				expect(content).toContain("run2-ready");
+				expect(content).not.toContain("run1-pending");
+
+				appendSpy.mockRestore();
+			} finally {
+				await fs.rm(vaultPath, { recursive: true, force: true });
+			}
+		});
 	});
 });
