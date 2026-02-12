@@ -106,4 +106,42 @@ describe("MCP HTTP server (tool failure diagnostics)", () => {
       });
     });
   });
+
+  it("returns disabled report when diagnostics dependency is not wired", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await withMcpHttpServer(
+        {
+          vaultPath,
+          enableWriteTools: false,
+          beforeStart: (runtime) => {
+            delete runtime.deps.toolFailureDiagnostics;
+          },
+        },
+        async ({ url, token }) => {
+          const sessionId = await mcpInitialize(url, token, "client-a");
+          const reportPayload = await mcpToolsCall(
+            url,
+            token,
+            sessionId,
+            "get_tool_failure_report",
+            {
+              recent_limit: 10,
+              top_error_limit: 5,
+            },
+          );
+
+          const structured = getStructuredContent(reportPayload);
+          expect(structured["enabled"]).toBe(false);
+          expect(structured["log_dir"]).toBe(null);
+          expect(structured["log_path"]).toBe(null);
+          expect(structured["scanned_events"]).toBe(0);
+          expect(structured["matched_events"]).toBe(0);
+
+          const recentEvents = structured["recent_events"];
+          assertArray(recentEvents, "recent_events");
+          expect(recentEvents.length).toBe(0);
+        },
+      );
+    });
+  });
 });

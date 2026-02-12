@@ -6,6 +6,20 @@ import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
 
+function createDisabledReport() {
+  return {
+    enabled: false,
+    log_dir: null,
+    log_path: null,
+    scanned_events: 0,
+    matched_events: 0,
+    first_timestamp: null,
+    last_timestamp: null,
+    top_error_types: [],
+    recent_events: [],
+  };
+}
+
 export function registerGetToolFailureReportTool(server: McpServer, deps: McpToolDeps): void {
   server.registerTool(
     "get_tool_failure_report",
@@ -77,15 +91,13 @@ export function registerGetToolFailureReportTool(server: McpServer, deps: McpToo
     },
     async (args) => {
       const diagnostics = deps.toolFailureDiagnostics;
-      if (!diagnostics) {
-        throw new Error("Tool failure diagnostics are unavailable.");
-      }
-
-      const report = await diagnostics.getToolFailureReport({
-        recentLimit: args.recent_limit,
-        topErrorLimit: args.top_error_limit,
-        ...(args.tool ? { tool: args.tool } : {}),
-      });
+      const report = diagnostics
+        ? await diagnostics.getToolFailureReport({
+            recentLimit: args.recent_limit,
+            topErrorLimit: args.top_error_limit,
+            ...(args.tool ? { tool: args.tool } : {}),
+          })
+        : createDisabledReport();
 
       return {
         structuredContent: report,
