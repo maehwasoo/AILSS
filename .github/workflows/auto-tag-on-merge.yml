@@ -1,0 +1,103 @@
+name: auto-tag-on-merge
+
+on:
+  pull_request_target:
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      contains(github.event.pull_request.labels.*.name, 'release-on-merge')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout merged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Compute and validate release version
+        id: meta
+        shell: bash
+        run: |
+          version="$(node <<'NODE'
+          const fs = require("fs");
+          const read = (path) => JSON.parse(fs.readFileSync(path, "utf8"));
+          const version = read("packages/core/package.json").version;
+
+          if (!version) {
+            console.error("packages/core/package.json version missing");
+            process.exit(1);
+          }
+
+          const pkgPaths = [
+            "packages/mcp/package.json",
+            "packages/indexer/package.json",
+            "packages/obsidian-plugin/package.json",
+            "packages/obsidian-plugin/manifest.json",
+          ];
+
+          for (const path of pkgPaths) {
+            const value = read(path).version;
+            if (value !== version) {
+              console.error(`version mismatch: ${path} ${value} != ${version}`);
+              process.exit(1);
+            }
+          }
+
+          const versions = read("packages/obsidian-plugin/versions.json");
+          if (!Object.prototype.hasOwnProperty.call(versions, version)) {
+            console.error(`versions.json missing key: ${version}`);
+            process.exit(1);
+          }
+
+          process.stdout.write(version);
+          NODE
+          )"
+
+          if [[ -z "${version}" ]]; then
+            echo "resolved version is empty" >&2
+            exit 1
+          fi
+
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create and push tag
+        env:
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          RELEASE_TAG_TOKEN: ${{ secrets.RELEASE_TAG_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          if [[ -z "${RELEASE_TAG_TOKEN}" ]]; then
+            echo "RELEASE_TAG_TOKEN is not configured" >&2
+            exit 1
+          fi
+
+          tag="v${VERSION}"
+          git fetch origin --tags
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null 2>&1; then
+            echo "tag already exists: ${tag}; skip"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag "${tag}" "${MERGE_SHA}"
+          git push "https://x-access-token:${RELEASE_TAG_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${tag}"
