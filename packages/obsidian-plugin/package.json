@@ -1,6 +1,6 @@
 {
 	"name": "ailss-obsidian",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "AILSS indexing + localhost MCP service for Codex (Obsidian)",
 	"main": "main.js",
 	"type": "module",
