@@ -9,9 +9,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
-import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
 import { applyLinePatchOps, type LinePatchOp } from "../lib/textPatch.js";
 import { readVaultFileFullText, writeVaultFileText } from "../lib/vaultFs.js";
+import { applyAndOptionalReindex, runWithOptionalWriteLock } from "../lib/writeToolExecution.js";
 
 function sha256HexUtf8(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -185,47 +185,31 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
         const afterSha256 = sha256HexUtf8(afterText);
         const changed = afterSha256 !== beforeSha256;
 
-        let reindexed = false;
-        let reindexSummary: {
-          changed_files: number;
-          indexed_chunks: number;
-          deleted_files: number;
-        } | null = null;
-        let reindexError: string | null = null;
-
-        if (args.apply && changed) {
-          await writeVaultFileText({
-            vaultPath,
-            vaultRelPath: args.path,
-            text: afterText,
-          });
-
-          if (args.reindex_after_apply) {
-            try {
-              const summary = await reindexVaultPaths(deps, [args.path]);
-              reindexed = true;
-              reindexSummary = {
-                changed_files: summary.changedFiles,
-                indexed_chunks: summary.indexedChunks,
-                deleted_files: summary.deletedFiles,
-              };
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              reindexError = message;
-            }
-          }
-        }
+        const reindexState = await applyAndOptionalReindex({
+          deps,
+          apply: args.apply,
+          changed,
+          reindexAfterApply: args.reindex_after_apply,
+          reindexPaths: [args.path],
+          applyWrite: async () => {
+            await writeVaultFileText({
+              vaultPath,
+              vaultRelPath: args.path,
+              text: afterText,
+            });
+          },
+        });
 
         const payload = {
           path: args.path,
-          applied: Boolean(args.apply && changed),
+          applied: reindexState.applied,
           changed,
           before_sha256: beforeSha256,
           after_sha256: afterSha256,
-          needs_reindex: Boolean(args.apply && changed && !reindexed),
-          reindexed,
-          reindex_summary: reindexSummary,
-          reindex_error: reindexError,
+          needs_reindex: reindexState.needs_reindex,
+          reindexed: reindexState.reindexed,
+          reindex_summary: reindexState.reindex_summary,
+          reindex_error: reindexState.reindex_error,
         };
 
         return {
@@ -234,11 +218,7 @@ export function registerEditNoteTool(server: McpServer, deps: McpToolDeps): void
         };
       };
 
-      if (args.apply) {
-        return await (deps.writeLock ? deps.writeLock.runExclusive(run) : run());
-      }
-
-      return await run();
+      return await runWithOptionalWriteLock({ apply: args.apply, writeLock: deps.writeLock, run });
     },
   );
 }

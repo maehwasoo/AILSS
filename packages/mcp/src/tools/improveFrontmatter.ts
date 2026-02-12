@@ -18,8 +18,13 @@ import {
   nowIsoSeconds,
   renderMarkdownWithFrontmatter,
 } from "../lib/ailssNoteTemplate.js";
-import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
+import {
+  coerceNonEmptyString,
+  hasFrontmatterBlock,
+  idFromCreated,
+} from "../lib/frontmatterIdentity.js";
 import { readVaultFileFullText, writeVaultFileText } from "../lib/vaultFs.js";
+import { applyAndOptionalReindex, runWithOptionalWriteLock } from "../lib/writeToolExecution.js";
 
 const REQUIRED_KEYS = [
   "id",
@@ -38,25 +43,6 @@ const REQUIRED_KEYS = [
 
 function sha256HexUtf8(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
-}
-
-function hasFrontmatterBlock(markdown: string): boolean {
-  const normalized = (markdown ?? "").replace(/\r\n/g, "\n");
-  if (!normalized.startsWith("---\n")) return false;
-  const endIdx = normalized.indexOf("\n---\n", 4);
-  const endDotsIdx = normalized.indexOf("\n...\n", 4);
-  return endIdx >= 0 || endDotsIdx >= 0;
-}
-
-function coerceNonEmptyString(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : null;
-  }
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (value instanceof Date && Number.isFinite(value.getTime()))
-    return value.toISOString().slice(0, 19);
-  return null;
 }
 
 function titleFromPath(vaultRelPath: string): string {
@@ -91,16 +77,6 @@ function toWikilink(value: string): string {
   if (!trimmed) return "[[]]";
   if (trimmed.startsWith("[[") && trimmed.endsWith("]]")) return trimmed;
   return `[[${trimmed}]]`;
-}
-
-function idFromCreated(created: string): string | null {
-  const trimmed = created.trim();
-  if (!trimmed) return null;
-  const iso = trimmed.length >= 19 ? trimmed.slice(0, 19) : trimmed;
-  const normalized = iso.replace(/ /g, "T");
-  const digits = normalized.replace(/[-:T]/g, "");
-  if (digits.length < 14) return null;
-  return digits.slice(0, 14);
 }
 
 function isoSecondsFromId(id: string): string | null {
@@ -280,36 +256,20 @@ export function registerImproveFrontmatterTool(server: McpServer, deps: McpToolD
           idValue && createdId && /^\d{14}$/.test(idValue) && idValue === createdId,
         );
 
-        let reindexed = false;
-        let reindexSummary: {
-          changed_files: number;
-          indexed_chunks: number;
-          deleted_files: number;
-        } | null = null;
-        let reindexError: string | null = null;
-
-        if (args.apply && changed) {
-          await writeVaultFileText({ vaultPath, vaultRelPath: args.path, text: afterText });
-
-          if (args.reindex_after_apply) {
-            try {
-              const summary = await reindexVaultPaths(deps, [args.path]);
-              reindexed = true;
-              reindexSummary = {
-                changed_files: summary.changedFiles,
-                indexed_chunks: summary.indexedChunks,
-                deleted_files: summary.deletedFiles,
-              };
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              reindexError = message;
-            }
-          }
-        }
+        const reindexState = await applyAndOptionalReindex({
+          deps,
+          apply: args.apply,
+          changed,
+          reindexAfterApply: args.reindex_after_apply,
+          reindexPaths: [args.path],
+          applyWrite: async () => {
+            await writeVaultFileText({ vaultPath, vaultRelPath: args.path, text: afterText });
+          },
+        });
 
         const payload = {
           path: args.path,
-          applied: Boolean(args.apply && changed),
+          applied: reindexState.applied,
           changed,
           before_sha256: beforeSha256,
           after_sha256: afterSha256,
@@ -321,10 +281,10 @@ export function registerImproveFrontmatterTool(server: McpServer, deps: McpToolD
             id_matches_created: idMatchesCreated,
             fixed: identityFixed,
           },
-          needs_reindex: Boolean(args.apply && changed && !reindexed),
-          reindexed,
-          reindex_summary: reindexSummary,
-          reindex_error: reindexError,
+          needs_reindex: reindexState.needs_reindex,
+          reindexed: reindexState.reindexed,
+          reindex_summary: reindexState.reindex_summary,
+          reindex_error: reindexState.reindex_error,
         };
 
         return {
@@ -333,11 +293,7 @@ export function registerImproveFrontmatterTool(server: McpServer, deps: McpToolD
         };
       };
 
-      if (args.apply) {
-        return await (deps.writeLock ? deps.writeLock.runExclusive(run) : run());
-      }
-
-      return await run();
+      return await runWithOptionalWriteLock({ apply: args.apply, writeLock: deps.writeLock, run });
     },
   );
 }

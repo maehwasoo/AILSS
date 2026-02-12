@@ -17,8 +17,8 @@ import {
   nowIsoSeconds,
   renderMarkdownWithFrontmatter,
 } from "../lib/ailssNoteTemplate.js";
-import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
 import { resolveVaultPathSafely, writeVaultFileText } from "../lib/vaultFs.js";
+import { applyAndOptionalReindex, runWithOptionalWriteLock } from "../lib/writeToolExecution.js";
 
 function sha256HexUtf8(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -146,63 +146,30 @@ export function registerCaptureNoteTool(server: McpServer, deps: McpToolDeps): v
       const sha256 = sha256HexUtf8(markdown);
 
       const run = async () => {
-        if (!args.apply) {
-          const payload = {
-            path: relPath,
-            applied: false,
-            note_id: String(frontmatter.id ?? ""),
-            created: String(frontmatter.created ?? ""),
-            title: String(frontmatter.title ?? ""),
-            sha256,
-            needs_reindex: false,
-            reindexed: false,
-            reindex_summary: null,
-            reindex_error: null,
-          };
-          return {
-            structuredContent: payload,
-            content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
-          };
-        }
-
-        const abs = resolveVaultPathSafely(vaultPath, relPath);
-        await fs.mkdir(path.dirname(abs), { recursive: true });
-        await writeVaultFileText({ vaultPath, vaultRelPath: relPath, text: markdown });
-
-        let reindexed = false;
-        let reindexSummary: {
-          changed_files: number;
-          indexed_chunks: number;
-          deleted_files: number;
-        } | null = null;
-        let reindexError: string | null = null;
-
-        if (args.reindex_after_apply) {
-          try {
-            const summary = await reindexVaultPaths(deps, [relPath]);
-            reindexed = true;
-            reindexSummary = {
-              changed_files: summary.changedFiles,
-              indexed_chunks: summary.indexedChunks,
-              deleted_files: summary.deletedFiles,
-            };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            reindexError = message;
-          }
-        }
+        const reindexState = await applyAndOptionalReindex({
+          deps,
+          apply: args.apply,
+          changed: true,
+          reindexAfterApply: args.reindex_after_apply,
+          reindexPaths: [relPath],
+          applyWrite: async () => {
+            const abs = resolveVaultPathSafely(vaultPath, relPath);
+            await fs.mkdir(path.dirname(abs), { recursive: true });
+            await writeVaultFileText({ vaultPath, vaultRelPath: relPath, text: markdown });
+          },
+        });
 
         const payload = {
           path: relPath,
-          applied: true,
+          applied: reindexState.applied,
           note_id: String(frontmatter.id ?? ""),
           created: String(frontmatter.created ?? ""),
           title: String(frontmatter.title ?? ""),
           sha256,
-          needs_reindex: Boolean(!reindexed),
-          reindexed,
-          reindex_summary: reindexSummary,
-          reindex_error: reindexError,
+          needs_reindex: reindexState.needs_reindex,
+          reindexed: reindexState.reindexed,
+          reindex_summary: reindexState.reindex_summary,
+          reindex_error: reindexState.reindex_error,
         };
 
         return {
@@ -211,10 +178,7 @@ export function registerCaptureNoteTool(server: McpServer, deps: McpToolDeps): v
         };
       };
 
-      if (args.apply) {
-        return await (deps.writeLock ? deps.writeLock.runExclusive(run) : run());
-      }
-      return await run();
+      return await runWithOptionalWriteLock({ apply: args.apply, writeLock: deps.writeLock, run });
     },
   );
 }

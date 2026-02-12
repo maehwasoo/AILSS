@@ -14,6 +14,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import type { McpToolDeps } from "../mcpDeps.js";
+import {
+  coerceTrimmedStringOrEmpty,
+  hasFrontmatterBlock,
+  idFromCreated,
+} from "../lib/frontmatterIdentity.js";
 
 const REQUIRED_KEYS = [
   "id",
@@ -72,37 +77,6 @@ type TypedLinkDiagnostic = {
 
 function relPathFromAbs(vaultPath: string, absPath: string): string {
   return path.relative(vaultPath, absPath).split(path.sep).join(path.posix.sep);
-}
-
-function hasFrontmatterBlock(markdown: string): boolean {
-  const normalized = (markdown ?? "").replace(/\r\n/g, "\n");
-  if (!normalized.startsWith("---\n")) return false;
-  const endIdx = normalized.indexOf("\n---\n", 4);
-  const endDotsIdx = normalized.indexOf("\n...\n", 4);
-  return endIdx >= 0 || endDotsIdx >= 0;
-}
-
-function coerceString(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : "";
-  }
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (value instanceof Date) return value.toISOString();
-  return null;
-}
-
-function idFromCreated(created: string): string | null {
-  const trimmed = created.trim();
-  if (!trimmed) return null;
-
-  // Accept ISO with optional ms/timezone; use the first 19 chars if available.
-  // - 2026-01-08T12:34:56(.123Z)
-  const iso = trimmed.length >= 19 ? trimmed.slice(0, 19) : trimmed;
-  const normalized = iso.replace(/ /g, "T");
-  const digits = normalized.replace(/[-:T]/g, "");
-  if (digits.length < 14) return null;
-  return digits.slice(0, 14);
 }
 
 function normalizeEntity(value: string | null): string | null {
@@ -393,8 +367,8 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           if (!Object.prototype.hasOwnProperty.call(fm, key)) missing.push(key);
         }
 
-        const idRaw = coerceString((fm as Record<string, unknown>).id);
-        const createdRaw = coerceString((fm as Record<string, unknown>).created);
+        const idRaw = coerceTrimmedStringOrEmpty((fm as Record<string, unknown>).id);
+        const createdRaw = coerceTrimmedStringOrEmpty((fm as Record<string, unknown>).created);
         const createdId = createdRaw ? idFromCreated(createdRaw) : null;
 
         const idValue = idRaw;
