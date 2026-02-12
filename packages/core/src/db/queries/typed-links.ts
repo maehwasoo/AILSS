@@ -4,6 +4,7 @@ import type { AilssDb } from "../db.js";
 import { nowIso } from "../migrate.js";
 
 import type { NoteMeta } from "./notes.js";
+import { toLiteralPrefixLikePattern } from "./shared.js";
 
 export type TypedLinkInput = {
   rel: string;
@@ -111,8 +112,8 @@ export function listTypedLinkRels(
 
   const pathPrefix = query.pathPrefix?.trim();
   if (pathPrefix) {
-    where.push(`from_path LIKE ?`);
-    params.push(`${pathPrefix}%`);
+    where.push(`from_path LIKE ? ESCAPE '\\'`);
+    params.push(toLiteralPrefixLikePattern(pathPrefix));
   }
 
   const limit = Math.min(Math.max(1, query.limit ?? 200), 5000);

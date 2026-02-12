@@ -27,8 +27,9 @@ export function listChunkIdsByPath(db: AilssDb, filePath: string): string[] {
 }
 
 export type ChunkEmbeddingCacheItem = {
-  contentSha256: string;
-  embedding: number[];
+  chunkId: string;
+  embeddingInputSha256: string;
+  embedding: number[] | null;
 };
 
 export function listChunkEmbeddingsByPath(
@@ -39,7 +40,8 @@ export function listChunkEmbeddingsByPath(
     .prepare(
       `
         SELECT
-          c.content_sha256 AS contentSha256,
+          c.chunk_id AS chunkId,
+          c.embedding_input_sha256 AS embeddingInputSha256,
           e.embedding AS embedding
         FROM chunks c
         JOIN chunk_rowids r ON r.chunk_id = c.chunk_id
@@ -47,18 +49,17 @@ export function listChunkEmbeddingsByPath(
         WHERE c.path = ?
       `,
     )
-    .all(filePath) as Array<{ contentSha256: string; embedding: unknown }>;
+    .all(filePath) as Array<{ chunkId: string; embeddingInputSha256: string; embedding: unknown }>;
 
-  // Stable dedupe by contentSha256 (keep first valid embedding)
   const out: ChunkEmbeddingCacheItem[] = [];
-  const seen = new Set<string>();
   for (const row of rows) {
-    const key = row.contentSha256 ?? "";
-    if (!key || seen.has(key)) continue;
-    const parsed = safeParseEmbedding(row.embedding);
-    if (!parsed) continue;
-    seen.add(key);
-    out.push({ contentSha256: key, embedding: parsed });
+    const chunkId = row.chunkId ?? "";
+    if (!chunkId) continue;
+    out.push({
+      chunkId,
+      embeddingInputSha256: row.embeddingInputSha256 ?? "",
+      embedding: safeParseEmbedding(row.embedding),
+    });
   }
 
   return out;
@@ -102,6 +103,7 @@ export type InsertChunkInput = {
   headingPathJson: string;
   content: string;
   contentSha256: string;
+  embeddingInputSha256?: string;
   embedding: number[];
 };
 
@@ -109,8 +111,28 @@ export function insertChunkWithEmbedding(db: AilssDb, input: InsertChunkInput): 
   const tx = db.transaction(() => {
     db.prepare(
       `
-      INSERT INTO chunks(chunk_id, path, chunk_index, heading, heading_path_json, content, content_sha256, updated_at)
-      VALUES (@chunk_id, @path, @chunk_index, @heading, @heading_path_json, @content, @content_sha256, @updated_at)
+      INSERT INTO chunks(
+        chunk_id,
+        path,
+        chunk_index,
+        heading,
+        heading_path_json,
+        content,
+        content_sha256,
+        embedding_input_sha256,
+        updated_at
+      )
+      VALUES (
+        @chunk_id,
+        @path,
+        @chunk_index,
+        @heading,
+        @heading_path_json,
+        @content,
+        @content_sha256,
+        @embedding_input_sha256,
+        @updated_at
+      )
     `,
     ).run({
       chunk_id: input.chunkId,
@@ -120,6 +142,7 @@ export function insertChunkWithEmbedding(db: AilssDb, input: InsertChunkInput): 
       heading_path_json: input.headingPathJson,
       content: input.content,
       content_sha256: input.contentSha256,
+      embedding_input_sha256: input.embeddingInputSha256 ?? input.contentSha256,
       updated_at: nowIso(),
     });
 
@@ -142,6 +165,7 @@ export type UpdateChunkMetadataInput = {
   headingPathJson: string;
   content: string;
   contentSha256: string;
+  embeddingInputSha256?: string;
 };
 
 export function updateChunkMetadata(db: AilssDb, input: UpdateChunkMetadataInput): void {
@@ -155,6 +179,7 @@ export function updateChunkMetadata(db: AilssDb, input: UpdateChunkMetadataInput
         heading_path_json = @heading_path_json,
         content = @content,
         content_sha256 = @content_sha256,
+        embedding_input_sha256 = @embedding_input_sha256,
         updated_at = @updated_at
       WHERE chunk_id = @chunk_id
     `,
@@ -166,6 +191,7 @@ export function updateChunkMetadata(db: AilssDb, input: UpdateChunkMetadataInput
     heading_path_json: input.headingPathJson,
     content: input.content,
     content_sha256: input.contentSha256,
+    embedding_input_sha256: input.embeddingInputSha256 ?? input.contentSha256,
     updated_at: nowIso(),
   });
 }

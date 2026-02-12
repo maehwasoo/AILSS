@@ -15,6 +15,7 @@ mcp_tools:
   - list_tags
   - list_keywords
   - list_typed_link_rels
+  - get_tool_failure_report
   # Only when write tools are enabled (AILSS_ENABLE_WRITE_TOOLS=1)
   - capture_note
   - canonicalize_typed_links

@@ -129,6 +129,19 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Input:
   - `limit` (int, default: `200`, range: `1–5000`)
 
+### `get_tool_failure_report`
+
+- Purpose: summarize structured MCP tool failure logs (JSONL) from `<vault>/.ailss/logs`.
+- Input:
+  - `recent_limit` (int, default: `50`, range: `1–500`) — recent events to return (newest first)
+  - `top_error_limit` (int, default: `10`, range: `1–50`) — top recurring error buckets
+  - `tool` (string, optional) — filter report to one tool name (e.g. `read_note`)
+- Output highlights:
+  - `enabled`: whether diagnostics logging is active (requires `AILSS_VAULT_PATH`)
+  - `log_dir`, `log_path`: actual diagnostics file location
+  - `top_error_types`: grouped counts with first/last occurrence
+  - `recent_events`: per-failure metadata (`timestamp`, `tool`, `input_path`, `resolved_path`, `error`, `request_id`, `session_id`, `correlation_id`)
+
 ## Write tools (gated)
 
 Write tools are registered only when `AILSS_ENABLE_WRITE_TOOLS=1` and they only write when `apply=true`.

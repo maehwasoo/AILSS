@@ -46,6 +46,7 @@ Read-first tools (implemented in this repo):
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
 - `list_typed_link_rels`: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification
+- `get_tool_failure_report`: summarize MCP tool failure logs from `<vault>/.ailss/logs` (recent events + top recurring error types)
 
 Client guidance (Codex):
 
@@ -57,6 +58,14 @@ Transport / client integration:
   - This avoids granting Codex any vault filesystem permissions.
   - The plugin remains the only writer (vault DB writes + gated note edits via MCP write tools).
   - Supports multiple concurrent MCP sessions (multiple Codex CLI processes), each with its own `Mcp-Session-Id`.
+  - Stale-session recovery contract: if a non-`initialize` request uses an expired/evicted `Mcp-Session-Id`, the server responds with HTTP `404` + JSON-RPC `-32001` (`Session not found`) and `error.data`:
+    - `reason: "session_expired_or_evicted"`
+    - `reinitializeRequired: true`
+    - `retryRequest: true`
+  - Recommended client retry flow for that error:
+    - Drop cached session ID
+    - Send a fresh `initialize` request to obtain a new `Mcp-Session-Id`
+    - Retry the original request once with the new session ID
 - Local dev still supports running the MCP server over stdio (CLI).
 - Optional shutdown endpoint (disabled by default):
   - If `AILSS_MCP_HTTP_SHUTDOWN_TOKEN` is set (or `startAilssMcpHttpServer({ shutdown: { token } })` is used), the server exposes `POST /__ailss/shutdown`.
