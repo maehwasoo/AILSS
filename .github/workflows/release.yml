@@ -190,6 +190,48 @@ jobs:
 
           ls -la "${out}"
 
+      - name: Resolve previous stable tag
+        id: stable_tag
+        if: steps.meta.outputs.prerelease == 'false'
+        shell: bash
+        run: |
+          current="${GITHUB_REF_NAME}"
+          previous="$(
+            git tag --list 'v*' --sort=-v:refname \
+              | grep -Ev -- '-' \
+              | grep -Fxv -- "${current}" \
+              | head -n 1 || true
+          )"
+
+          echo "previous=${previous}" >> "${GITHUB_OUTPUT}"
+
+      - name: Generate stable release notes
+        id: stable_notes
+        if: steps.meta.outputs.prerelease == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const tagName = process.env.GITHUB_REF_NAME;
+            const previousTag = `${{ steps.stable_tag.outputs.previous }}`.trim();
+            const params = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              configuration_file_path: ".github/release.yml",
+            };
+
+            if (previousTag) {
+              params.previous_tag_name = previousTag;
+            }
+
+            const response = await github.request(
+              "POST /repos/{owner}/{repo}/releases/generate-notes",
+              params
+            );
+
+            core.setOutput("body", response.data.body);
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
