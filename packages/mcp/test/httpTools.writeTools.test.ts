@@ -15,6 +15,21 @@ import {
   withTempDir,
 } from "./httpTestUtils.js";
 
+function expectWriteReindexState(
+  structured: Record<string, unknown>,
+  expected: {
+    applied: boolean;
+    needs_reindex: boolean;
+    reindexed: boolean;
+    reindex_error: string | null;
+  },
+): void {
+  expect(structured["applied"]).toBe(expected.applied);
+  expect(structured["needs_reindex"]).toBe(expected.needs_reindex);
+  expect(structured["reindexed"]).toBe(expected.reindexed);
+  expect(structured["reindex_error"]).toBe(expected.reindex_error);
+}
+
 describe("MCP HTTP server (write tools)", () => {
   it("captures a note via capture_note (dry-run + apply)", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
@@ -28,6 +43,12 @@ describe("MCP HTTP server (write tools)", () => {
         });
 
         const dryStructured = getStructuredContent(dryRun);
+        expectWriteReindexState(dryStructured, {
+          applied: false,
+          needs_reindex: false,
+          reindexed: false,
+          reindex_error: null,
+        });
         const dryPath = dryStructured["path"];
         assertString(dryPath, "dryRun.path");
         expect(dryPath.startsWith("100. Inbox/")).toBe(true);
@@ -41,6 +62,12 @@ describe("MCP HTTP server (write tools)", () => {
         });
 
         const appliedStructured = getStructuredContent(applied);
+        expectWriteReindexState(appliedStructured, {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
         const appliedPath = appliedStructured["path"];
         assertString(appliedPath, "applied.path");
         expect(appliedPath.startsWith("100. Inbox/")).toBe(true);
@@ -63,6 +90,12 @@ describe("MCP HTTP server (write tools)", () => {
           reindex_after_apply: false,
         });
         const otherStructured = getStructuredContent(other);
+        expectWriteReindexState(otherStructured, {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
         const otherPath = otherStructured["path"];
         assertString(otherPath, "other.path");
         expect(otherPath.startsWith("200. Projects/")).toBe(true);
@@ -108,7 +141,12 @@ describe("MCP HTTP server (write tools)", () => {
           apply: false,
           ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }],
         });
-        expect(getStructuredContent(dryRun)["applied"]).toBe(false);
+        expectWriteReindexState(getStructuredContent(dryRun), {
+          applied: false,
+          needs_reindex: false,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(await fs.readFile(path.join(vaultPath, noteRelPath), "utf8")).toContain("hello\n");
 
         const applied = await mcpToolsCall(url, token, sessionId, "edit_note", {
@@ -117,7 +155,12 @@ describe("MCP HTTP server (write tools)", () => {
           reindex_after_apply: false,
           ops: [{ op: "replace_lines", from_line: 15, to_line: 15, text: "hello world" }],
         });
-        expect(getStructuredContent(applied)["applied"]).toBe(true);
+        expectWriteReindexState(getStructuredContent(applied), {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(await fs.readFile(path.join(vaultPath, noteRelPath), "utf8")).toContain(
           "hello world\n",
         );
@@ -137,7 +180,12 @@ describe("MCP HTTP server (write tools)", () => {
           to_path: "To.md",
           apply: false,
         });
-        expect(getStructuredContent(dryRun)["applied"]).toBe(false);
+        expectWriteReindexState(getStructuredContent(dryRun), {
+          applied: false,
+          needs_reindex: false,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(await fs.readFile(path.join(vaultPath, "From.md"), "utf8")).toBe("from\n");
         await expect(fs.stat(path.join(vaultPath, "To.md"))).rejects.toThrow(/ENOENT/);
 
@@ -147,9 +195,15 @@ describe("MCP HTTP server (write tools)", () => {
           apply: true,
           reindex_after_apply: false,
         });
-        expect(getStructuredContent(applied)["applied"]).toBe(true);
-        expect(getStructuredContent(applied)["updated_applied"]).toBe(false);
-        expect(getStructuredContent(applied)["updated_value"]).toBe(null);
+        const appliedStructured = getStructuredContent(applied);
+        expectWriteReindexState(appliedStructured, {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
+        expect(appliedStructured["updated_applied"]).toBe(false);
+        expect(appliedStructured["updated_value"]).toBe(null);
         await expect(fs.stat(path.join(vaultPath, "From.md"))).rejects.toThrow(/ENOENT/);
         expect(await fs.readFile(path.join(vaultPath, "To.md"), "utf8")).toBe("from\n");
 
@@ -182,6 +236,12 @@ describe("MCP HTTP server (write tools)", () => {
           reindex_after_apply: false,
         });
         const relocatedStructured = getStructuredContent(relocated);
+        expectWriteReindexState(relocatedStructured, {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(relocatedStructured["updated_applied"]).toBe(true);
         const updatedValue = relocatedStructured["updated_value"];
         assertString(updatedValue, "relocate_note.updated_value");
@@ -210,7 +270,12 @@ describe("MCP HTTP server (write tools)", () => {
         });
 
         const dryStructured = getStructuredContent(dryRun);
-        expect(dryStructured["applied"]).toBe(false);
+        expectWriteReindexState(dryStructured, {
+          applied: false,
+          needs_reindex: false,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(dryStructured["changed"]).toBe(true);
 
         const applied = await mcpToolsCall(url, token, sessionId, "improve_frontmatter", {
@@ -220,7 +285,12 @@ describe("MCP HTTP server (write tools)", () => {
         });
 
         const appliedStructured = getStructuredContent(applied);
-        expect(appliedStructured["applied"]).toBe(true);
+        expectWriteReindexState(appliedStructured, {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(appliedStructured["changed"]).toBe(true);
 
         const written = await fs.readFile(path.join(vaultPath, relPath), "utf8");
@@ -296,7 +366,12 @@ describe("MCP HTTP server (write tools)", () => {
         });
 
         const appliedStructured = getStructuredContent(applied);
-        expect(appliedStructured["applied"]).toBe(true);
+        expectWriteReindexState(appliedStructured, {
+          applied: true,
+          needs_reindex: true,
+          reindexed: false,
+          reindex_error: null,
+        });
         expect(appliedStructured["changed"]).toBe(true);
 
         const written = await fs.readFile(path.join(vaultPath, relPath), "utf8");
@@ -396,7 +471,12 @@ describe("MCP HTTP server (write tools)", () => {
           });
           const dryStructured = getStructuredContent(dryRun);
 
-          expect(dryStructured["applied"]).toBe(false);
+          expectWriteReindexState(dryStructured, {
+            applied: false,
+            needs_reindex: false,
+            reindexed: false,
+            reindex_error: null,
+          });
           expect(dryStructured["changed"]).toBe(true);
 
           const editsRaw = dryStructured["edits"];
@@ -446,7 +526,12 @@ describe("MCP HTTP server (write tools)", () => {
             reindex_after_apply: false,
           });
           const appliedStructured = getStructuredContent(applied);
-          expect(appliedStructured["applied"]).toBe(true);
+          expectWriteReindexState(appliedStructured, {
+            applied: true,
+            needs_reindex: true,
+            reindexed: false,
+            reindex_error: null,
+          });
           expect(appliedStructured["changed"]).toBe(true);
 
           const written = await fs.readFile(path.join(vaultPath, relPath), "utf8");
