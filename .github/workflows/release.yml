@@ -196,12 +196,20 @@ jobs:
         shell: bash
         run: |
           current="${GITHUB_REF_NAME}"
-          previous="$(
+          current_commit="$(git rev-list -n 1 "${current}")"
+          previous=""
+
+          while IFS= read -r tag; do
+            tag_commit="$(git rev-list -n 1 "${tag}")"
+            if git merge-base --is-ancestor "${tag_commit}" "${current_commit}"; then
+              previous="${tag}"
+              break
+            fi
+          done < <(
             git tag --list 'v*' --sort=-v:refname \
               | grep -Ev -- '-' \
-              | grep -Fxv -- "${current}" \
-              | head -n 1 || true
-          )"
+              | grep -Fxv -- "${current}"
+          )
 
           echo "previous=${previous}" >> "${GITHUB_OUTPUT}"
 
