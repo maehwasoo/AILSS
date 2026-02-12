@@ -90,7 +90,7 @@ This repo enforces Conventional Commits (commitlint + Lefthook).
   - Default: use the existing template at `.github/pull_request_template.md` and replace all `[REPLACE ME]` placeholders.
   - Exception (version bump only): use this exact minimal format:
     - `Version bump only (service + plugin).`
-    - `- After merge: tag v<version> on main to trigger release.`
+    - `- Before merge: add label release-on-merge so v<version> is auto-tagged on merge to main.`
 - Language: PR title and body must be written in English.
 - Sections (template-based PRs only): for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
 - Scope: the PR description must reflect _all_ changes in the branch (code + docs + tests).
