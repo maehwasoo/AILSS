@@ -402,6 +402,8 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         });
       }
 
+      const typedLinkMode = args.typed_link_constraint_mode;
+
       let targetLookupNotes: TargetLookupNote[] = scannedNotes.map((note) => ({
         path: note.path,
         parsed_frontmatter: note.parsed_frontmatter,
@@ -413,7 +415,8 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
       // Prefix scan policy
       // - source-note set is limited by path_prefix/max_files
       // - target resolution uses vault-wide metadata for better relation validation accuracy
-      if (prefix) {
+      // - when typed-link constraints are disabled, skip vault-wide lookup expansion
+      if (prefix && typedLinkMode !== "off") {
         const scannedPathSet = new Set(scannedNotes.map((note) => note.path));
         const additionalLookupNotes: TargetLookupNote[] = [];
 
@@ -439,13 +442,9 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
       }
 
       const typedLinkDiagnostics =
-        args.typed_link_constraint_mode === "off"
+        typedLinkMode === "off"
           ? []
-          : collectTypedLinkDiagnostics(
-              scannedNotes,
-              targetLookupNotes,
-              args.typed_link_constraint_mode,
-            );
+          : collectTypedLinkDiagnostics(scannedNotes, targetLookupNotes, typedLinkMode);
 
       const diagnosticsByPath = new Map<string, TypedLinkDiagnostic[]>();
       for (const diag of typedLinkDiagnostics) {
