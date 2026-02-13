@@ -33,6 +33,18 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
 
+## Remaining backlog (snapshot)
+
+These items are not fully implemented yet (or are intentionally deferred). Details remain tracked in the relevant sections below.
+
+- User-configurable exclusions / blocked-path events (see section 5)
+- Pause/resume UX decision (see section 5)
+- Throttling / rate limiting beyond batch size (see section 5)
+- Full schema validation expansion in `frontmatter_validate` (see section 6)
+- `read_note` pagination token/perf follow-ups (see section 6)
+- Privacy docs + opt-in options (see section 7)
+- Cross-process single-writer lock for the indexer (see section 8)
+
 ## 1) Design the index schema
 
 - File level: `path`, `mtime`, `size`, `hash`
