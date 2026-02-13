@@ -131,7 +131,9 @@ describe("httpServerConfig helpers", () => {
     expect(parseEnableJsonResponseFromEnv()).toBe(true);
 
     process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE = "weird";
-    expect(parseEnableJsonResponseFromEnv()).toBe(true);
+    expect(() => parseEnableJsonResponseFromEnv()).toThrow(
+      'Invalid AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE: "weird". Expected 0/1/true/false/on/off/yes/no.',
+    );
   });
 
   it("normalizes shutdown config", () => {

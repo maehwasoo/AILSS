@@ -71,14 +71,16 @@ export function parseIdleTtlMsFromEnv(): number {
 }
 
 export function parseEnableJsonResponseFromEnv(): boolean {
-  const raw = (process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE ?? "1").trim().toLowerCase();
+  const rawValue = (process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE ?? "1").trim();
+  const raw = rawValue.toLowerCase();
   if (!raw) return true;
 
   if (raw === "1" || raw === "true" || raw === "yes" || raw === "on") return true;
   if (raw === "0" || raw === "false" || raw === "no" || raw === "off") return false;
 
-  // Invalid values: fall back to the default (true).
-  return true;
+  throw new Error(
+    `Invalid AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE: "${rawValue}". Expected 0/1/true/false/on/off/yes/no.`,
+  );
 }
 
 export function normalizeShutdownConfig(
