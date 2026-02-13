@@ -91,6 +91,9 @@ This repo enforces Conventional Commits (commitlint + Lefthook).
   - Exception (version bump only): use this exact minimal format:
     - `Version bump only (service + plugin).`
     - `- Before merge: add label release-on-merge so v<version> is auto-tagged on merge to main.`
+  - Labels (version bump only):
+    - Add `ignore-for-release` so the bump PR is excluded from auto-generated release notes.
+    - Add `release-on-merge` before merging to `main` to trigger auto-tagging.
 - Language: PR title and body must be written in English.
 - Sections (template-based PRs only): for each template section (`## What`, `## Why`, `## How`), write content as bullet points only (no prose paragraphs).
 - Scope: the PR description must reflect _all_ changes in the branch (code + docs + tests).
@@ -128,10 +131,13 @@ When filing an issue, optimize for fast, high-confidence triage.
 - Proposed solution (optional): if you have a hypothesis or fix direction, add it as a separate bullet list.
 - Security: if the issue involves secrets or an exploitable vulnerability, do **not** file a public issue; report privately.
 
-### 2.10 GitHub labels (area labeler)
+### 2.10 GitHub labels (area + type labeler)
 
 - Area labels (`plugin`, `mcp`, `indexer`, `core`, `docs`, `ops`) are auto-applied by the GitHub Actions labeler based on changed file paths.
   - Config: `.github/workflows/labeler.yml` + `.github/labeler.yml`
+- Type labels are auto-applied from PR title prefixes (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`) via `.github/workflows/pr-title-type-labeler.yml`.
+  - Mapping: `feat` → `enhancement`, `fix` → `bug`, `docs` → `docs`, `refactor` → `refactor`, `test` → `test`
+  - The workflow only adds a missing mapped type label and skips when a type label already exists.
 - Manually apply labels that are not path-derived (for example: `ignore-for-release`).
 
 ---
