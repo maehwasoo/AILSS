@@ -1,7 +1,7 @@
 {
 	"id": "ailss-obsidian",
 	"name": "AILSS Obsidian",
-	"version": "0.5.0-beta.1",
+	"version": "0.5.0-beta.2",
 	"minAppVersion": "0.15.0",
 	"description": "AILSS indexing + localhost MCP service for Codex (your vault).",
 	"author": "AILSS",
