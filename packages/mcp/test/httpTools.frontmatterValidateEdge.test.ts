@@ -109,6 +109,58 @@ describe("MCP HTTP server (frontmatter_validate edge cases)", () => {
     });
   });
 
+  it("flags invalid enum values for status/layer/entity", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await fs.writeFile(
+        path.join(vaultPath, "BadEnums.md"),
+        noteWithFrontmatter({
+          id: "20260108123456",
+          created: "2026-01-08T12:34:56",
+          title: "Bad Enums",
+          entity: "unicorn",
+          layer: "cosmos",
+          status: "evergreen",
+        }),
+        "utf8",
+      );
+
+      await withMcpHttpServer({ vaultPath, enableWriteTools: false }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+        const res = await mcpToolsCall(url, token, sessionId, "frontmatter_validate", {});
+
+        const structured = getStructuredContent(res);
+        expect(structured["ok_count"]).toBe(0);
+        expect(structured["issue_count"]).toBe(1);
+
+        const enumSchema = structured["enum_schema"];
+        assertRecord(enumSchema, "enum_schema");
+        assertArray(enumSchema["status"], "enum_schema.status");
+        assertArray(enumSchema["layer"], "enum_schema.layer");
+        expect(enumSchema["status"]).toContain("draft");
+        expect(enumSchema["layer"]).toContain("conceptual");
+
+        const issues = structured["issues"];
+        assertArray(issues, "issues");
+        assertRecord(issues[0], "issues[0]");
+        expect(issues[0]["path"]).toBe("BadEnums.md");
+        expect(issues[0]["missing_keys"]).toEqual([]);
+        expect(issues[0]["id_matches_created"]).toBe(true);
+
+        const enumViolations = issues[0]["enum_violations"];
+        assertArray(enumViolations, "issues[0].enum_violations");
+        expect(enumViolations).toHaveLength(3);
+
+        const keys = enumViolations
+          .map((entry) => {
+            assertRecord(entry, "issues[0].enum_violations[i]");
+            return String(entry["key"] ?? "");
+          })
+          .sort();
+        expect(keys).toEqual(["entity", "layer", "status"]);
+      });
+    });
+  });
+
   it("flags invalid YAML frontmatter blocks as parsed_frontmatter=false", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
       const badYaml = [
