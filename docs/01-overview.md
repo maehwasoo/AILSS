@@ -81,7 +81,7 @@ Frontmatter query support (current):
 
 Read-first tools (planned):
 
-- TBD
+- Backlog and future tool expansion are tracked in `docs/03-plan.md` (this overview lists the current implemented surface).
 
 Explicit write tools (apply, implemented):
 
@@ -94,7 +94,7 @@ Explicit write tools (apply, implemented):
 
 Write tools (planned):
 
-TBD
+- Backlog and future tool expansion are tracked in `docs/03-plan.md` (this overview lists the current implemented, gated write tools).
 
 Write tools are gated and not exposed by default:
 
