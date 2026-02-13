@@ -2,10 +2,14 @@
 // - filesystem scan + YAML frontmatter presence checks
 
 import {
+  AILSS_FRONTMATTER_ENTITY_VALUES,
+  AILSS_FRONTMATTER_LAYER_VALUES,
+  AILSS_FRONTMATTER_STATUS_VALUES,
   AILSS_TYPED_LINK_ONTOLOGY_BY_REL,
   listMarkdownFiles,
   normalizeAilssNoteMeta,
   parseMarkdownNote,
+  validateAilssFrontmatterEnums,
 } from "@ailss/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -50,6 +54,7 @@ type ScannedNote = {
   has_frontmatter: boolean;
   parsed_frontmatter: boolean;
   missing_keys: string[];
+  enum_violations: Array<{ key: "status" | "layer" | "entity"; value: string | null }>;
   id_value: string | null;
   created_value: string | null;
   id_format_ok: boolean;
@@ -293,6 +298,11 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         ok_count: z.number().int().nonnegative(),
         issue_count: z.number().int().nonnegative(),
         truncated: z.boolean(),
+        enum_schema: z.object({
+          status: z.array(z.string()),
+          layer: z.array(z.string()),
+          entity: z.array(z.string()),
+        }),
         typed_link_constraint_mode: z.enum(TYPED_LINK_CONSTRAINT_MODES),
         typed_link_diagnostic_count: z.number().int().nonnegative(),
         typed_link_diagnostics: z.array(
@@ -317,6 +327,12 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
             id_format_ok: z.boolean(),
             created_format_ok: z.boolean(),
             id_matches_created: z.boolean(),
+            enum_violations: z.array(
+              z.object({
+                key: z.enum(["status", "layer", "entity"]),
+                value: z.string().nullable(),
+              }),
+            ),
             typed_link_diagnostics: z.array(
               z.object({
                 path: z.string(),
@@ -367,6 +383,11 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           if (!Object.prototype.hasOwnProperty.call(fm, key)) missing.push(key);
         }
 
+        const enumViolations = validateAilssFrontmatterEnums(fm).map((violation) => ({
+          key: violation.key,
+          value: violation.value,
+        }));
+
         const idRaw = coerceTrimmedStringOrEmpty((fm as Record<string, unknown>).id);
         const createdRaw = coerceTrimmedStringOrEmpty((fm as Record<string, unknown>).created);
         const createdId = createdRaw ? idFromCreated(createdRaw) : null;
@@ -385,6 +406,7 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           has_frontmatter: hasFm,
           parsed_frontmatter: parsedFrontmatter,
           missing_keys: missing,
+          enum_violations: enumViolations,
           id_value: idValue,
           created_value: createdValue,
           id_format_ok: idFormatOk,
@@ -464,6 +486,7 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         id_format_ok: boolean;
         created_format_ok: boolean;
         id_matches_created: boolean;
+        enum_violations: Array<{ key: "status" | "layer" | "entity"; value: string | null }>;
         typed_link_diagnostics: TypedLinkDiagnostic[];
       }> = [];
 
@@ -477,6 +500,7 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           note.has_frontmatter &&
           note.parsed_frontmatter &&
           note.missing_keys.length === 0 &&
+          note.enum_violations.length === 0 &&
           note.id_format_ok &&
           note.created_format_ok &&
           note.id_matches_created;
@@ -497,6 +521,7 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           id_format_ok: note.id_format_ok,
           created_format_ok: note.created_format_ok,
           id_matches_created: note.id_matches_created,
+          enum_violations: note.enum_violations,
           typed_link_diagnostics: noteDiagnostics,
         });
       }
@@ -507,6 +532,11 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         ok_count: okCount,
         issue_count: issues.length,
         truncated,
+        enum_schema: {
+          status: [...AILSS_FRONTMATTER_STATUS_VALUES],
+          layer: [...AILSS_FRONTMATTER_LAYER_VALUES],
+          entity: [...AILSS_FRONTMATTER_ENTITY_VALUES],
+        },
         typed_link_constraint_mode: args.typed_link_constraint_mode,
         typed_link_diagnostic_count: typedLinkDiagnostics.length,
         typed_link_diagnostics: typedLinkDiagnostics,
