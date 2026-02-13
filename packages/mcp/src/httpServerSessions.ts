@@ -92,10 +92,12 @@ export class McpSessionStore {
 export async function createSession(
   runtime: AilssMcpRuntime,
   sessionStore: McpSessionStore,
+  enableJsonResponse: boolean,
 ): Promise<{ server: McpServer; transport: StreamableHTTPServerTransport }> {
   const { server } = createAilssMcpServerFromRuntime(runtime);
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
+    enableJsonResponse,
     onsessioninitialized: (sessionId) => {
       sessionStore.initializeSession(sessionId, server, transport);
     },

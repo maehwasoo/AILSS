@@ -6,6 +6,7 @@ import http from "node:http";
 import { createAilssMcpRuntimeFromEnv } from "./createAilssMcpServer.js";
 import {
   normalizeShutdownConfig,
+  parseEnableJsonResponseFromEnv,
   parseHttpConfigFromEnv,
   parseIdleTtlMsFromEnv,
   parseMaxSessionsFromEnv,
@@ -29,6 +30,7 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
 
   const maxSessions = options.maxSessions ?? parseMaxSessionsFromEnv();
   const idleTtlMs = options.idleTtlMs ?? parseIdleTtlMsFromEnv();
+  const enableJsonResponse = options.enableJsonResponse ?? parseEnableJsonResponseFromEnv();
   const shutdown = normalizeShutdownConfig(options.shutdown);
   const sessionStore = new McpSessionStore(maxSessions, idleTtlMs);
 
@@ -43,6 +45,7 @@ export async function startAilssMcpHttpServer(options: StartHttpServerOptions): 
     config,
     runtime,
     sessionStore,
+    enableJsonResponse,
     shutdown,
     isShuttingDown: () => shuttingDown,
     startShuttingDown,

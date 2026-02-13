@@ -17,6 +17,7 @@ type CreateHttpRequestHandlerOptions = {
   config: HttpConfig;
   runtime: AilssMcpRuntime;
   sessionStore: McpSessionStore;
+  enableJsonResponse: boolean;
   shutdown: ShutdownConfig | null;
   isShuttingDown: () => boolean;
   startShuttingDown: () => void;
@@ -140,7 +141,11 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       if (req.method === "POST" && isInitializeRequestMessage(parsedBody)) {
         options.sessionStore.closeIdleSessions();
-        const { server, transport } = await createSession(options.runtime, options.sessionStore);
+        const { server, transport } = await createSession(
+          options.runtime,
+          options.sessionStore,
+          options.enableJsonResponse,
+        );
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
           res,
