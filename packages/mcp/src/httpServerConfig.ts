@@ -12,6 +12,7 @@ export type StartHttpServerOptions = {
   config: HttpConfig;
   maxSessions?: number;
   idleTtlMs?: number;
+  enableJsonResponse?: boolean;
   shutdown?: {
     path?: string;
     token: string;
@@ -67,6 +68,19 @@ export function parseIdleTtlMsFromEnv(): number {
   const n = Number.parseInt(raw, 10);
   if (!Number.isFinite(n) || n < 0) return 3_600_000;
   return n;
+}
+
+export function parseEnableJsonResponseFromEnv(): boolean {
+  const rawValue = (process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE ?? "1").trim();
+  const raw = rawValue.toLowerCase();
+  if (!raw) return true;
+
+  if (raw === "1" || raw === "true" || raw === "yes" || raw === "on") return true;
+  if (raw === "0" || raw === "false" || raw === "no" || raw === "off") return false;
+
+  throw new Error(
+    `Invalid AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE: "${rawValue}". Expected 0/1/true/false/on/off/yes/no.`,
+  );
 }
 
 export function normalizeShutdownConfig(

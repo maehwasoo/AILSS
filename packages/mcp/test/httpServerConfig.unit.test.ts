@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   normalizeShutdownConfig,
+  parseEnableJsonResponseFromEnv,
   parseHttpConfigFromEnv,
   parseIdleTtlMsFromEnv,
   parseMaxSessionsFromEnv,
@@ -15,7 +16,8 @@ type HttpEnvKey =
   | "AILSS_MCP_HTTP_TOKEN"
   | "AILSS_MCP_TOKEN"
   | "AILSS_MCP_HTTP_MAX_SESSIONS"
-  | "AILSS_MCP_HTTP_IDLE_TTL_MS";
+  | "AILSS_MCP_HTTP_IDLE_TTL_MS"
+  | "AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE";
 
 const HTTP_ENV_KEYS: HttpEnvKey[] = [
   "AILSS_MCP_HTTP_HOST",
@@ -25,6 +27,7 @@ const HTTP_ENV_KEYS: HttpEnvKey[] = [
   "AILSS_MCP_TOKEN",
   "AILSS_MCP_HTTP_MAX_SESSIONS",
   "AILSS_MCP_HTTP_IDLE_TTL_MS",
+  "AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE",
 ];
 
 const originalEnv: Partial<Record<HttpEnvKey, string | undefined>> = {};
@@ -109,6 +112,28 @@ describe("httpServerConfig helpers", () => {
     process.env.AILSS_MCP_HTTP_IDLE_TTL_MS = "2500";
     expect(parseMaxSessionsFromEnv()).toBe(12);
     expect(parseIdleTtlMsFromEnv()).toBe(2500);
+  });
+
+  it("parses JSON response toggle with safe defaults", () => {
+    delete process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE;
+    expect(parseEnableJsonResponseFromEnv()).toBe(true);
+
+    process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE = "";
+    expect(parseEnableJsonResponseFromEnv()).toBe(true);
+
+    process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE = "0";
+    expect(parseEnableJsonResponseFromEnv()).toBe(false);
+
+    process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE = "false";
+    expect(parseEnableJsonResponseFromEnv()).toBe(false);
+
+    process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE = "1";
+    expect(parseEnableJsonResponseFromEnv()).toBe(true);
+
+    process.env.AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE = "weird";
+    expect(() => parseEnableJsonResponseFromEnv()).toThrow(
+      'Invalid AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE: "weird". Expected 0/1/true/false/on/off/yes/no.',
+    );
   });
 
   it("normalizes shutdown config", () => {

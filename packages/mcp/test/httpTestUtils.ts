@@ -17,7 +17,8 @@ type EnvKey =
   | "AILSS_DB_PATH"
   | "AILSS_VAULT_PATH"
   | "AILSS_ENABLE_WRITE_TOOLS"
-  | "AILSS_MCP_HTTP_MAX_SESSIONS";
+  | "AILSS_MCP_HTTP_MAX_SESSIONS"
+  | "AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE";
 
 export type EnvOverrides = Partial<Record<EnvKey, string | undefined>>;
 
@@ -59,6 +60,7 @@ export type McpHttpServerTestOptions = {
   dbPath?: string;
   vaultPath?: string;
   enableWriteTools?: boolean;
+  enableJsonResponseEnv?: string;
   token?: string;
   shutdownToken?: string;
   maxSessions?: number;
@@ -67,7 +69,10 @@ export type McpHttpServerTestOptions = {
 };
 
 function envForMcpRuntime(
-  options: Pick<McpHttpServerTestOptions, "dbPath" | "vaultPath" | "enableWriteTools">,
+  options: Pick<
+    McpHttpServerTestOptions,
+    "dbPath" | "vaultPath" | "enableWriteTools" | "enableJsonResponseEnv"
+  >,
 ) {
   if (options.dbPath && options.vaultPath) {
     throw new Error("Test misconfiguration: provide only one of dbPath or vaultPath");
@@ -85,6 +90,7 @@ function envForMcpRuntime(
     AILSS_DB_PATH: "",
     AILSS_VAULT_PATH: "",
     AILSS_ENABLE_WRITE_TOOLS: "",
+    AILSS_MCP_HTTP_ENABLE_JSON_RESPONSE: options.enableJsonResponseEnv ?? "1",
   };
 
   if (options.dbPath) {
@@ -137,14 +143,37 @@ export async function withMcpHttpServer<T>(
   });
 }
 
-export function parseFirstSseData(body: string): unknown {
-  const dataLine = body
+export function parseFirstMcpPayload(body: string): unknown {
+  const normalized = (body ?? "").trim();
+  if (!normalized) {
+    throw new Error("Expected response body to be non-empty");
+  }
+
+  // SSE mode: `text/event-stream` with `data: { ... }`
+  const dataLine = normalized
     .split("\n")
     .map((l) => l.trim())
     .find((l) => l.startsWith("data: "));
-  expect(dataLine).toBeTruthy();
-  return JSON.parse((dataLine as string).slice("data: ".length)) as unknown;
+  if (dataLine) {
+    return JSON.parse(dataLine.slice("data: ".length)) as unknown;
+  }
+
+  // JSON response mode: `application/json` with a plain JSON-RPC payload.
+  try {
+    return JSON.parse(normalized) as unknown;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to parse MCP response body as SSE or JSON: ${message}. Body: ${normalized.slice(
+        0,
+        500,
+      )}`,
+    );
+  }
 }
+
+// Backwards-compatible alias (historically SSE-only).
+export const parseFirstSseData = parseFirstMcpPayload;
 
 export function assertRecord(
   value: unknown,
@@ -351,7 +380,7 @@ export async function mcpToolsCall(
   });
 
   expect(res.status).toBe(200);
-  return parseFirstSseData(await res.text());
+  return parseFirstMcpPayload(await res.text());
 }
 
 export async function mcpToolsList(url: string, token: string, sessionId: string): Promise<void> {
@@ -373,7 +402,7 @@ export async function mcpToolsList(url: string, token: string, sessionId: string
   });
 
   expect(res.status).toBe(200);
-  const payload = parseFirstSseData(await res.text());
+  const payload = parseFirstMcpPayload(await res.text());
 
   assertRecord(payload, "tools/list payload");
   expect(payload).toHaveProperty("result.tools");
