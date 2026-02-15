@@ -26,8 +26,8 @@ describe("McpSessionStore", () => {
     const first = createSessionMocks();
     const second = createSessionMocks();
 
-    store.initializeSession("session-1", first.server, first.transport);
-    store.initializeSession("session-2", second.server, second.transport);
+    store.initializeSession("session-1", first.server, first.transport, true);
+    store.initializeSession("session-2", second.server, second.transport, true);
 
     expect(store.touchSession("session-1")).toBeUndefined();
     expect(store.touchSession("session-2")).toBeTruthy();
@@ -42,7 +42,7 @@ describe("McpSessionStore", () => {
     const store = new McpSessionStore(10, 1_000);
     const active = createSessionMocks();
 
-    store.initializeSession("session-idle", active.server, active.transport);
+    store.initializeSession("session-idle", active.server, active.transport, true);
     vi.setSystemTime(new Date("2026-01-01T00:00:00.500Z"));
     store.closeIdleSessions();
     expect(store.touchSession("session-idle")).toBeTruthy();
@@ -61,7 +61,7 @@ describe("McpSessionStore", () => {
     const store = new McpSessionStore(10, 0);
     const active = createSessionMocks();
 
-    store.initializeSession("session-active", active.server, active.transport);
+    store.initializeSession("session-active", active.server, active.transport, true);
     vi.setSystemTime(new Date("2026-01-01T00:10:00.000Z"));
     store.closeIdleSessions();
 
@@ -75,8 +75,8 @@ describe("McpSessionStore", () => {
     const one = createSessionMocks();
     const two = createSessionMocks();
 
-    store.initializeSession("session-1", one.server, one.transport);
-    store.initializeSession("session-2", two.server, two.transport);
+    store.initializeSession("session-1", one.server, one.transport, true);
+    store.initializeSession("session-2", two.server, two.transport, true);
     await store.closeAllSessions();
 
     expect(store.touchSession("session-1")).toBeUndefined();
