@@ -82,6 +82,148 @@ function getAcceptHeader(req: IncomingMessage): string | null {
   return null;
 }
 
+type ParsedAcceptMediaRange = {
+  type: string;
+  subtype: string;
+  q: number;
+  hasNonQParams: boolean;
+};
+
+function parseAcceptHeaderValue(value: string): ParsedAcceptMediaRange[] {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part): ParsedAcceptMediaRange | null => {
+      const [rangeRaw, ...paramParts] = part.split(";").map((p) => p.trim());
+      const range = (rangeRaw ?? "").trim().toLowerCase();
+      if (!range) return null;
+
+      const [typeRaw, subtypeRaw] = range.split("/").map((t) => t.trim());
+      if (!typeRaw || !subtypeRaw) return null;
+
+      let q = 1;
+      let hasNonQParams = false;
+      let hasParsedQ = false;
+      for (const param of paramParts) {
+        if (!param) continue;
+
+        const m = param.match(/^q\s*=\s*(.+)$/i);
+        if (m?.[1]) {
+          if (!hasParsedQ) {
+            const n = Number.parseFloat(m[1].trim());
+            q = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+            hasParsedQ = true;
+          }
+          continue;
+        }
+
+        hasNonQParams = true;
+      }
+
+      return { type: typeRaw, subtype: subtypeRaw, q, hasNonQParams };
+    })
+    .filter((value): value is ParsedAcceptMediaRange => value !== null);
+}
+
+type GetEffectiveQForMediaTypeOptions = {
+  // Missing Accept header implies "*/*" per RFC; pass `false` for truly missing/empty Accept.
+  acceptHeaderPresent: boolean;
+  // When true, ignore media-range parameters other than `q` (e.g. `profile=v1`) for matching.
+  // Useful for deciding whether "generic" representations are acceptable.
+  ignoreRangesWithNonQParams?: boolean;
+};
+
+function getEffectiveQForMediaType(
+  ranges: ParsedAcceptMediaRange[],
+  targetType: string,
+  targetSubtype: string,
+  options?: GetEffectiveQForMediaTypeOptions,
+): number {
+  // Per RFC, a missing Accept header is treated like "*/*".
+  // Note: do not infer "missing" from `ranges.length === 0` when we intentionally filtered.
+  const acceptHeaderPresent = options?.acceptHeaderPresent ?? ranges.length > 0;
+  if (!acceptHeaderPresent) return 1;
+
+  const ignoreRangesWithNonQParams = options?.ignoreRangesWithNonQParams ?? false;
+
+  let exactQ = 0;
+  let hasExact = false;
+  let typeWildcardQ = 0;
+  let hasTypeWildcard = false;
+  let anyWildcardQ = 0;
+  let hasAnyWildcard = false;
+
+  for (const range of ranges) {
+    if (ignoreRangesWithNonQParams && range.hasNonQParams) continue;
+
+    if (range.type === targetType && range.subtype === targetSubtype) {
+      exactQ = Math.max(exactQ, range.q);
+      hasExact = true;
+      continue;
+    }
+
+    if (range.type === targetType && range.subtype === "*") {
+      typeWildcardQ = Math.max(typeWildcardQ, range.q);
+      hasTypeWildcard = true;
+      continue;
+    }
+
+    if (range.type === "*" && range.subtype === "*") {
+      anyWildcardQ = Math.max(anyWildcardQ, range.q);
+      hasAnyWildcard = true;
+    }
+  }
+
+  if (hasExact) return exactQ;
+  if (hasTypeWildcard) return typeWildcardQ;
+  if (hasAnyWildcard) return anyWildcardQ;
+  return 0;
+}
+
+function coerceAcceptHeaderForJsonResponseMode(
+  req: IncomingMessage,
+  enableJsonResponse: boolean,
+): void {
+  // SDK requires both types for POST, even when JSON response mode is enabled.
+  // Accepting JSON-only clients is safe in JSON response mode because SSE is never used.
+  if (!enableJsonResponse) return;
+  if ((req.method ?? "").toUpperCase() !== "POST") return;
+
+  const raw = req.headers["accept"];
+  const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
+  const ranges = parseAcceptHeaderValue(accept);
+
+  const acceptHeaderPresent = accept.trim().length > 0;
+  const acceptsGenericJsonQ = getEffectiveQForMediaType(ranges, "application", "json", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+  if (acceptsGenericJsonQ <= 0) return;
+
+  const hasExplicitJson = ranges.some((range) => {
+    return range.type === "application" && range.subtype === "json" && range.q > 0;
+  });
+  const hasExplicitSse = ranges.some((range) => {
+    return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
+  });
+
+  const needsJson = !hasExplicitJson;
+  const needsSse = !hasExplicitSse;
+  if (!needsJson && !needsSse) return;
+
+  const parts: string[] = [];
+  const trimmed = accept.trim();
+  if (trimmed) parts.push(trimmed);
+  if (needsJson) parts.push("application/json");
+  if (needsSse) parts.push("text/event-stream");
+
+  req.headers.accept = parts.join(", ");
+}
+
 function hasMcpSessionId(req: IncomingMessage): boolean {
   return getSingleHeaderValue(req, "mcp-session-id") !== null;
 }
@@ -252,6 +394,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           options.sessionStore,
           options.enableJsonResponse,
         );
+        coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
           res,
@@ -318,6 +461,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
       }
 
       options.sessionStore.closeIdleSessions();
+      coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,
