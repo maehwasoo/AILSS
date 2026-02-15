@@ -100,13 +100,13 @@ describe("httpServerConfig helpers", () => {
   it("parses max sessions and idle ttl with safe defaults", () => {
     delete process.env.AILSS_MCP_HTTP_MAX_SESSIONS;
     delete process.env.AILSS_MCP_HTTP_IDLE_TTL_MS;
-    expect(parseMaxSessionsFromEnv()).toBe(50);
-    expect(parseIdleTtlMsFromEnv()).toBe(3_600_000);
+    expect(parseMaxSessionsFromEnv()).toBe(100);
+    expect(parseIdleTtlMsFromEnv()).toBe(0);
 
     process.env.AILSS_MCP_HTTP_MAX_SESSIONS = "abc";
     process.env.AILSS_MCP_HTTP_IDLE_TTL_MS = "-1";
-    expect(parseMaxSessionsFromEnv()).toBe(50);
-    expect(parseIdleTtlMsFromEnv()).toBe(3_600_000);
+    expect(parseMaxSessionsFromEnv()).toBe(100);
+    expect(parseIdleTtlMsFromEnv()).toBe(0);
 
     process.env.AILSS_MCP_HTTP_MAX_SESSIONS = "12";
     process.env.AILSS_MCP_HTTP_IDLE_TTL_MS = "2500";

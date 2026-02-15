@@ -57,16 +57,16 @@ export function parseHttpConfigFromEnv(): HttpConfig {
 }
 
 export function parseMaxSessionsFromEnv(): number {
-  const raw = (process.env.AILSS_MCP_HTTP_MAX_SESSIONS ?? "50").trim();
+  const raw = (process.env.AILSS_MCP_HTTP_MAX_SESSIONS ?? "100").trim();
   const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) return 50;
+  if (!Number.isFinite(n) || n < 1) return 100;
   return n;
 }
 
 export function parseIdleTtlMsFromEnv(): number {
-  const raw = (process.env.AILSS_MCP_HTTP_IDLE_TTL_MS ?? "3600000").trim();
+  const raw = (process.env.AILSS_MCP_HTTP_IDLE_TTL_MS ?? "0").trim();
   const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 0) return 3_600_000;
+  if (!Number.isFinite(n) || n < 0) return 0;
   return n;
 }
 
