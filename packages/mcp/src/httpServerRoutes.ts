@@ -189,9 +189,27 @@ function coerceAcceptHeaderForJsonResponseMode(
   enableJsonResponse: boolean,
 ): void {
   // SDK requires both types for POST, even when JSON response mode is enabled.
-  // Accepting JSON-only clients is safe in JSON response mode because SSE is never used.
   if (!enableJsonResponse) return;
-  if ((req.method ?? "").toUpperCase() !== "POST") return;
+  const method = (req.method ?? "").toUpperCase();
+
+  // Streamable HTTP standalone SSE (GET) is required for server-initiated messages, and the SDK
+  // rejects GET requests missing `text/event-stream` even if the client could handle it.
+  if (method === "GET") {
+    const raw = req.headers["accept"];
+    const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
+    const normalized = accept.toLowerCase();
+    if (normalized.includes("text/event-stream")) return;
+
+    const parts: string[] = [];
+    const trimmed = accept.trim();
+    if (trimmed) parts.push(trimmed);
+    parts.push("text/event-stream");
+    req.headers.accept = parts.join(", ");
+    return;
+  }
+
+  // Accepting JSON-only clients is safe in JSON response mode because POST never returns SSE.
+  if (method !== "POST") return;
 
   const raw = req.headers["accept"];
   const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
@@ -394,6 +412,8 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           options.sessionStore,
           options.enableJsonResponse,
         );
+        // Ensure SDK error responses have a consistent content-type for clients that decode by header.
+        res.setHeader("content-type", "application/json; charset=utf-8");
         coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
@@ -462,6 +482,8 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       options.sessionStore.closeIdleSessions();
       coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
+      // Ensure SDK error responses have a consistent content-type for clients that decode by header.
+      res.setHeader("content-type", "application/json; charset=utf-8");
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,
