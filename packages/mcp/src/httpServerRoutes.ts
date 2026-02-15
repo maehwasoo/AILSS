@@ -82,6 +82,13 @@ function getAcceptHeader(req: IncomingMessage): string | null {
   return null;
 }
 
+function getRawAcceptHeaderValue(req: IncomingMessage): string {
+  const raw = req.headers["accept"];
+  if (Array.isArray(raw)) return raw.join(", ");
+  if (typeof raw === "string") return raw;
+  return "";
+}
+
 type ParsedAcceptMediaRange = {
   type: string;
   subtype: string;
@@ -184,19 +191,66 @@ function getEffectiveQForMediaType(
   return 0;
 }
 
-function coerceAcceptHeaderForJsonResponseMode(
+function hasAnyMatchingMediaRange(
+  ranges: ParsedAcceptMediaRange[],
+  targetType: string,
+  targetSubtype: string,
+  options?: GetEffectiveQForMediaTypeOptions,
+): boolean {
+  const acceptHeaderPresent = options?.acceptHeaderPresent ?? ranges.length > 0;
+  if (!acceptHeaderPresent) return false;
+
+  const ignoreRangesWithNonQParams = options?.ignoreRangesWithNonQParams ?? false;
+
+  for (const range of ranges) {
+    if (ignoreRangesWithNonQParams && range.hasNonQParams) continue;
+    if (range.type === targetType && range.subtype === targetSubtype) return true;
+    if (range.type === targetType && range.subtype === "*") return true;
+    if (range.type === "*" && range.subtype === "*") return true;
+  }
+
+  return false;
+}
+
+function selectTransportEnableJsonResponseForInitializeRequest(
   req: IncomingMessage,
-  enableJsonResponse: boolean,
+  serverEnableJsonResponse: boolean,
+): boolean {
+  // If server config forces SSE, never use JSON.
+  if (!serverEnableJsonResponse) return false;
+
+  const accept = getRawAcceptHeaderValue(req);
+  const ranges = parseAcceptHeaderValue(accept);
+  const acceptHeaderPresent = accept.trim().length > 0;
+
+  const acceptsGenericJsonQ = getEffectiveQForMediaType(ranges, "application", "json", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+  if (acceptsGenericJsonQ > 0) return true;
+
+  // SSE-only Accept is treated as a signal to use SSE response mode for the session.
+  const acceptsSseQ = getEffectiveQForMediaType(ranges, "text", "event-stream", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+  if (acceptsSseQ > 0) return false;
+
+  // Default to server-selected mode (JSON) so the SDK can produce a 406 if nothing is acceptable.
+  return true;
+}
+
+function coerceAcceptHeaderForStreamableHttpTransport(
+  req: IncomingMessage,
+  transportEnableJsonResponse: boolean,
 ): void {
   // SDK requires both types for POST, even when JSON response mode is enabled.
-  if (!enableJsonResponse) return;
   const method = (req.method ?? "").toUpperCase();
 
   // Streamable HTTP standalone SSE (GET) is required for server-initiated messages, and the SDK
   // rejects GET requests missing `text/event-stream` even if the client could handle it.
   if (method === "GET") {
-    const raw = req.headers["accept"];
-    const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
+    const accept = getRawAcceptHeaderValue(req);
     const ranges = parseAcceptHeaderValue(accept);
     const acceptHeaderPresent = accept.trim().length > 0;
 
@@ -221,11 +275,9 @@ function coerceAcceptHeaderForJsonResponseMode(
     return;
   }
 
-  // Accepting JSON-only clients is safe in JSON response mode because POST never returns SSE.
   if (method !== "POST") return;
 
-  const raw = req.headers["accept"];
-  const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
+  const accept = getRawAcceptHeaderValue(req);
   const ranges = parseAcceptHeaderValue(accept);
 
   const acceptHeaderPresent = accept.trim().length > 0;
@@ -233,17 +285,41 @@ function coerceAcceptHeaderForJsonResponseMode(
     acceptHeaderPresent,
     ignoreRangesWithNonQParams: true,
   });
-  if (acceptsGenericJsonQ <= 0) return;
+  const acceptsSseQ = getEffectiveQForMediaType(ranges, "text", "event-stream", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+
+  if (transportEnableJsonResponse) {
+    // Never coerce clients that don't accept generic JSON when we'll respond with JSON.
+    if (acceptsGenericJsonQ <= 0) return;
+  } else {
+    // Never coerce clients that don't accept SSE when we'll respond with SSE.
+    if (acceptsSseQ <= 0) return;
+  }
+
+  const jsonHasMatch = hasAnyMatchingMediaRange(ranges, "application", "json", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+  const sseHasMatch = hasAnyMatchingMediaRange(ranges, "text", "event-stream", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+
+  // Do not override explicit q=0 rejections (e.g. "application/json;q=0", "text/*;q=0").
+  const jsonExplicitlyRejected = jsonHasMatch && acceptsGenericJsonQ <= 0;
+  const sseExplicitlyRejected = sseHasMatch && acceptsSseQ <= 0;
 
   const hasExplicitJson = ranges.some((range) => {
-    return range.type === "application" && range.subtype === "json" && range.q > 0;
+    return range.type === "application" && range.subtype === "json";
   });
   const hasExplicitSse = ranges.some((range) => {
-    return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
+    return range.type === "text" && range.subtype === "event-stream";
   });
 
-  const needsJson = !hasExplicitJson;
-  const needsSse = !hasExplicitSse;
+  const needsJson = !hasExplicitJson && !jsonExplicitlyRejected;
+  const needsSse = !hasExplicitSse && !sseExplicitlyRejected;
   if (!needsJson && !needsSse) return;
 
   const parts: string[] = [];
@@ -450,12 +526,16 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       if (req.method === "POST" && isInitializeRequestMessage(parsedBody)) {
         options.sessionStore.closeIdleSessions();
+        const transportEnableJsonResponse = selectTransportEnableJsonResponseForInitializeRequest(
+          req,
+          options.enableJsonResponse,
+        );
         const { server, transport } = await createSession(
           options.runtime,
           options.sessionStore,
-          options.enableJsonResponse,
+          transportEnableJsonResponse,
         );
-        coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
+        coerceAcceptHeaderForStreamableHttpTransport(req, transportEnableJsonResponse);
         ensureSdkErrorResponsesHaveJsonContentType(res);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
@@ -523,7 +603,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
       }
 
       options.sessionStore.closeIdleSessions();
-      coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
+      coerceAcceptHeaderForStreamableHttpTransport(req, session.enableJsonResponse);
       ensureSdkErrorResponsesHaveJsonContentType(res);
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },

@@ -335,7 +335,7 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
     });
   });
 
-  it("rejects clients that do not accept both application/json and text/event-stream", async () => {
+  it("accepts SSE-only clients by selecting SSE response mode (compat)", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
@@ -347,10 +347,11 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
           accept: "text/event-stream",
         });
 
-        expect(res.status).toBe(406);
-        expect(res.sessionId).toBeFalsy();
-        assertRecord(res.payload, "error payload");
-        expect(res.payload).toHaveProperty("error.message");
+        expect(res.status).toBe(200);
+        expect(res.contentType.startsWith("text/event-stream")).toBe(true);
+        expect(res.sessionId).toBeTruthy();
+        assertRecord(res.payload, "initialize payload");
+        expect(res.payload).toHaveProperty("result");
       });
     });
   });

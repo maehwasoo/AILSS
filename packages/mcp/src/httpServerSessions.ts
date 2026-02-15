@@ -9,6 +9,7 @@ export type McpSession = {
   sessionId: string;
   server: McpServer;
   transport: StreamableHTTPServerTransport;
+  enableJsonResponse: boolean;
   createdAtMs: number;
   lastSeenAtMs: number;
 };
@@ -27,12 +28,14 @@ export class McpSessionStore {
     sessionId: string,
     server: McpServer,
     transport: StreamableHTTPServerTransport,
+    enableJsonResponse: boolean,
   ): void {
     const now = Date.now();
     this.#sessions.set(sessionId, {
       sessionId,
       server,
       transport,
+      enableJsonResponse,
       createdAtMs: now,
       lastSeenAtMs: now,
     });
@@ -99,7 +102,7 @@ export async function createSession(
     sessionIdGenerator: () => randomUUID(),
     enableJsonResponse,
     onsessioninitialized: (sessionId) => {
-      sessionStore.initializeSession(sessionId, server, transport);
+      sessionStore.initializeSession(sessionId, server, transport, enableJsonResponse);
     },
     onsessionclosed: (sessionId) => {
       sessionStore.closeSession(sessionId);
