@@ -197,8 +197,20 @@ function coerceAcceptHeaderForJsonResponseMode(
   if (method === "GET") {
     const raw = req.headers["accept"];
     const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
-    const normalized = accept.toLowerCase();
-    if (normalized.includes("text/event-stream")) return;
+    const ranges = parseAcceptHeaderValue(accept);
+    const acceptHeaderPresent = accept.trim().length > 0;
+
+    // Only coerce when the client actually accepts SSE (via wildcards, or missing Accept),
+    // but the SDK's simplistic check would otherwise reject the request.
+    const acceptsSseQ = getEffectiveQForMediaType(ranges, "text", "event-stream", {
+      acceptHeaderPresent,
+    });
+    if (acceptsSseQ <= 0) return;
+
+    const hasExplicitSse = ranges.some((range) => {
+      return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
+    });
+    if (hasExplicitSse) return;
 
     const parts: string[] = [];
     const trimmed = accept.trim();
