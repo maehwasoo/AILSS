@@ -315,8 +315,8 @@ Status (implemented):
 
 - Implemented in `packages/mcp/src/httpServer.ts` using a session manager that creates one server + transport per `initialize`.
 - Defaults:
-  - `AILSS_MCP_HTTP_MAX_SESSIONS=50`
-  - `AILSS_MCP_HTTP_IDLE_TTL_MS=3600000` (1 hour)
+  - `AILSS_MCP_HTTP_MAX_SESSIONS=100`
+  - `AILSS_MCP_HTTP_IDLE_TTL_MS=0` (disable idle expiration)
   - `AILSS_MCP_HTTP_SHUTDOWN_TOKEN=<token>` (optional; enables `POST /__ailss/shutdown`; use a separate admin token)
 
 Why this needs explicit design:

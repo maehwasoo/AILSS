@@ -14,7 +14,7 @@ import {
 } from "./httpTestUtils.js";
 
 describe("MCP HTTP server (default max sessions)", () => {
-  it("uses 50 as the default max session cap when env override is missing", async () => {
+  it("uses 100 as the default max session cap when env override is missing", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
@@ -39,19 +39,19 @@ describe("MCP HTTP server (default max sessions)", () => {
           try {
             const sessions: string[] = [];
 
-            for (let i = 0; i < 21; i++) {
+            for (let i = 0; i < 41; i++) {
               sessions.push(await mcpInitialize(url, token, `client-${i}`));
             }
 
             await mcpToolsList(url, token, sessions[0]!);
-            await mcpToolsList(url, token, sessions[20]!);
+            await mcpToolsList(url, token, sessions[40]!);
 
-            for (let i = 21; i < 51; i++) {
+            for (let i = 41; i < 101; i++) {
               sessions.push(await mcpInitialize(url, token, `client-${i}`));
             }
 
             await mcpToolsListExpectSessionNotFound(url, token, sessions[1]!);
-            await mcpToolsList(url, token, sessions[50]!);
+            await mcpToolsList(url, token, sessions[100]!);
           } finally {
             await close();
             runtime.deps.db.close();
