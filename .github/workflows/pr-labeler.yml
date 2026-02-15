@@ -60,7 +60,6 @@ jobs:
 
             const [, mappedLabel] = matchedRule;
             const typeLabels = new Set(prefixToLabel.map(([, label]) => label));
-            const areaLabels = new Set(['plugin', 'mcp', 'indexer', 'core', 'docs', 'ops']);
             const currentLabels = (pr.labels ?? []).map((label) => label.name);
 
             if (currentLabels.includes(mappedLabel)) {
@@ -68,9 +67,18 @@ jobs:
               return;
             }
 
-            const existingTypeLabel = currentLabels.find(
-              (label) => typeLabels.has(label) && !areaLabels.has(label),
+            const alwaysAreaLabels = new Set(['plugin', 'mcp', 'indexer', 'core', 'ops']);
+            const prFiles = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+              per_page: 100,
+            });
+            const docsIsArea = prFiles.some(
+              (file) => file.filename === 'README.md' || file.filename.startsWith('docs/'),
             );
+            const areaLabels = new Set([...alwaysAreaLabels, ...(docsIsArea ? ['docs'] : [])]);
+            const existingTypeLabel = currentLabels.find((label) => typeLabels.has(label) && !areaLabels.has(label));
             if (existingTypeLabel) {
               core.info(
                 `Type label "${existingTypeLabel}" already exists on PR #${pullNumber}; skipping to avoid overriding manual labels`,
