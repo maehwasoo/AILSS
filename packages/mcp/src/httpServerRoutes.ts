@@ -3,7 +3,18 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 import type { AilssMcpRuntime } from "./createAilssMcpServer.js";
+import {
+  coerceAcceptHeaderForStreamableHttpTransport,
+  selectTransportEnableJsonResponseForInitializeRequest,
+} from "./httpServerAccept.js";
+import { logHttpBoundaryEarlyReturnDiagnostic } from "./httpServerBoundaryDiagnostics.js";
 import type { HttpConfig, ShutdownConfig } from "./httpServerConfig.js";
+import {
+  extractRequestId,
+  isJsonRpcNotificationOnlyBody,
+  sendJsonRpcError,
+  type JsonRpcErrorData,
+} from "./httpServerJsonRpc.js";
 import {
   baseUrlForRequest,
   extractBearerToken,
@@ -11,6 +22,7 @@ import {
   isInitializeRequestMessage,
   readJsonBody,
 } from "./httpServerRequest.js";
+import { applySdkResponseCompatibilityFixes } from "./httpServerSdkCompat.js";
 import { createSession, McpSessionStore } from "./httpServerSessions.js";
 
 type CreateHttpRequestHandlerOptions = {
@@ -24,262 +36,11 @@ type CreateHttpRequestHandlerOptions = {
   close: () => Promise<void>;
 };
 
-type JsonRpcErrorData = Record<string, unknown>;
-
 const SESSION_NOT_FOUND_RECOVERY_DATA: JsonRpcErrorData = {
   reason: "session_expired_or_evicted",
   reinitializeRequired: true,
   retryRequest: true,
 };
-
-type HttpBoundaryEarlyReturnReason =
-  | "shutdown_unauthorized"
-  | "path_not_found"
-  | "mcp_unauthorized"
-  | "invalid_json_body"
-  | "multiple_session_id_headers"
-  | "missing_session_id_header"
-  | "session_not_found"
-  | "not_acceptable";
-
-type HttpBoundaryDiagnosticEvent = {
-  event: "mcp_http_boundary_early_return";
-  timestamp: string;
-  status: 400 | 401 | 404 | 406;
-  request_id: string | number | null;
-  method: string;
-  path: string;
-  accept: string | null;
-  has_mcp_session_id: boolean;
-  reason: HttpBoundaryEarlyReturnReason;
-};
-
-function extractRequestId(body: unknown): string | number | null {
-  if (Array.isArray(body)) {
-    for (const entry of body) {
-      const requestId = extractRequestId(entry);
-      if (requestId !== null) return requestId;
-    }
-    return null;
-  }
-
-  if (typeof body !== "object" || body === null) return null;
-
-  const id = (body as Record<string, unknown>)["id"];
-  if (typeof id === "string") return id;
-  if (typeof id === "number" && Number.isFinite(id)) return id;
-  return null;
-}
-
-function getAcceptHeader(req: IncomingMessage): string | null {
-  const accept = getSingleHeaderValue(req, "accept");
-  if (typeof accept === "string") return accept;
-  if (accept === "multiple") {
-    const raw = req.headers.accept;
-    if (Array.isArray(raw)) return raw.join(", ");
-    return "multiple";
-  }
-  return null;
-}
-
-type ParsedAcceptMediaRange = {
-  type: string;
-  subtype: string;
-  q: number;
-  hasNonQParams: boolean;
-};
-
-function parseAcceptHeaderValue(value: string): ParsedAcceptMediaRange[] {
-  const raw = (value ?? "").trim();
-  if (!raw) return [];
-
-  return raw
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .map((part): ParsedAcceptMediaRange | null => {
-      const [rangeRaw, ...paramParts] = part.split(";").map((p) => p.trim());
-      const range = (rangeRaw ?? "").trim().toLowerCase();
-      if (!range) return null;
-
-      const [typeRaw, subtypeRaw] = range.split("/").map((t) => t.trim());
-      if (!typeRaw || !subtypeRaw) return null;
-
-      let q = 1;
-      let hasNonQParams = false;
-      let hasParsedQ = false;
-      for (const param of paramParts) {
-        if (!param) continue;
-
-        const m = param.match(/^q\s*=\s*(.+)$/i);
-        if (m?.[1]) {
-          if (!hasParsedQ) {
-            const n = Number.parseFloat(m[1].trim());
-            q = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
-            hasParsedQ = true;
-          }
-          continue;
-        }
-
-        hasNonQParams = true;
-      }
-
-      return { type: typeRaw, subtype: subtypeRaw, q, hasNonQParams };
-    })
-    .filter((value): value is ParsedAcceptMediaRange => value !== null);
-}
-
-type GetEffectiveQForMediaTypeOptions = {
-  // Missing Accept header implies "*/*" per RFC; pass `false` for truly missing/empty Accept.
-  acceptHeaderPresent: boolean;
-  // When true, ignore media-range parameters other than `q` (e.g. `profile=v1`) for matching.
-  // Useful for deciding whether "generic" representations are acceptable.
-  ignoreRangesWithNonQParams?: boolean;
-};
-
-function getEffectiveQForMediaType(
-  ranges: ParsedAcceptMediaRange[],
-  targetType: string,
-  targetSubtype: string,
-  options?: GetEffectiveQForMediaTypeOptions,
-): number {
-  // Per RFC, a missing Accept header is treated like "*/*".
-  // Note: do not infer "missing" from `ranges.length === 0` when we intentionally filtered.
-  const acceptHeaderPresent = options?.acceptHeaderPresent ?? ranges.length > 0;
-  if (!acceptHeaderPresent) return 1;
-
-  const ignoreRangesWithNonQParams = options?.ignoreRangesWithNonQParams ?? false;
-
-  let exactQ = 0;
-  let hasExact = false;
-  let typeWildcardQ = 0;
-  let hasTypeWildcard = false;
-  let anyWildcardQ = 0;
-  let hasAnyWildcard = false;
-
-  for (const range of ranges) {
-    if (ignoreRangesWithNonQParams && range.hasNonQParams) continue;
-
-    if (range.type === targetType && range.subtype === targetSubtype) {
-      exactQ = Math.max(exactQ, range.q);
-      hasExact = true;
-      continue;
-    }
-
-    if (range.type === targetType && range.subtype === "*") {
-      typeWildcardQ = Math.max(typeWildcardQ, range.q);
-      hasTypeWildcard = true;
-      continue;
-    }
-
-    if (range.type === "*" && range.subtype === "*") {
-      anyWildcardQ = Math.max(anyWildcardQ, range.q);
-      hasAnyWildcard = true;
-    }
-  }
-
-  if (hasExact) return exactQ;
-  if (hasTypeWildcard) return typeWildcardQ;
-  if (hasAnyWildcard) return anyWildcardQ;
-  return 0;
-}
-
-function coerceAcceptHeaderForJsonResponseMode(
-  req: IncomingMessage,
-  enableJsonResponse: boolean,
-): void {
-  // SDK requires both types for POST, even when JSON response mode is enabled.
-  if (!enableJsonResponse) return;
-  const method = (req.method ?? "").toUpperCase();
-
-  // Streamable HTTP standalone SSE (GET) is required for server-initiated messages, and the SDK
-  // rejects GET requests missing `text/event-stream` even if the client could handle it.
-  if (method === "GET") {
-    const raw = req.headers["accept"];
-    const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
-    const ranges = parseAcceptHeaderValue(accept);
-    const acceptHeaderPresent = accept.trim().length > 0;
-
-    // Only coerce when the client actually accepts SSE (via wildcards, or missing Accept),
-    // but the SDK's simplistic check would otherwise reject the request.
-    const acceptsSseQ = getEffectiveQForMediaType(ranges, "text", "event-stream", {
-      acceptHeaderPresent,
-      ignoreRangesWithNonQParams: true,
-    });
-    if (acceptsSseQ <= 0) return;
-
-    const hasExplicitSse = ranges.some((range) => {
-      return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
-    });
-    if (hasExplicitSse) return;
-
-    const parts: string[] = [];
-    const trimmed = accept.trim();
-    if (trimmed) parts.push(trimmed);
-    parts.push("text/event-stream");
-    req.headers.accept = parts.join(", ");
-    return;
-  }
-
-  // Accepting JSON-only clients is safe in JSON response mode because POST never returns SSE.
-  if (method !== "POST") return;
-
-  const raw = req.headers["accept"];
-  const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
-  const ranges = parseAcceptHeaderValue(accept);
-
-  const acceptHeaderPresent = accept.trim().length > 0;
-  const acceptsGenericJsonQ = getEffectiveQForMediaType(ranges, "application", "json", {
-    acceptHeaderPresent,
-    ignoreRangesWithNonQParams: true,
-  });
-  if (acceptsGenericJsonQ <= 0) return;
-
-  const hasExplicitJson = ranges.some((range) => {
-    return range.type === "application" && range.subtype === "json" && range.q > 0;
-  });
-  const hasExplicitSse = ranges.some((range) => {
-    return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
-  });
-
-  const needsJson = !hasExplicitJson;
-  const needsSse = !hasExplicitSse;
-  if (!needsJson && !needsSse) return;
-
-  const parts: string[] = [];
-  const trimmed = accept.trim();
-  if (trimmed) parts.push(trimmed);
-  if (needsJson) parts.push("application/json");
-  if (needsSse) parts.push("text/event-stream");
-
-  req.headers.accept = parts.join(", ");
-}
-
-function hasMcpSessionId(req: IncomingMessage): boolean {
-  return getSingleHeaderValue(req, "mcp-session-id") !== null;
-}
-
-function logHttpBoundaryEarlyReturnDiagnostic(options: {
-  req: IncomingMessage;
-  requestPath: string;
-  status: 400 | 401 | 404 | 406;
-  requestId: string | number | null;
-  reason: HttpBoundaryEarlyReturnReason;
-}): void {
-  const event: HttpBoundaryDiagnosticEvent = {
-    event: "mcp_http_boundary_early_return",
-    timestamp: new Date().toISOString(),
-    status: options.status,
-    request_id: options.requestId,
-    method: options.req.method ?? "UNKNOWN",
-    path: options.requestPath,
-    accept: getAcceptHeader(options.req),
-    has_mcp_session_id: hasMcpSessionId(options.req),
-    reason: options.reason,
-  };
-
-  console.warn(JSON.stringify(event));
-}
 
 function trimTrailingSlash(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith("/")) return pathname.slice(0, -1);
@@ -290,62 +51,6 @@ function sendText(res: ServerResponse, code: number, message: string): void {
   res.statusCode = code;
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.end(message);
-}
-
-function sendJsonRpcError(
-  res: ServerResponse,
-  code: number,
-  mcpErrorCode: number,
-  message: string,
-  data?: JsonRpcErrorData,
-): void {
-  const errorPayload: { code: number; message: string; data?: JsonRpcErrorData } = {
-    code: mcpErrorCode,
-    message,
-  };
-  if (data !== undefined) {
-    errorPayload.data = data;
-  }
-
-  res.statusCode = code;
-  res.setHeader("content-type", "application/json; charset=utf-8");
-  res.end(
-    JSON.stringify({
-      jsonrpc: "2.0",
-      error: errorPayload,
-      id: null,
-    }),
-  );
-}
-
-function ensureSdkErrorResponsesHaveJsonContentType(res: ServerResponse): void {
-  const originalWriteHead = res.writeHead.bind(res) as unknown as (
-    statusCode: number,
-    ...rest: unknown[]
-  ) => ServerResponse;
-  const originalEnd = res.end.bind(res) as unknown as (...args: unknown[]) => ServerResponse;
-
-  // SDK error responses frequently omit Content-Type even though the body is JSON-RPC.
-  // Only default the header for 4xx/5xx so we don't advertise JSON on empty 200 responses
-  // (e.g. DELETE /mcp) and trigger client-side JSON parse errors.
-  res.writeHead = ((statusCode: number, ...rest: unknown[]): ServerResponse => {
-    if (typeof statusCode === "number" && statusCode >= 400) {
-      if (!res.getHeader("content-type")) {
-        res.setHeader("content-type", "application/json; charset=utf-8");
-      }
-    }
-    return originalWriteHead(statusCode, ...rest);
-  }) as unknown as ServerResponse["writeHead"];
-
-  res.end = ((...args: unknown[]): ServerResponse => {
-    // Defensive: cover any future SDK paths that call end() without writeHead().
-    if (res.statusCode >= 400) {
-      if (!res.getHeader("content-type")) {
-        res.setHeader("content-type", "application/json; charset=utf-8");
-      }
-    }
-    return originalEnd(...args);
-  }) as unknown as ServerResponse["end"];
 }
 
 export function createHttpRequestHandler(options: CreateHttpRequestHandlerOptions) {
@@ -450,13 +155,17 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       if (req.method === "POST" && isInitializeRequestMessage(parsedBody)) {
         options.sessionStore.closeIdleSessions();
+        const transportEnableJsonResponse = selectTransportEnableJsonResponseForInitializeRequest(
+          req,
+          options.enableJsonResponse,
+        );
         const { server, transport } = await createSession(
           options.runtime,
           options.sessionStore,
-          options.enableJsonResponse,
+          transportEnableJsonResponse,
         );
-        coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
-        ensureSdkErrorResponsesHaveJsonContentType(res);
+        coerceAcceptHeaderForStreamableHttpTransport(req, transportEnableJsonResponse);
+        applySdkResponseCompatibilityFixes(res);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
           res,
@@ -494,6 +203,8 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           400,
           -32000,
           "Bad Request: Mcp-Session-Id header must be a single value",
+          undefined,
+          requestId,
         );
         return;
       }
@@ -505,7 +216,14 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           requestId,
           reason: "missing_session_id_header",
         });
-        sendJsonRpcError(res, 400, -32000, "Bad Request: Mcp-Session-Id header is required");
+        sendJsonRpcError(
+          res,
+          400,
+          -32000,
+          "Bad Request: Mcp-Session-Id header is required",
+          undefined,
+          requestId,
+        );
         return;
       }
 
@@ -518,13 +236,26 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           requestId,
           reason: "session_not_found",
         });
-        sendJsonRpcError(res, 404, -32001, "Session not found", SESSION_NOT_FOUND_RECOVERY_DATA);
+        sendJsonRpcError(
+          res,
+          404,
+          -32001,
+          "Session not found",
+          SESSION_NOT_FOUND_RECOVERY_DATA,
+          requestId,
+        );
         return;
       }
 
       options.sessionStore.closeIdleSessions();
-      coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
-      ensureSdkErrorResponsesHaveJsonContentType(res);
+      coerceAcceptHeaderForStreamableHttpTransport(req, session.enableJsonResponse);
+      const notificationResponseBody =
+        req.method === "POST" && isJsonRpcNotificationOnlyBody(parsedBody)
+          ? Array.isArray(parsedBody)
+            ? "[]"
+            : "null"
+          : null;
+      applySdkResponseCompatibilityFixes(res, { notificationResponseBody });
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,

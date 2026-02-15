@@ -2,54 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import path from "node:path";
 
-import {
-  assertRecord,
-  parseFirstMcpPayload,
-  withMcpHttpServer,
-  withTempDir,
-} from "./httpTestUtils.js";
-
-const MCP_PROTOCOL_VERSION = "2025-03-26" as const;
-
-async function mcpInitializeRaw(options: {
-  url: string;
-  token: string;
-  clientName: string;
-  accept: string;
-}): Promise<{
-  status: number;
-  contentType: string;
-  sessionId: string | null;
-  body: string;
-  payload: unknown;
-}> {
-  const res = await fetch(options.url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${options.token}`,
-      Accept: options.accept,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: {},
-        clientInfo: { name: options.clientName, version: "0" },
-      },
-    }),
-  });
-
-  const status = res.status;
-  const contentType = res.headers.get("content-type") ?? "";
-  const sessionId = res.headers.get("mcp-session-id");
-
-  const body = await res.text();
-  const payload = parseFirstMcpPayload(body);
-  return { status, contentType, sessionId, body, payload };
-}
+import { assertRecord, withMcpHttpServer, withTempDir } from "./httpTestUtils.js";
+import { mcpInitializeRaw } from "./httpTransport.responseFormat.testUtils.js";
 
 describe("MCP HTTP server (Streamable HTTP response format)", () => {
   it("returns JSON by default when client accepts JSON", async () => {
@@ -62,6 +16,27 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
           token,
           clientName: "client-json",
           accept: "application/json, text/event-stream",
+        });
+
+        expect(res.status).toBe(200);
+        expect(res.contentType.startsWith("application/json")).toBe(true);
+        expect(res.sessionId).toBeTruthy();
+        assertRecord(res.payload, "initialize payload");
+        expect(res.payload).toHaveProperty("result");
+      });
+    });
+  });
+
+  it("returns JSON when client uses q-values for application/json", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
+        const res = await mcpInitializeRaw({
+          url,
+          token,
+          clientName: "client-json-q",
+          accept: "application/json;q=0.5, text/event-stream",
         });
 
         expect(res.status).toBe(200);
@@ -111,145 +86,6 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
         expect(res.sessionId).toBeTruthy();
         assertRecord(res.payload, "initialize payload");
         expect(res.payload).toHaveProperty("result");
-      });
-    });
-  });
-
-  it("accepts */* clients for GET SSE stream in JSON response mode (compat)", async () => {
-    await withTempDir("ailss-mcp-http-", async (dir) => {
-      const dbPath = path.join(dir, "index.sqlite");
-
-      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
-        const initRes = await mcpInitializeRaw({
-          url,
-          token,
-          clientName: "client-any-get-sse",
-          accept: "*/*",
-        });
-
-        expect(initRes.status).toBe(200);
-        expect(initRes.sessionId).toBeTruthy();
-
-        const res = await fetch(url, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "*/*",
-            "mcp-session-id": initRes.sessionId as string,
-          },
-        });
-
-        expect(res.status).toBe(200);
-        expect((res.headers.get("content-type") ?? "").startsWith("text/event-stream")).toBe(true);
-
-        if (res.body) {
-          await res.body.cancel();
-        }
-      });
-    });
-  });
-
-  it("does not coerce JSON-only clients for GET SSE stream in JSON response mode", async () => {
-    await withTempDir("ailss-mcp-http-", async (dir) => {
-      const dbPath = path.join(dir, "index.sqlite");
-
-      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
-        const initRes = await mcpInitializeRaw({
-          url,
-          token,
-          clientName: "client-json-only-get-sse",
-          accept: "*/*",
-        });
-
-        expect(initRes.status).toBe(200);
-        expect(initRes.sessionId).toBeTruthy();
-
-        const res = await fetch(url, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-            "mcp-session-id": initRes.sessionId as string,
-          },
-        });
-
-        expect(res.status).toBe(406);
-        expect((res.headers.get("content-type") ?? "").length > 0).toBe(true);
-
-        const body = await res.text();
-        const payload = parseFirstMcpPayload(body);
-        assertRecord(payload, "error payload");
-        expect(payload).toHaveProperty("error.message");
-      });
-    });
-  });
-
-  it("does not coerce GET clients that reject SSE via q-values", async () => {
-    await withTempDir("ailss-mcp-http-", async (dir) => {
-      const dbPath = path.join(dir, "index.sqlite");
-
-      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
-        const initRes = await mcpInitializeRaw({
-          url,
-          token,
-          clientName: "client-rejects-sse-get-sse",
-          accept: "*/*",
-        });
-
-        expect(initRes.status).toBe(200);
-        expect(initRes.sessionId).toBeTruthy();
-
-        const res = await fetch(url, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "text/*;q=0, application/json",
-            "mcp-session-id": initRes.sessionId as string,
-          },
-        });
-
-        expect(res.status).toBe(406);
-        expect((res.headers.get("content-type") ?? "").length > 0).toBe(true);
-
-        const body = await res.text();
-        const payload = parseFirstMcpPayload(body);
-        assertRecord(payload, "error payload");
-        expect(payload).toHaveProperty("error.message");
-      });
-    });
-  });
-
-  it("does not coerce parameterized wildcard Accept for GET SSE stream", async () => {
-    await withTempDir("ailss-mcp-http-", async (dir) => {
-      const dbPath = path.join(dir, "index.sqlite");
-
-      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
-        const initRes = await mcpInitializeRaw({
-          url,
-          token,
-          clientName: "client-param-wildcard-get-sse",
-          accept: "*/*",
-        });
-
-        expect(initRes.status).toBe(200);
-        expect(initRes.sessionId).toBeTruthy();
-
-        const res = await fetch(url, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "*/*;profile=v1",
-            "mcp-session-id": initRes.sessionId as string,
-          },
-        });
-
-        expect(res.status).toBe(406);
-        expect((res.headers.get("content-type") ?? "").length > 0).toBe(true);
-
-        const body = await res.text();
-        const payload = parseFirstMcpPayload(body);
-        assertRecord(payload, "error payload");
-        expect(payload).toHaveProperty("error.message");
       });
     });
   });
@@ -335,7 +171,7 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
     });
   });
 
-  it("rejects clients that do not accept both application/json and text/event-stream", async () => {
+  it("accepts SSE-only clients by selecting SSE response mode (compat)", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
 
@@ -347,10 +183,11 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
           accept: "text/event-stream",
         });
 
-        expect(res.status).toBe(406);
-        expect(res.sessionId).toBeFalsy();
-        assertRecord(res.payload, "error payload");
-        expect(res.payload).toHaveProperty("error.message");
+        expect(res.status).toBe(200);
+        expect(res.contentType.startsWith("text/event-stream")).toBe(true);
+        expect(res.sessionId).toBeTruthy();
+        assertRecord(res.payload, "initialize payload");
+        expect(res.payload).toHaveProperty("result");
       });
     });
   });
