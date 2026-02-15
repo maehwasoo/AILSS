@@ -115,6 +115,46 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
     });
   });
 
+  it("does not coerce clients that explicitly reject application/json (q=0)", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
+        const res = await mcpInitializeRaw({
+          url,
+          token,
+          clientName: "client-json-q0",
+          accept: "application/json;q=0",
+        });
+
+        expect(res.status).toBe(406);
+        expect(res.sessionId).toBeFalsy();
+        assertRecord(res.payload, "error payload");
+        expect(res.payload).toHaveProperty("error.message");
+      });
+    });
+  });
+
+  it("does not treat application/json-* subtypes as application/json for coercion", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
+        const res = await mcpInitializeRaw({
+          url,
+          token,
+          clientName: "client-json-seq",
+          accept: "application/json-seq",
+        });
+
+        expect(res.status).toBe(406);
+        expect(res.sessionId).toBeFalsy();
+        assertRecord(res.payload, "error payload");
+        expect(res.payload).toHaveProperty("error.message");
+      });
+    });
+  });
+
   it("rejects clients that do not accept both application/json and text/event-stream", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");
