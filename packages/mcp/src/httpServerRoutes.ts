@@ -86,6 +86,7 @@ type ParsedAcceptMediaRange = {
   type: string;
   subtype: string;
   q: number;
+  hasNonQParams: boolean;
 };
 
 function parseAcceptHeaderValue(value: string): ParsedAcceptMediaRange[] {
@@ -105,27 +106,49 @@ function parseAcceptHeaderValue(value: string): ParsedAcceptMediaRange[] {
       if (!typeRaw || !subtypeRaw) return null;
 
       let q = 1;
+      let hasNonQParams = false;
+      let hasParsedQ = false;
       for (const param of paramParts) {
-        const m = param.match(/^q\s*=\s*(.+)$/i);
-        if (!m?.[1]) continue;
+        if (!param) continue;
 
-        const n = Number.parseFloat(m[1].trim());
-        q = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
-        break;
+        const m = param.match(/^q\s*=\s*(.+)$/i);
+        if (m?.[1]) {
+          if (!hasParsedQ) {
+            const n = Number.parseFloat(m[1].trim());
+            q = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+            hasParsedQ = true;
+          }
+          continue;
+        }
+
+        hasNonQParams = true;
       }
 
-      return { type: typeRaw, subtype: subtypeRaw, q };
+      return { type: typeRaw, subtype: subtypeRaw, q, hasNonQParams };
     })
     .filter((value): value is ParsedAcceptMediaRange => value !== null);
 }
+
+type GetEffectiveQForMediaTypeOptions = {
+  // Missing Accept header implies "*/*" per RFC; pass `false` for truly missing/empty Accept.
+  acceptHeaderPresent: boolean;
+  // When true, ignore media-range parameters other than `q` (e.g. `profile=v1`) for matching.
+  // Useful for deciding whether "generic" representations are acceptable.
+  ignoreRangesWithNonQParams?: boolean;
+};
 
 function getEffectiveQForMediaType(
   ranges: ParsedAcceptMediaRange[],
   targetType: string,
   targetSubtype: string,
+  options?: GetEffectiveQForMediaTypeOptions,
 ): number {
   // Per RFC, a missing Accept header is treated like "*/*".
-  if (ranges.length === 0) return 1;
+  // Note: do not infer "missing" from `ranges.length === 0` when we intentionally filtered.
+  const acceptHeaderPresent = options?.acceptHeaderPresent ?? ranges.length > 0;
+  if (!acceptHeaderPresent) return 1;
+
+  const ignoreRangesWithNonQParams = options?.ignoreRangesWithNonQParams ?? false;
 
   let exactQ = 0;
   let hasExact = false;
@@ -135,6 +158,8 @@ function getEffectiveQForMediaType(
   let hasAnyWildcard = false;
 
   for (const range of ranges) {
+    if (ignoreRangesWithNonQParams && range.hasNonQParams) continue;
+
     if (range.type === targetType && range.subtype === targetSubtype) {
       exactQ = Math.max(exactQ, range.q);
       hasExact = true;
@@ -172,18 +197,31 @@ function coerceAcceptHeaderForJsonResponseMode(
   const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
   const ranges = parseAcceptHeaderValue(accept);
 
-  const acceptsJsonQ = getEffectiveQForMediaType(ranges, "application", "json");
-  if (acceptsJsonQ <= 0) return;
+  const acceptHeaderPresent = accept.trim().length > 0;
+  const acceptsGenericJsonQ = getEffectiveQForMediaType(ranges, "application", "json", {
+    acceptHeaderPresent,
+    ignoreRangesWithNonQParams: true,
+  });
+  if (acceptsGenericJsonQ <= 0) return;
 
-  const hasExplicitJson = ranges.some(
-    (range) => range.type === "application" && range.subtype === "json" && range.q > 0,
-  );
-  const hasExplicitSse = ranges.some(
-    (range) => range.type === "text" && range.subtype === "event-stream" && range.q > 0,
-  );
-  if (hasExplicitJson && hasExplicitSse) return;
+  const hasExplicitJson = ranges.some((range) => {
+    return range.type === "application" && range.subtype === "json" && range.q > 0;
+  });
+  const hasExplicitSse = ranges.some((range) => {
+    return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
+  });
 
-  req.headers.accept = "application/json, text/event-stream";
+  const needsJson = !hasExplicitJson;
+  const needsSse = !hasExplicitSse;
+  if (!needsJson && !needsSse) return;
+
+  const parts: string[] = [];
+  const trimmed = accept.trim();
+  if (trimmed) parts.push(trimmed);
+  if (needsJson) parts.push("application/json");
+  if (needsSse) parts.push("text/event-stream");
+
+  req.headers.accept = parts.join(", ");
 }
 
 function hasMcpSessionId(req: IncomingMessage): boolean {
