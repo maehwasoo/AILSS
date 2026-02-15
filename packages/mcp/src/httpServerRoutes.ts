@@ -189,9 +189,40 @@ function coerceAcceptHeaderForJsonResponseMode(
   enableJsonResponse: boolean,
 ): void {
   // SDK requires both types for POST, even when JSON response mode is enabled.
-  // Accepting JSON-only clients is safe in JSON response mode because SSE is never used.
   if (!enableJsonResponse) return;
-  if ((req.method ?? "").toUpperCase() !== "POST") return;
+  const method = (req.method ?? "").toUpperCase();
+
+  // Streamable HTTP standalone SSE (GET) is required for server-initiated messages, and the SDK
+  // rejects GET requests missing `text/event-stream` even if the client could handle it.
+  if (method === "GET") {
+    const raw = req.headers["accept"];
+    const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
+    const ranges = parseAcceptHeaderValue(accept);
+    const acceptHeaderPresent = accept.trim().length > 0;
+
+    // Only coerce when the client actually accepts SSE (via wildcards, or missing Accept),
+    // but the SDK's simplistic check would otherwise reject the request.
+    const acceptsSseQ = getEffectiveQForMediaType(ranges, "text", "event-stream", {
+      acceptHeaderPresent,
+      ignoreRangesWithNonQParams: true,
+    });
+    if (acceptsSseQ <= 0) return;
+
+    const hasExplicitSse = ranges.some((range) => {
+      return range.type === "text" && range.subtype === "event-stream" && range.q > 0;
+    });
+    if (hasExplicitSse) return;
+
+    const parts: string[] = [];
+    const trimmed = accept.trim();
+    if (trimmed) parts.push(trimmed);
+    parts.push("text/event-stream");
+    req.headers.accept = parts.join(", ");
+    return;
+  }
+
+  // Accepting JSON-only clients is safe in JSON response mode because POST never returns SSE.
+  if (method !== "POST") return;
 
   const raw = req.headers["accept"];
   const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
@@ -285,6 +316,36 @@ function sendJsonRpcError(
       id: null,
     }),
   );
+}
+
+function ensureSdkErrorResponsesHaveJsonContentType(res: ServerResponse): void {
+  const originalWriteHead = res.writeHead.bind(res) as unknown as (
+    statusCode: number,
+    ...rest: unknown[]
+  ) => ServerResponse;
+  const originalEnd = res.end.bind(res) as unknown as (...args: unknown[]) => ServerResponse;
+
+  // SDK error responses frequently omit Content-Type even though the body is JSON-RPC.
+  // Only default the header for 4xx/5xx so we don't advertise JSON on empty 200 responses
+  // (e.g. DELETE /mcp) and trigger client-side JSON parse errors.
+  res.writeHead = ((statusCode: number, ...rest: unknown[]): ServerResponse => {
+    if (typeof statusCode === "number" && statusCode >= 400) {
+      if (!res.getHeader("content-type")) {
+        res.setHeader("content-type", "application/json; charset=utf-8");
+      }
+    }
+    return originalWriteHead(statusCode, ...rest);
+  }) as unknown as ServerResponse["writeHead"];
+
+  res.end = ((...args: unknown[]): ServerResponse => {
+    // Defensive: cover any future SDK paths that call end() without writeHead().
+    if (res.statusCode >= 400) {
+      if (!res.getHeader("content-type")) {
+        res.setHeader("content-type", "application/json; charset=utf-8");
+      }
+    }
+    return originalEnd(...args);
+  }) as unknown as ServerResponse["end"];
 }
 
 export function createHttpRequestHandler(options: CreateHttpRequestHandlerOptions) {
@@ -395,6 +456,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           options.enableJsonResponse,
         );
         coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
+        ensureSdkErrorResponsesHaveJsonContentType(res);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
           res,
@@ -462,6 +524,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       options.sessionStore.closeIdleSessions();
       coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
+      ensureSdkErrorResponsesHaveJsonContentType(res);
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,

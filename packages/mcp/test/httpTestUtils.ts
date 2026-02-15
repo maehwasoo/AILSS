@@ -304,7 +304,10 @@ export async function mcpDeleteSession(
   });
 
   expect(res.status).toBe(200);
-  await res.text();
+  // Streamable HTTP SDK returns empty body on successful DELETE; avoid advertising JSON content-type.
+  expect(res.headers.get("content-type")).toBeFalsy();
+  const body = await res.text();
+  expect(body).toBe("");
 }
 
 function expectSessionNotFoundWithRecoveryHint(payload: unknown): void {
