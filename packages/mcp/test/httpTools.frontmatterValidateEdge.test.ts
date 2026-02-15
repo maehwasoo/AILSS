@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -405,6 +405,38 @@ describe("MCP HTTP server (frontmatter_validate edge cases)", () => {
           'target entity "person" is incompatible with relation "produces"',
         );
       });
+    });
+  });
+
+  it("skips vault-wide target lookup when typed_link_constraint_mode is off", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await fs.mkdir(path.join(vaultPath, "Folder"), { recursive: true });
+      await fs.writeFile(path.join(vaultPath, "Folder", "Only.md"), OK_FRONTMATTER + "x\n", "utf8");
+      await fs.writeFile(path.join(vaultPath, "Root.md"), OK_FRONTMATTER + "y\n", "utf8");
+
+      const readSpy = vi.spyOn(fs, "readFile");
+      try {
+        await withMcpHttpServer({ vaultPath, enableWriteTools: false }, async ({ url, token }) => {
+          const sessionId = await mcpInitialize(url, token, "client-a");
+          readSpy.mockClear();
+
+          const res = await mcpToolsCall(url, token, sessionId, "frontmatter_validate", {
+            path_prefix: "Folder/",
+            typed_link_constraint_mode: "off",
+          });
+
+          const structured = getStructuredContent(res);
+          expect(structured["files_scanned"]).toBe(1);
+          expect(structured["typed_link_constraint_mode"]).toBe("off");
+          expect(structured["typed_link_diagnostic_count"]).toBe(0);
+
+          const readPaths = readSpy.mock.calls.map((call) => String(call[0] ?? ""));
+          expect(readPaths).toContain(path.join(vaultPath, "Folder", "Only.md"));
+          expect(readPaths).not.toContain(path.join(vaultPath, "Root.md"));
+        });
+      } finally {
+        readSpy.mockRestore();
+      }
     });
   });
 });
