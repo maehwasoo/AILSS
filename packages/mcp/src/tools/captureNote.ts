@@ -6,7 +6,13 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { isDefaultIgnoredVaultRelPath } from "@ailss/core";
+import {
+  AILSS_FRONTMATTER_ENTITY_VALUES,
+  AILSS_FRONTMATTER_LAYER_VALUES,
+  AILSS_FRONTMATTER_STATUS_VALUES,
+  isDefaultIgnoredVaultRelPath,
+  validateAilssFrontmatterEnums,
+} from "@ailss/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -125,6 +131,28 @@ export function registerCaptureNoteTool(server: McpServer, deps: McpToolDeps): v
       const vaultPath = deps.vaultPath;
       if (!vaultPath) {
         throw new Error("Cannot capture notes because AILSS_VAULT_PATH is not set.");
+      }
+
+      if (args.frontmatter) {
+        const violations = validateAilssFrontmatterEnums(args.frontmatter);
+        if (violations.length > 0) {
+          const rendered = violations
+            .map((v) => {
+              const valueText = v.value === null ? "null" : JSON.stringify(v.value);
+              const allowed =
+                v.key === "status"
+                  ? AILSS_FRONTMATTER_STATUS_VALUES.join(" | ")
+                  : v.key === "layer"
+                    ? AILSS_FRONTMATTER_LAYER_VALUES.join(" | ")
+                    : `${AILSS_FRONTMATTER_ENTITY_VALUES.length} allowed values (see docs)`;
+              return `${v.key}=${valueText} (allowed: ${allowed})`;
+            })
+            .join("; ");
+
+          throw new Error(
+            `Invalid frontmatter override(s): ${rendered}. See docs/standards/vault/frontmatter-schema.md.`,
+          );
+        }
       }
 
       const folder = args.folder.trim();

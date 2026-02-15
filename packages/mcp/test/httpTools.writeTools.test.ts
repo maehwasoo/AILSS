@@ -30,6 +30,40 @@ function expectWriteReindexState(
   expect(structured["reindex_error"]).toBe(expected.reindex_error);
 }
 
+function getToolCallFailureMessage(payload: unknown): string {
+  assertRecord(payload, "JSON-RPC payload");
+
+  // Tool handler failures are expected to be returned as `result.isError=true`
+  // (not protocol-level JSON-RPC errors).
+  const result = payload["result"];
+  if (result && typeof result === "object" && !Array.isArray(result)) {
+    const isError = Boolean((result as Record<string, unknown>)["isError"]);
+    if (!isError) {
+      throw new Error("Expected tool call to fail (result.isError=true).");
+    }
+
+    const content = (result as Record<string, unknown>)["content"];
+    if (Array.isArray(content) && content.length > 0) {
+      const first = content[0];
+      assertRecord(first, "result.content[0]");
+      if (first["type"] === "text") {
+        const text = first["text"];
+        assertString(text, "result.content[0].text");
+        return text;
+      }
+      return JSON.stringify(first);
+    }
+
+    return "tool call failed";
+  }
+
+  const error = payload["error"];
+  assertRecord(error, "JSON-RPC error");
+  const message = error["message"];
+  assertString(message, "JSON-RPC error.message");
+  return message;
+}
+
 describe("MCP HTTP server (write tools)", () => {
   it("captures a note via capture_note (dry-run + apply)", async () => {
     await withTempDir("ailss-mcp-http-", async (vaultPath) => {
@@ -103,6 +137,25 @@ describe("MCP HTTP server (write tools)", () => {
         const otherParsed = parseMarkdownNote(otherWritten);
         expect(Array.isArray(otherParsed.frontmatter.tags)).toBe(true);
         expect(otherParsed.frontmatter.tags).not.toContain("inbox");
+      });
+    });
+  });
+
+  it("rejects capture_note when frontmatter overrides include invalid enum values", async () => {
+    await withTempDir("ailss-mcp-http-", async (vaultPath) => {
+      await withMcpHttpServer({ vaultPath, enableWriteTools: true }, async ({ url, token }) => {
+        const sessionId = await mcpInitialize(url, token, "client-a");
+
+        const invalid = await mcpToolsCall(url, token, sessionId, "capture_note", {
+          title: "Invalid Status",
+          body: "body\n",
+          apply: false,
+          frontmatter: { status: "evergreen" },
+        });
+
+        expect(getToolCallFailureMessage(invalid)).toMatch(/invalid frontmatter override/i);
+        expect(getToolCallFailureMessage(invalid)).toMatch(/status/i);
+        expect(getToolCallFailureMessage(invalid)).toMatch(/draft/i);
       });
     });
   });
