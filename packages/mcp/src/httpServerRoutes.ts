@@ -82,6 +82,30 @@ function getAcceptHeader(req: IncomingMessage): string | null {
   return null;
 }
 
+function coerceAcceptHeaderForJsonResponseMode(
+  req: IncomingMessage,
+  enableJsonResponse: boolean,
+): void {
+  // SDK requires both types for POST, even when JSON response mode is enabled.
+  // Accepting JSON-only clients is safe in JSON response mode because SSE is never used.
+  if (!enableJsonResponse) return;
+  if ((req.method ?? "").toUpperCase() !== "POST") return;
+
+  const raw = req.headers["accept"];
+  const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
+  const normalized = accept.toLowerCase();
+
+  const acceptsJson = normalized.includes("application/json");
+  const acceptsSse = normalized.includes("text/event-stream");
+  const acceptsAny = normalized.includes("*/*");
+
+  if (acceptsJson && acceptsSse) return;
+
+  if (!normalized.trim() || acceptsAny || acceptsJson) {
+    req.headers.accept = "application/json, text/event-stream";
+  }
+}
+
 function hasMcpSessionId(req: IncomingMessage): boolean {
   return getSingleHeaderValue(req, "mcp-session-id") !== null;
 }
@@ -252,6 +276,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           options.sessionStore,
           options.enableJsonResponse,
         );
+        coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
           res,
@@ -318,6 +343,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
       }
 
       options.sessionStore.closeIdleSessions();
+      coerceAcceptHeaderForJsonResponseMode(req, options.enableJsonResponse);
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,
