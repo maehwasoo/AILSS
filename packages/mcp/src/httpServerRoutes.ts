@@ -82,6 +82,83 @@ function getAcceptHeader(req: IncomingMessage): string | null {
   return null;
 }
 
+type ParsedAcceptMediaRange = {
+  type: string;
+  subtype: string;
+  q: number;
+};
+
+function parseAcceptHeaderValue(value: string): ParsedAcceptMediaRange[] {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part): ParsedAcceptMediaRange | null => {
+      const [rangeRaw, ...paramParts] = part.split(";").map((p) => p.trim());
+      const range = (rangeRaw ?? "").trim().toLowerCase();
+      if (!range) return null;
+
+      const [typeRaw, subtypeRaw] = range.split("/").map((t) => t.trim());
+      if (!typeRaw || !subtypeRaw) return null;
+
+      let q = 1;
+      for (const param of paramParts) {
+        const m = param.match(/^q\s*=\s*(.+)$/i);
+        if (!m?.[1]) continue;
+
+        const n = Number.parseFloat(m[1].trim());
+        q = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+        break;
+      }
+
+      return { type: typeRaw, subtype: subtypeRaw, q };
+    })
+    .filter((value): value is ParsedAcceptMediaRange => value !== null);
+}
+
+function getEffectiveQForMediaType(
+  ranges: ParsedAcceptMediaRange[],
+  targetType: string,
+  targetSubtype: string,
+): number {
+  // Per RFC, a missing Accept header is treated like "*/*".
+  if (ranges.length === 0) return 1;
+
+  let exactQ = 0;
+  let hasExact = false;
+  let typeWildcardQ = 0;
+  let hasTypeWildcard = false;
+  let anyWildcardQ = 0;
+  let hasAnyWildcard = false;
+
+  for (const range of ranges) {
+    if (range.type === targetType && range.subtype === targetSubtype) {
+      exactQ = Math.max(exactQ, range.q);
+      hasExact = true;
+      continue;
+    }
+
+    if (range.type === targetType && range.subtype === "*") {
+      typeWildcardQ = Math.max(typeWildcardQ, range.q);
+      hasTypeWildcard = true;
+      continue;
+    }
+
+    if (range.type === "*" && range.subtype === "*") {
+      anyWildcardQ = Math.max(anyWildcardQ, range.q);
+      hasAnyWildcard = true;
+    }
+  }
+
+  if (hasExact) return exactQ;
+  if (hasTypeWildcard) return typeWildcardQ;
+  if (hasAnyWildcard) return anyWildcardQ;
+  return 0;
+}
+
 function coerceAcceptHeaderForJsonResponseMode(
   req: IncomingMessage,
   enableJsonResponse: boolean,
@@ -93,17 +170,20 @@ function coerceAcceptHeaderForJsonResponseMode(
 
   const raw = req.headers["accept"];
   const accept = Array.isArray(raw) ? raw.join(", ") : typeof raw === "string" ? raw : "";
-  const normalized = accept.toLowerCase();
+  const ranges = parseAcceptHeaderValue(accept);
 
-  const acceptsJson = normalized.includes("application/json");
-  const acceptsSse = normalized.includes("text/event-stream");
-  const acceptsAny = normalized.includes("*/*");
+  const acceptsJsonQ = getEffectiveQForMediaType(ranges, "application", "json");
+  if (acceptsJsonQ <= 0) return;
 
-  if (acceptsJson && acceptsSse) return;
+  const hasExplicitJson = ranges.some(
+    (range) => range.type === "application" && range.subtype === "json" && range.q > 0,
+  );
+  const hasExplicitSse = ranges.some(
+    (range) => range.type === "text" && range.subtype === "event-stream" && range.q > 0,
+  );
+  if (hasExplicitJson && hasExplicitSse) return;
 
-  if (!normalized.trim() || acceptsAny || acceptsJson) {
-    req.headers.accept = "application/json, text/event-stream";
-  }
+  req.headers.accept = "application/json, text/event-stream";
 }
 
 function hasMcpSessionId(req: IncomingMessage): boolean {
