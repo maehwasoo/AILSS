@@ -374,6 +374,7 @@ function sendJsonRpcError(
   mcpErrorCode: number,
   message: string,
   data?: JsonRpcErrorData,
+  requestId: string | number | null = null,
 ): void {
   const errorPayload: { code: number; message: string; data?: JsonRpcErrorData } = {
     code: mcpErrorCode,
@@ -389,7 +390,7 @@ function sendJsonRpcError(
     JSON.stringify({
       jsonrpc: "2.0",
       error: errorPayload,
-      id: null,
+      id: requestId,
     }),
   );
 }
@@ -574,6 +575,8 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           400,
           -32000,
           "Bad Request: Mcp-Session-Id header must be a single value",
+          undefined,
+          requestId,
         );
         return;
       }
@@ -585,7 +588,14 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           requestId,
           reason: "missing_session_id_header",
         });
-        sendJsonRpcError(res, 400, -32000, "Bad Request: Mcp-Session-Id header is required");
+        sendJsonRpcError(
+          res,
+          400,
+          -32000,
+          "Bad Request: Mcp-Session-Id header is required",
+          undefined,
+          requestId,
+        );
         return;
       }
 
@@ -598,7 +608,14 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           requestId,
           reason: "session_not_found",
         });
-        sendJsonRpcError(res, 404, -32001, "Session not found", SESSION_NOT_FOUND_RECOVERY_DATA);
+        sendJsonRpcError(
+          res,
+          404,
+          -32001,
+          "Session not found",
+          SESSION_NOT_FOUND_RECOVERY_DATA,
+          requestId,
+        );
         return;
       }
 

@@ -310,8 +310,12 @@ export async function mcpDeleteSession(
   expect(body).toBe("");
 }
 
-function expectSessionNotFoundWithRecoveryHint(payload: unknown): void {
+function expectSessionNotFoundWithRecoveryHint(
+  payload: unknown,
+  expectedId: string | number | null,
+): void {
   assertRecord(payload, "JSON-RPC session-not-found payload");
+  expect(payload["id"]).toBe(expectedId);
   const error = payload["error"];
   assertRecord(error, "JSON-RPC error");
 
@@ -355,7 +359,7 @@ export async function mcpDeleteSessionExpectSessionNotFound(
   });
 
   expect(res.status).toBe(404);
-  expectSessionNotFoundWithRecoveryHint(await res.json());
+  expectSessionNotFoundWithRecoveryHint(await res.json(), null);
 }
 
 export async function mcpToolsCall(
@@ -438,7 +442,7 @@ export async function mcpToolsListExpectSessionNotFound(
   });
 
   expect(res.status).toBe(404);
-  expectSessionNotFoundWithRecoveryHint(await res.json());
+  expectSessionNotFoundWithRecoveryHint(await res.json(), 2);
 }
 
 export async function mcpToolsListExpectBadRequest(url: string, token: string): Promise<void> {
@@ -459,8 +463,12 @@ export async function mcpToolsListExpectBadRequest(url: string, token: string): 
   });
 
   expect(res.status).toBe(400);
-  const payload = (await res.json()) as { error?: { code?: number; message?: string } };
+  const payload = (await res.json()) as {
+    id?: unknown;
+    error?: { code?: number; message?: string };
+  };
   expect(payload.error?.code).toBe(-32000);
+  expect(payload.id).toBe(2);
 }
 
 export async function mcpToolsListWithDuplicateSessionIdHeaderExpectBadRequest(
