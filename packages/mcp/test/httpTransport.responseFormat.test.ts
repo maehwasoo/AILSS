@@ -219,6 +219,41 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
     });
   });
 
+  it("does not coerce parameterized wildcard Accept for GET SSE stream", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
+        const initRes = await mcpInitializeRaw({
+          url,
+          token,
+          clientName: "client-param-wildcard-get-sse",
+          accept: "*/*",
+        });
+
+        expect(initRes.status).toBe(200);
+        expect(initRes.sessionId).toBeTruthy();
+
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "*/*;profile=v1",
+            "mcp-session-id": initRes.sessionId as string,
+          },
+        });
+
+        expect(res.status).toBe(406);
+        expect((res.headers.get("content-type") ?? "").length > 0).toBe(true);
+
+        const body = await res.text();
+        const payload = parseFirstMcpPayload(body);
+        assertRecord(payload, "error payload");
+        expect(payload).toHaveProperty("error.message");
+      });
+    });
+  });
+
   it("does not coerce clients that explicitly reject application/json (q=0)", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");

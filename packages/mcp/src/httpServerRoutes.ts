@@ -204,6 +204,7 @@ function coerceAcceptHeaderForJsonResponseMode(
     // but the SDK's simplistic check would otherwise reject the request.
     const acceptsSseQ = getEffectiveQForMediaType(ranges, "text", "event-stream", {
       acceptHeaderPresent,
+      ignoreRangesWithNonQParams: true,
     });
     if (acceptsSseQ <= 0) return;
 
