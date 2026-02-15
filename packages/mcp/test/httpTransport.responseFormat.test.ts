@@ -27,6 +27,27 @@ describe("MCP HTTP server (Streamable HTTP response format)", () => {
     });
   });
 
+  it("returns JSON when client uses q-values for application/json", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer({ dbPath, enableWriteTools: false }, async ({ url, token }) => {
+        const res = await mcpInitializeRaw({
+          url,
+          token,
+          clientName: "client-json-q",
+          accept: "application/json;q=0.5, text/event-stream",
+        });
+
+        expect(res.status).toBe(200);
+        expect(res.contentType.startsWith("application/json")).toBe(true);
+        expect(res.sessionId).toBeTruthy();
+        assertRecord(res.payload, "initialize payload");
+        expect(res.payload).toHaveProperty("result");
+      });
+    });
+  });
+
   it("accepts JSON-only clients in JSON response mode (compat)", async () => {
     await withTempDir("ailss-mcp-http-", async (dir) => {
       const dbPath = path.join(dir, "index.sqlite");

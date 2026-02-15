@@ -37,7 +37,7 @@ function parseAcceptHeaderValue(value: string): ParsedAcceptMediaRange[] {
       for (const param of paramParts) {
         if (!param) continue;
 
-        const m = param.match(/^q\\s*=\\s*(.+)$/i);
+        const m = param.match(/^q\s*=\s*(.+)$/i);
         if (m?.[1]) {
           if (!hasParsedQ) {
             const n = Number.parseFloat(m[1].trim());
