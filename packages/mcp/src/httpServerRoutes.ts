@@ -71,6 +71,23 @@ function extractRequestId(body: unknown): string | number | null {
   return null;
 }
 
+function isJsonRpcNotificationOnlyBody(body: unknown): boolean {
+  if (Array.isArray(body)) {
+    if (body.length === 0) return false;
+    return body.every((entry) => isJsonRpcNotificationOnlyBody(entry));
+  }
+
+  if (typeof body !== "object" || body === null) return false;
+  const record = body as Record<string, unknown>;
+
+  if (record["jsonrpc"] !== "2.0") return false;
+  if (typeof record["method"] !== "string") return false;
+  if (record["method"].length === 0) return false;
+
+  // Notifications are JSON-RPC requests without an `id`.
+  return !("id" in record);
+}
+
 function getAcceptHeader(req: IncomingMessage): string | null {
   const accept = getSingleHeaderValue(req, "accept");
   if (typeof accept === "string") return accept;
@@ -395,7 +412,11 @@ function sendJsonRpcError(
   );
 }
 
-function ensureSdkErrorResponsesHaveJsonContentType(res: ServerResponse): void {
+function applySdkResponseCompatibilityFixes(
+  res: ServerResponse,
+  options?: { notificationResponseBody?: string | null },
+): void {
+  const notificationResponseBody = options?.notificationResponseBody ?? null;
   const originalWriteHead = res.writeHead.bind(res) as unknown as (
     statusCode: number,
     ...rest: unknown[]
@@ -406,15 +427,45 @@ function ensureSdkErrorResponsesHaveJsonContentType(res: ServerResponse): void {
   // Only default the header for 4xx/5xx so we don't advertise JSON on empty 200 responses
   // (e.g. DELETE /mcp) and trigger client-side JSON parse errors.
   res.writeHead = ((statusCode: number, ...rest: unknown[]): ServerResponse => {
-    if (typeof statusCode === "number" && statusCode >= 400) {
-      if (!res.getHeader("content-type")) {
-        res.setHeader("content-type", "application/json; charset=utf-8");
+    if (typeof statusCode === "number") {
+      if (statusCode === 202 && notificationResponseBody) {
+        if (!res.getHeader("content-type")) {
+          res.setHeader("content-type", "application/json; charset=utf-8");
+        }
+      } else if (statusCode >= 400) {
+        if (!res.getHeader("content-type")) {
+          res.setHeader("content-type", "application/json; charset=utf-8");
+        }
       }
     }
     return originalWriteHead(statusCode, ...rest);
   }) as unknown as ServerResponse["writeHead"];
 
   res.end = ((...args: unknown[]): ServerResponse => {
+    if (notificationResponseBody && res.statusCode === 202) {
+      const first = args[0];
+      const firstIsCallback = typeof first === "function";
+      const hasBody =
+        !firstIsCallback &&
+        args.length > 0 &&
+        first !== undefined &&
+        first !== null &&
+        !(
+          (typeof first === "string" && first.length === 0) ||
+          (first instanceof Uint8Array && first.byteLength === 0)
+        );
+
+      if (!hasBody) {
+        if (!res.getHeader("content-type") && !res.headersSent) {
+          res.setHeader("content-type", "application/json; charset=utf-8");
+        }
+
+        if (args.length === 0) return originalEnd(notificationResponseBody);
+        if (firstIsCallback) return originalEnd(notificationResponseBody, first);
+        return originalEnd(notificationResponseBody, ...args.slice(1));
+      }
+    }
+
     // Defensive: cover any future SDK paths that call end() without writeHead().
     if (res.statusCode >= 400) {
       if (!res.getHeader("content-type")) {
@@ -537,7 +588,7 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
           transportEnableJsonResponse,
         );
         coerceAcceptHeaderForStreamableHttpTransport(req, transportEnableJsonResponse);
-        ensureSdkErrorResponsesHaveJsonContentType(res);
+        applySdkResponseCompatibilityFixes(res);
         await transport.handleRequest(
           req as IncomingMessage & { auth?: AuthInfo },
           res,
@@ -621,7 +672,13 @@ export function createHttpRequestHandler(options: CreateHttpRequestHandlerOption
 
       options.sessionStore.closeIdleSessions();
       coerceAcceptHeaderForStreamableHttpTransport(req, session.enableJsonResponse);
-      ensureSdkErrorResponsesHaveJsonContentType(res);
+      const notificationResponseBody =
+        req.method === "POST" && isJsonRpcNotificationOnlyBody(parsedBody)
+          ? Array.isArray(parsedBody)
+            ? "[]"
+            : "null"
+          : null;
+      applySdkResponseCompatibilityFixes(res, { notificationResponseBody });
       await session.transport.handleRequest(
         req as IncomingMessage & { auth?: AuthInfo },
         res,
