@@ -1,14 +1,28 @@
 import { Notice } from "obsidian";
 import { spawn, type ChildProcess } from "node:child_process";
-import fs from "node:fs";
-import http from "node:http";
-import path from "node:path";
 
-import { DEFAULT_SETTINGS, type AilssObsidianSettings } from "../settings.js";
-import { clampPort, clampTopK } from "../utils/clamp.js";
+import { type AilssObsidianSettings } from "../settings.js";
 import { appendLimited, nowIso } from "../utils/misc.js";
-import { nodeNotFoundMessage, resolveSpawnCommandAndEnv } from "../utils/spawn.js";
 import { waitForTcpPortToBeAvailable } from "../utils/tcp.js";
+
+import {
+	appendDurableLogChunk as appendDurableLogChunkHelper,
+	initializeDurableLog as initializeDurableLogHelper,
+} from "./httpService/durableLog.js";
+import {
+	composePortInUseErrorMessage as composePortInUseErrorMessageHelper,
+	composeUnexpectedStopErrorMessage as composeUnexpectedStopErrorMessageHelper,
+} from "./httpService/messages.js";
+import {
+	normalizeStartupSettings as normalizeStartupSettingsHelper,
+	prepareStartupPreflight as prepareStartupPreflightHelper,
+	type StartupPreflight,
+} from "./httpService/preflight.js";
+import { buildSpawnPlan as buildSpawnPlanHelper, type SpawnPlan } from "./httpService/spawnPlan.js";
+import {
+	requestShutdown as requestShutdownHelper,
+	requestShutdownOnce as requestShutdownOnceHelper,
+} from "./httpService/shutdownClient.js";
 
 export type McpHttpServiceControllerDeps = {
 	getSettings: () => AilssObsidianSettings;
@@ -20,34 +34,11 @@ export type McpHttpServiceControllerDeps = {
 	onStatusChanged: () => void;
 };
 
-type StartupPreflight = {
-	settings: AilssObsidianSettings;
-	host: string;
-	port: number;
-	topK: number;
-	token: string;
-	shutdownToken: string;
-	openaiApiKey: string;
-	mcpCommand: string;
-	mcpArgs: string[];
-	vaultPath: string;
-};
-
 type PortNegotiationResult = {
 	available: boolean;
 	shutdownAttempted: boolean;
 	shutdownSucceeded: boolean;
 };
-
-type SpawnPlan = {
-	command: string;
-	args: string[];
-	cwd: string | null;
-	env: NodeJS.ProcessEnv;
-};
-
-const MCP_HTTP_LOG_DIR = ".ailss";
-const MCP_HTTP_LOG_FILE = "ailss-mcp-http-last.log";
 
 export class McpHttpServiceController {
 	private proc: ChildProcess | null = null;
@@ -176,64 +167,24 @@ export class McpHttpServiceController {
 	}
 
 	private async prepareStartupPreflight(): Promise<StartupPreflight> {
-		const settings = this.deps.getSettings();
-		const token = settings.mcpHttpServiceToken.trim();
-		if (!token) {
-			throw new Error("Missing MCP service token.");
-		}
-
-		const shutdownToken = settings.mcpHttpServiceShutdownToken.trim();
-		if (!shutdownToken) {
-			throw new Error("Missing MCP shutdown token.");
-		}
-
-		const openaiApiKey = settings.openaiApiKey.trim();
-		if (!openaiApiKey) {
-			throw new Error(
-				"Missing OpenAI API key. Set it in Settings → Community plugins → AILSS Obsidian.",
-			);
-		}
-
-		const mcpCommand = settings.mcpCommand.trim();
-		const mcpArgs = this.deps.resolveMcpHttpArgs();
-		if (!mcpCommand || mcpArgs.length === 0) {
-			throw new Error(
-				"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
-			);
-		}
-
-		const { port, topK } = await this.normalizeStartupSettings(settings);
-		return {
-			settings,
-			host: "127.0.0.1",
-			port,
-			topK,
-			token,
-			shutdownToken,
-			openaiApiKey,
-			mcpCommand,
-			mcpArgs,
-			vaultPath: this.deps.getVaultPath(),
-		};
+		return await prepareStartupPreflightHelper({
+			getSettings: this.deps.getSettings,
+			saveSettings: this.deps.saveSettings,
+			getVaultPath: this.deps.getVaultPath,
+			resolveMcpHttpArgs: this.deps.resolveMcpHttpArgs,
+			normalizeStartupSettings: async (settings) =>
+				await this.normalizeStartupSettings(settings),
+		});
 	}
 
 	private async normalizeStartupSettings(settings: AilssObsidianSettings): Promise<{
 		port: number;
 		topK: number;
 	}> {
-		const port = clampPort(settings.mcpHttpServicePort);
-		if (port !== settings.mcpHttpServicePort) {
-			settings.mcpHttpServicePort = port;
-			await this.deps.saveSettings();
-		}
-
-		const topK = clampTopK(settings.topK);
-		if (topK !== settings.topK) {
-			settings.topK = topK;
-			await this.deps.saveSettings();
-		}
-
-		return { port, topK };
+		return await normalizeStartupSettingsHelper({
+			settings,
+			saveSettings: this.deps.saveSettings,
+		});
 	}
 
 	private async negotiatePortAvailability(options: {
@@ -290,50 +241,20 @@ export class McpHttpServiceController {
 		shutdownAttempted: boolean;
 		shutdownSucceeded: boolean;
 	}): string {
-		const baseMessage = `Port ${options.port} is already in use (${options.host}). Stop the process using it, or change the port in settings.`;
-		if (options.shutdownAttempted && !options.shutdownSucceeded && this.lastErrorMessage) {
-			return `${this.lastErrorMessage}\n\n${baseMessage}`;
-		}
-
-		return baseMessage;
+		return composePortInUseErrorMessageHelper({
+			host: options.host,
+			port: options.port,
+			shutdownAttempted: options.shutdownAttempted,
+			shutdownSucceeded: options.shutdownSucceeded,
+			lastErrorMessage: this.lastErrorMessage,
+		});
 	}
 
 	private buildSpawnPlan(preflight: StartupPreflight): SpawnPlan {
-		const env = this.buildServiceEnv(preflight);
-		const spawnEnv = { ...process.env, ...env };
-		const resolved = resolveSpawnCommandAndEnv(preflight.mcpCommand, spawnEnv);
-		if (resolved.command === "node") {
-			throw new Error(nodeNotFoundMessage("MCP"));
-		}
-
-		return {
-			command: resolved.command,
-			args: preflight.mcpArgs,
+		return buildSpawnPlanHelper({
+			preflight,
 			cwd: this.deps.getPluginDirRealpathOrNull(),
-			env: resolved.env,
-		};
-	}
-
-	private buildServiceEnv(preflight: StartupPreflight): Record<string, string> {
-		const env: Record<string, string> = {
-			OPENAI_API_KEY: preflight.openaiApiKey,
-			OPENAI_EMBEDDING_MODEL:
-				preflight.settings.openaiEmbeddingModel.trim() ||
-				DEFAULT_SETTINGS.openaiEmbeddingModel,
-			AILSS_VAULT_PATH: preflight.vaultPath,
-			AILSS_MCP_HTTP_HOST: preflight.host,
-			AILSS_MCP_HTTP_PORT: String(preflight.port),
-			AILSS_MCP_HTTP_PATH: "/mcp",
-			AILSS_MCP_HTTP_TOKEN: preflight.token,
-			AILSS_MCP_HTTP_SHUTDOWN_TOKEN: preflight.shutdownToken,
-			AILSS_GET_CONTEXT_DEFAULT_TOP_K: String(preflight.topK),
-		};
-
-		if (preflight.settings.mcpHttpServiceEnableWriteTools) {
-			env.AILSS_ENABLE_WRITE_TOOLS = "1";
-		}
-
-		return env;
+		});
 	}
 
 	private resetStartupState(): void {
@@ -343,45 +264,22 @@ export class McpHttpServiceController {
 		this.lastExitCode = null;
 		this.lastStoppedAt = null;
 		this.lastErrorMessage = null;
-		this.initializeDurableLog();
-	}
-
-	private initializeDurableLog(): void {
-		const vaultPath = this.deps.getVaultPath().trim();
-		if (!vaultPath) {
-			this.durableLogPath = null;
-			return;
-		}
-
-		const dir = path.join(vaultPath, MCP_HTTP_LOG_DIR);
-		const filePath = path.join(dir, MCP_HTTP_LOG_FILE);
-		this.durableLogPath = filePath;
-
-		const header = [`[time] ${nowIso()}`, "[event] mcp-http-service-start", ""].join("\n");
-		this.enqueueDurableLogWrite(async () => {
-			await fs.promises.mkdir(dir, { recursive: true });
-			await fs.promises.writeFile(filePath, header, "utf8");
+		const durable = initializeDurableLogHelper({
+			vaultPath: this.deps.getVaultPath(),
+			durableLogWriteQueue: this.durableLogWriteQueue,
 		});
-	}
-
-	private enqueueDurableLogWrite(task: () => Promise<void>): void {
-		this.durableLogWriteQueue = this.durableLogWriteQueue.then(task).catch((error) => {
-			const message = error instanceof Error ? error.message : String(error);
-			console.error(`[ailss-mcp-http] durable log write failed: ${message}`);
-		});
+		this.durableLogPath = durable.durableLogPath;
+		this.durableLogWriteQueue = durable.durableLogWriteQueue;
 	}
 
 	private appendDurableLogChunk(stream: "stdout" | "stderr", chunk: string): void {
-		const filePath = this.durableLogPath;
-		if (!filePath || !chunk) return;
-
-		const content = chunk.trimEnd();
-		if (!content) return;
-
-		const entry = [`[time] ${nowIso()}`, `[stream] ${stream}`, content, ""].join("\n");
-		this.enqueueDurableLogWrite(async () => {
-			await fs.promises.appendFile(filePath, entry, "utf8");
+		const durable = appendDurableLogChunkHelper({
+			durableLogPath: this.durableLogPath,
+			durableLogWriteQueue: this.durableLogWriteQueue,
+			stream,
+			chunk,
 		});
+		this.durableLogWriteQueue = durable.durableLogWriteQueue;
 	}
 
 	private spawnServiceProcess(plan: SpawnPlan): ChildProcess {
@@ -442,13 +340,12 @@ export class McpHttpServiceController {
 		code: number | null,
 		signal: NodeJS.Signals | null,
 	): string {
-		const stderr = this.liveStderr.trim();
-		const stderrTail = stderr ? stderr.split(/\r?\n/).slice(-10).join("\n").trim() : "";
-		const suffix = code === null ? `signal ${signal}` : `exit ${code}`;
-		const logHint = this.durableLogPath ? `\nMCP log file: ${this.durableLogPath}` : "";
-		return stderrTail
-			? `Unexpected stop (${suffix}). Last stderr:\n${stderrTail}${logHint}`
-			: `Unexpected stop (${suffix}).${logHint}`;
+		return composeUnexpectedStopErrorMessageHelper({
+			code,
+			signal,
+			liveStderr: this.liveStderr,
+			durableLogPath: this.durableLogPath,
+		});
 	}
 
 	private async requestShutdown(options: {
@@ -456,27 +353,12 @@ export class McpHttpServiceController {
 		port: number;
 		tokens: string[];
 	}): Promise<boolean> {
-		const tokens = Array.from(
-			new Set(options.tokens.map((t) => t.trim()).filter((t) => t.length > 0)),
-		);
-		if (tokens.length === 0) return false;
-
-		for (let i = 0; i < tokens.length; i++) {
-			const token = tokens[i];
-			if (!token) continue;
-
-			const res = await this.requestShutdownOnce({
-				host: options.host,
-				port: options.port,
-				token,
-			});
-
-			if (res.ok) return true;
-			if (res.status === 401 && i < tokens.length - 1) continue;
-			return false;
-		}
-
-		return false;
+		return await requestShutdownHelper({
+			host: options.host,
+			port: options.port,
+			tokens: options.tokens,
+			requestShutdownOnce: async (inner) => await this.requestShutdownOnce(inner),
+		});
 	}
 
 	private async requestShutdownOnce(options: {
@@ -484,71 +366,11 @@ export class McpHttpServiceController {
 		port: number;
 		token: string;
 	}): Promise<{ ok: boolean; status: number | null }> {
-		// Use Node's HTTP client instead of `fetch` to avoid CORS/preflight issues in the
-		// Obsidian renderer context.
-		return await new Promise<{ ok: boolean; status: number | null }>((resolve) => {
-			let settled = false;
-
-			const finish = (ok: boolean, status: number | null, errorMessage?: string) => {
-				if (settled) return;
-				settled = true;
-
-				if (errorMessage) {
-					this.lastErrorMessage = errorMessage;
-					this.deps.onStatusChanged();
-				}
-
-				resolve({ ok, status });
-			};
-
-			const req = http.request(
-				{
-					hostname: options.host,
-					port: options.port,
-					path: "/__ailss/shutdown",
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${options.token}`,
-					},
-				},
-				(res) => {
-					res.setEncoding("utf8");
-
-					let body = "";
-					res.on("data", (chunk) => {
-						body += chunk;
-					});
-					res.on("end", () => {
-						const status = res.statusCode ?? 0;
-						if (status >= 200 && status < 300) {
-							finish(true, status);
-							return;
-						}
-
-						const message =
-							status === 401
-								? "Port is in use and shutdown was unauthorized (token mismatch)."
-								: status === 404
-									? "Port is in use and the service does not support remote shutdown."
-									: `Port is in use and shutdown failed (HTTP ${status}).`;
-						const detail = body.trim();
-						finish(false, status, detail ? `${message}\n${detail}` : message);
-					});
-				},
-			);
-
-			req.setTimeout(1_500, () => {
-				req.destroy(new Error("Request timed out."));
-			});
-
-			req.on("error", (error) => {
-				const e = error as { message?: string; code?: string };
-				const suffix = e.code ? `${e.code}: ` : "";
-				const message = `${suffix}${e.message ?? String(error)}`;
-				finish(false, null, `Port is in use and shutdown request failed: ${message}`);
-			});
-
-			req.end();
+		return await requestShutdownOnceHelper({
+			host: options.host,
+			port: options.port,
+			token: options.token,
+			recordError: (message) => this.recordError(message),
 		});
 	}
 }
