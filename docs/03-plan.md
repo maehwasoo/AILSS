@@ -38,7 +38,6 @@ It also records a few **hard decisions** so code and docs stay consistent.
 These items are not fully implemented yet (or are intentionally deferred). Details remain tracked in the relevant sections below.
 
 - User-configurable exclusions / blocked-path events (see section 5)
-- Pause/resume UX decision (see section 5)
 - Throttling / rate limiting beyond batch size (see section 5)
 - Full schema validation expansion in `frontmatter_validate` (see section 6)
 - `read_note` pagination token/perf follow-ups (see section 6)
@@ -82,7 +81,6 @@ Implemented:
 Remaining / TODO:
 
 - User-configurable exclusions + “blocked paths” events
-- Pause/resume UX (if needed)
 - Throttling/rate limiting (beyond batch size) for large vaults
 
 Goal:
@@ -97,7 +95,7 @@ UX target (Smart Connections-style):
   - “initial indexing complete”
   - “indexing in progress”
   - “exclusions blocked indexing for some paths”
-- Pause/resume: allow freezing UI updates while keeping results visible (separate from indexing).
+- Pause/resume: implemented as the auto-index on/off toggle (pauses/resumes background indexing).
 
 Recommended approach (desktop-first):
 
