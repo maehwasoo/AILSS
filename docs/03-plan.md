@@ -42,7 +42,7 @@ These items are not fully implemented yet (or are intentionally deferred). Detai
 - Full schema validation expansion in `frontmatter_validate` (see section 6)
 - `read_note` pagination token/perf follow-ups (see section 6)
 - Privacy docs + opt-in options (see section 7)
-- Cross-process single-writer lock for the indexer (see section 8)
+- Cross-process single-writer lock for concurrent indexers (plugin runner + CLI `ailss-indexer`) (see section 8)
 
 ## 1) Design the index schema
 
@@ -160,10 +160,13 @@ Planned:
     - Example: in-process LRU cache for recently-read note text (watch memory footprint and invalidation).
     - Example: byte-offset partial reads (would require a contract change because `start_index` is a string index today).
 
-TODO (to expand structured queries):
+Structured query support (current):
 
-- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`).
 - Date/range filters for `created` / `updated`: implemented via `search_notes` (`created_from`/`created_to`, `updated_from`/`updated_to`); requires consistent formatting across the vault.
+
+Remaining TODO (to expand structured queries):
+
+- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys not covered by current fixed filters (e.g. `created`, `updated`).
 
 Write tools (explicit apply):
 
