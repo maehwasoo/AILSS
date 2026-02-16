@@ -14,7 +14,8 @@ Instead, it keeps context in your vault: notes you can read, edit, and maintain.
 AI tools consult that context through explicit, auditable retrieval over MCP.
 By default, tools are read-only; any writes are gated and require an explicit apply.
 
-## Three-Layer Architecture
+## Architecture
+<img width="2944" height="1504" alt="image" src="https://github.com/user-attachments/assets/67ef500e-2731-4ea4-9284-dc09648ee86d" />
 
 ### Package structure (monorepo)
 
