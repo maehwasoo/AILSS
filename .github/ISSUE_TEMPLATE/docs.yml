@@ -1,7 +1,7 @@
 name: Documentation issue
 description: Report missing/incorrect docs
 title: "docs: "
-labels: ["documentation"]
+labels: ["docs"]
 body:
   - type: markdown
     attributes:

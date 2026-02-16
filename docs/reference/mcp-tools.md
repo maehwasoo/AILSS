@@ -11,6 +11,9 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Purpose: semantic retrieval over the index DB (returns note metadata + stitched evidence chunks; optional file-start previews).
 - Input:
   - `query` (string, required)
+  - `path_prefix` (string, optional) — literal vault-relative prefix match for candidate notes (not SQL wildcard semantics)
+  - `tags_any` (string[], default: `[]`) — candidate notes must include at least one tag
+  - `tags_all` (string[], default: `[]`) — candidate notes must include all tags
   - `top_k` (int, default: `10`, range: `1–50`)
   - `expand_top_k` (int, default: `5`, range: `0–50`) — how many of the top_k notes include stitched evidence text
   - `hit_chunks_per_note` (int, default: `2`, range: `1–5`)
@@ -18,6 +21,10 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `max_evidence_chars_per_note` (int, default: `1500`, range: `200–20,000`)
   - `include_file_preview` (boolean, default: `false`) — when true, includes file-start preview (requires `AILSS_VAULT_PATH`)
   - `max_chars_per_note` (int, default: `800`, range: `200–50,000`) — file-start preview size when `include_file_preview=true`
+- Output (selected):
+  - `applied_filters.path_prefix` (`string | null`) — normalized path prefix applied to candidate filtering
+  - `applied_filters.tags_any` (`string[]`) — normalized ANY-tag filter applied to candidate filtering
+  - `applied_filters.tags_all` (`string[]`) — normalized ALL-tag filter applied to candidate filtering
 
 ### `expand_typed_links_outgoing`
 
@@ -43,6 +50,15 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
   - `rel` (string, optional; e.g. `part_of`, `cites`)
   - `to_target` (string, optional; normalized wikilink target)
   - `limit` (int, default: `100`, range: `1–1000`)
+  - `canonical_only` (boolean, default: `true`) — when true, restricts results to canonical typed-link keys only
+
+### `list_typed_link_rels`
+
+- Purpose: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification (DB-only).
+- Input:
+  - `path_prefix` (string, optional)
+  - `limit` (int, default: `200`, range: `1–5000`)
+  - `order_by` (`"count_desc" | "rel_asc"`, default: `"count_desc"`)
 
 ### `read_note`
 
@@ -66,10 +82,16 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 
 ### `frontmatter_validate`
 
-- Purpose: scan vault notes and validate required frontmatter keys + `id`/`created` consistency.
+- Purpose: scan vault notes and validate required frontmatter keys + `id`/`created` consistency, and optionally enforce typed-link ontology constraints.
+- Scope note: `path_prefix` limits which source notes are validated/count toward `ok_count` and `issue_count`, while typed-link target resolution still uses vault-wide note metadata for relation diagnostics.
 - Input:
   - `path_prefix` (string, optional)
   - `max_files` (int, default: `20000`, range: `1–100,000`)
+  - `typed_link_constraint_mode` (`"off" | "warn" | "error"`, default: `"warn"`)
+- Output highlights:
+  - `typed_link_constraint_mode`: effective mode used by the validator
+  - `typed_link_diagnostic_count`: number of relation diagnostics
+  - `typed_link_diagnostics`: structured diagnostics (`path`, `rel`, `target`, `reason`, `fix_hint`, `severity`)
 
 ### `find_broken_links`
 
@@ -107,6 +129,19 @@ Source of truth: `packages/mcp/src/tools/*.ts`.
 - Input:
   - `limit` (int, default: `200`, range: `1–5000`)
 
+### `get_tool_failure_report`
+
+- Purpose: summarize structured MCP tool failure logs (JSONL) from `<vault>/.ailss/logs`.
+- Input:
+  - `recent_limit` (int, default: `50`, range: `1–500`) — recent events to return (newest first)
+  - `top_error_limit` (int, default: `10`, range: `1–50`) — top recurring error buckets
+  - `tool` (string, optional) — filter report to one tool name (e.g. `read_note`)
+- Output highlights:
+  - `enabled`: whether diagnostics logging is active (requires `AILSS_VAULT_PATH`)
+  - `log_dir`, `log_path`: actual diagnostics file location
+  - `top_error_types`: grouped counts with first/last occurrence
+  - `recent_events`: per-failure metadata (`timestamp`, `tool`, `input_path`, `resolved_path`, `error`, `request_id`, `session_id`, `correlation_id`)
+
 ## Write tools (gated)
 
 Write tools are registered only when `AILSS_ENABLE_WRITE_TOOLS=1` and they only write when `apply=true`.
@@ -121,6 +156,18 @@ Write tools are registered only when `AILSS_ENABLE_WRITE_TOOLS=1` and they only 
   - `frontmatter` (record, optional; overrides)
   - `apply` (boolean, default: `false`)
   - `reindex_after_apply` (boolean, default: `true`)
+
+### `canonicalize_typed_links`
+
+- Purpose: canonicalize frontmatter typed-link targets in a single note to deterministic vault-relative paths when resolution is unique (filesystem + DB; requires `AILSS_VAULT_PATH`).
+- Input:
+  - `path` (string, required)
+  - `apply` (boolean, default: `false`)
+  - `reindex_after_apply` (boolean, default: `true`)
+- Notes:
+  - Scope is frontmatter typed-link keys only (does not touch body wikilinks).
+  - If a target is unresolved or ambiguous, the tool keeps it unchanged and reports it.
+  - Targets containing `/` use strict vault-relative path resolution (no suffix matching).
 
 ### `edit_note`
 

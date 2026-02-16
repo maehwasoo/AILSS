@@ -24,8 +24,8 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Full-vault runs prune DB entries for deleted files
   - Has a deterministic wrapper test (stubbed embeddings; no network)
 - MCP server MVP exists (`packages/mcp`)
-  - Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`
-  - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`
+- Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `list_typed_link_rels`, `get_tool_failure_report`
+- Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `canonicalize_typed_links`, `edit_note`, `improve_frontmatter`, `relocate_note`
   - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: status modals for indexing and the localhost MCP service
@@ -125,16 +125,20 @@ Implemented:
 - `resolve_note`: resolve an id/title/wikilink target to candidate note paths (DB-backed; intended before `read_note`/`edit_note`)
 - `read_note`: read a vault note by path → return raw note text (may be truncated; requires `AILSS_VAULT_PATH`)
 - `get_vault_tree`: folder tree view of vault markdown files (filesystem-backed; requires `AILSS_VAULT_PATH`)
-- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency
+- `frontmatter_validate`: scan vault notes and validate required frontmatter key presence + `id`/`created` consistency, with optional typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
+  - `path_prefix` limits source-note scanning, while typed-link target resolution for diagnostics uses vault-wide note metadata.
 - `find_broken_links`: detect broken wikilinks/typed links by resolving targets against indexed notes (DB-backed)
 - `search_notes`: search indexed note metadata (frontmatter-derived fields, tags/keywords/sources) without embeddings
 - `list_tags`: list indexed tags with usage counts
 - `list_keywords`: list indexed keywords with usage counts
+- `list_typed_link_rels`: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification
+- `get_tool_failure_report`: summarize MCP tool failure logs from `<vault>/.ailss/logs` (recent events + top recurring error types)
 
 Notes on queryability (current):
 
 - AILSS stores normalized frontmatter + typed links in SQLite (used for graph expansion and retrieval).
 - The MCP surface supports both semantic retrieval (`get_context`) and structured navigation/filtering (`expand_typed_links_outgoing`, `find_typed_links_incoming`, `search_notes`).
+- Relation-level diagnostics are available via `list_typed_link_rels` (for legacy/non-canonical rel visibility).
 - Frontmatter normalization coerces YAML-inferred scalars (unquoted numbers/dates) to strings for core identity fields (`id`, `created`, `updated`) so existing vault notes can remain unquoted.
 
 Planned:
@@ -156,6 +160,9 @@ Write tools (explicit apply):
 - `capture_note`: create a new note in `<vault>/100. Inbox/` (default) with full frontmatter (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run (preview) and never overwrites existing notes by default
   - By default reindexes the created path (set `reindex_after_apply=false` to skip)
+- `canonicalize_typed_links`: canonicalize frontmatter typed-link targets in a single note to vault-relative paths when resolution is unique (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
+  - Supports `apply=false` dry-run (preview); keeps unresolved/ambiguous targets unchanged and reports them
+  - For targets containing `/`, resolution is strict path match only (no suffix matching)
 - `edit_note`: apply line-based patch ops to an existing `.md` note (gated; requires `AILSS_ENABLE_WRITE_TOOLS=1`)
   - Supports `apply=false` dry-run (preview); line numbers are 1-based; append via `insert_lines` at `lineCount+1`
   - Optional `expected_sha256` guard; by default reindexes the edited path (set `reindex_after_apply=false` to skip)
@@ -279,6 +286,7 @@ Phase 3 — Codex-triggered writes over MCP (no per-edit UI)
 
 - Status: implemented
 - Expose explicit write tools over the localhost MCP server when enabled:
+  - `canonicalize_typed_links` (canonicalize frontmatter typed-link targets in one note; default apply=false)
   - `edit_note` (apply line-based patch ops; default apply=false)
   - `capture_note` (create new note in `<vault>/100. Inbox/` by default)
   - `relocate_note` (move/rename a note; updates frontmatter `updated` when present)
@@ -307,8 +315,8 @@ Status (implemented):
 
 - Implemented in `packages/mcp/src/httpServer.ts` using a session manager that creates one server + transport per `initialize`.
 - Defaults:
-  - `AILSS_MCP_HTTP_MAX_SESSIONS=20`
-  - `AILSS_MCP_HTTP_IDLE_TTL_MS=3600000` (1 hour)
+  - `AILSS_MCP_HTTP_MAX_SESSIONS=100`
+  - `AILSS_MCP_HTTP_IDLE_TTL_MS=0` (disable idle expiration)
   - `AILSS_MCP_HTTP_SHUTDOWN_TOKEN=<token>` (optional; enables `POST /__ailss/shutdown`; use a separate admin token)
 
 Why this needs explicit design:

@@ -1,0 +1,91 @@
+name: Test improvement
+description: Add or improve tests without changing user-visible behavior
+title: "test: "
+labels: ["test"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for test-only improvements and regression coverage.
+        Please avoid adding component/scope to the title (no `test(mcp): ...`, no `plugin: ...`).
+        Use labels for component tagging instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which area should be covered?
+      options:
+        - Indexer (packages/indexer)
+        - MCP server (packages/mcp)
+        - Obsidian plugin (packages/obsidian-plugin)
+        - Core/shared (packages/core)
+        - Docs
+        - Ops/CI
+        - Multiple components
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What gap in test coverage or regression risk are you addressing?
+      placeholder: "A startup helper branch is not directly covered and regressions are hard to pinpoint."
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Test goal
+      description: What should become verifiable after this issue is done?
+      placeholder: "Directly cover helper-level branches with deterministic unit tests."
+    validations:
+      required: true
+
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: In scope
+      description: What tests and files are included?
+      placeholder: "- Add unit tests for X\n- Add minimal test seam if required"
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What must stay unchanged?
+      placeholder: "- No runtime behavior change\n- No new configuration options"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: strategy
+    attributes:
+      label: Test strategy
+      options:
+        - label: Unit tests
+        - label: Integration tests
+        - label: End-to-end tests
+        - label: Golden/snapshot contract tests
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: Which checks/tests should pass?
+      placeholder: "- pnpm --filter ailss-obsidian typecheck\n- pnpm test"
+    validations:
+      required: true
+
+  - type: textarea
+    id: done_criteria
+    attributes:
+      label: Done criteria
+      description: What defines completion?
+      placeholder: "- Target branches are covered directly\n- Existing behavior remains unchanged\n- Validation checks pass"
+    validations:
+      required: true

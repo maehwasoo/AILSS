@@ -1,0 +1,65 @@
+name: Refactor
+description: Improve code structure without changing user-visible behavior
+title: "refactor: "
+labels: ["refactor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for structural/code-quality improvements.
+        Please avoid adding component/scope to the title (no `refactor(core): ...`, no `mcp: ...`).
+        Use labels for component tagging instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What makes the current structure difficult to maintain?
+      placeholder: "This module mixes A/B/C concerns and changes are risky because ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Refactor goal
+      description: What structure should be improved?
+      placeholder: "Split by concern, reduce duplication, isolate side effects, ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: In scope
+      description: What is included in this refactor?
+      placeholder: "- File/module boundaries\n- Function/class extraction\n- Internal naming cleanup"
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What must stay unchanged?
+      placeholder: "- No schema change\n- No public API/CLI behavior change\n- No user-visible UX change"
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: Which checks/tests will confirm behavior is preserved?
+      placeholder: "- pnpm --filter @ailss/core test\n- pnpm --filter @ailss/mcp test"
+    validations:
+      required: true
+
+  - type: textarea
+    id: done_criteria
+    attributes:
+      label: Done criteria
+      description: What defines completion?
+      placeholder: "- Public behavior unchanged\n- Existing tests pass\n- Code paths are easier to navigate"
+    validations:
+      required: true

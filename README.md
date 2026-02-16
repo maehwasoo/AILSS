@@ -7,6 +7,80 @@ Your Obsidian vault is the single source of truth.
 
 AILSS connects AI tooling to an Obsidian vault by building a local index database and exposing retrieval tools over MCP.
 
+## What AILSS Solves
+
+AILSS is not an agent-owned memory layer.
+Instead, it keeps context in your vault: notes you can read, edit, and maintain.
+AI tools consult that context through explicit, auditable retrieval over MCP.
+By default, tools are read-only; any writes are gated and require an explicit apply.
+
+## Three-Layer Architecture
+
+### Package structure (monorepo)
+
+```mermaid
+flowchart LR
+  core["@ailss/core"]
+  indexer["@ailss/indexer"]
+  mcp["@ailss/mcp"]
+  plugin["obsidian-plugin"]
+
+  indexer -->|depends on| core
+  mcp -->|depends on| core
+
+  plugin -.->|spawns| indexer
+  plugin -.->|spawns| mcp
+```
+
+### Runtime flow
+
+```mermaid
+flowchart LR
+  vault["Obsidian vault<br/>(Markdown notes)"]
+  db["Local index DB<br/><vault>/.ailss/index.sqlite"]
+
+  indexer["Indexer<br/>(@ailss/indexer)"]
+  mcpServer["MCP server<br/>(@ailss/mcp)"]
+  clients["AI clients<br/>(Codex CLI, Claude Code, ...)"]
+  obsidian["Obsidian plugin"]
+
+  vault -->|read| indexer -->|write| db
+  db -->|query| mcpServer -->|MCP: HTTP or stdio| clients
+
+  obsidian -.->|triggers| indexer
+  obsidian -.->|hosts| mcpServer
+  clients -.->|write tools: gated, explicit apply| mcpServer
+```
+
+### Code structure
+
+```mermaid
+flowchart TB
+  subgraph core["@ailss/core"]
+    core_vault["src/vault/*<br/>(frontmatter + typed links)"]
+    core_db["src/db/*<br/>(SQLite schema + queries)"]
+    core_indexing["src/indexing/*<br/>(chunking helpers)"]
+  end
+
+  subgraph indexer["@ailss/indexer"]
+    indexer_cli["src/cli.ts<br/>(ailss-indexer)"]
+    indexer_flow["src/indexVault.ts<br/>(scan + embedding + upsert)"]
+  end
+
+  subgraph mcp["@ailss/mcp"]
+    mcp_stdio["src/stdio.ts<br/>(ailss-mcp)"]
+    mcp_http["src/http.ts<br/>(ailss-mcp-http)"]
+    mcp_tools["src/tools/*<br/>(MCP tool implementations)"]
+  end
+
+  subgraph plugin["obsidian-plugin"]
+    plugin_main["src/main.ts<br/>(Obsidian entry)"]
+    plugin_mcp["src/mcp/*<br/>(MCP service wrapper)"]
+    plugin_indexer["src/indexer/*<br/>(indexer runner)"]
+    plugin_ui["src/ui/*<br/>(Obsidian UI)"]
+  end
+```
+
 ## Quickstart
 
 1. Download `ailss-<ver>.zip` from GitHub Releases.
@@ -51,18 +125,13 @@ http_headers = { Authorization = "Bearer <token>" }
 
 Set `AILSS_MCP_BEARER_TOKEN` to the token from step 5.
 
-## Prompts and Skill
-
-- Vault prompt: use **Prompt installer (vault root)** to write `AGENTS.md` at your vault root.
-- Agent Skill: use **Copy Prometheus Agent Skill** and install it in your terminal AI client’s skill directory (for example, Codex CLI uses `~/.codex/skills/ailss-prometheus-agent/SKILL.md`).
-
 ## How it works
 
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.
 
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
-## Vault model
+### Vault model
 
 AILSS treats your vault as a knowledge graph:
 
@@ -77,8 +146,8 @@ Full rules: `docs/standards/vault/README.md`.
 
 Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 
-- Read tools: `get_context`, `expand_typed_links_outgoing`, `resolve_note`, `read_note`, `search_notes`, `list_tags`, `list_keywords`, `find_broken_links`, `frontmatter_validate`, `find_typed_links_incoming`
-- Write tools (gated): `capture_note`, `edit_note`, `improve_frontmatter`, `relocate_note`  
+- Read tools: `get_context`, `expand_typed_links_outgoing`, `resolve_note`, `find_typed_links_incoming`, `list_typed_link_rels`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `get_tool_failure_report`
+- Write tools (gated): `capture_note`, `canonicalize_typed_links`, `edit_note`, `improve_frontmatter`, `relocate_note`  
   Requires `AILSS_ENABLE_WRITE_TOOLS=1` and `apply=true`.
 
 ## Docs
@@ -88,3 +157,9 @@ Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 - `docs/ops/codex-cli.md`: Codex CLI setup
 - `docs/ops/local-dev.md`: local development
 - `docs/standards/vault/README.md`: vault model and rules
+- `docs/reference/mcp-tools.md`: MCP tools reference
+
+## Prompts and Skill
+
+- Vault prompt: use **Prompt installer (vault root)** to write `AGENTS.md` at your vault root.
+- Agent Skill: use **Copy Prometheus Agent Skill** and install it in your terminal AI client’s skill directory (for example, Codex CLI uses `~/.codex/skills/ailss-prometheus-agent/SKILL.md`).

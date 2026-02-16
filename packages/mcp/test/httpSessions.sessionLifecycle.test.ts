@@ -4,7 +4,9 @@ import path from "node:path";
 
 import {
   mcpDeleteSession,
+  mcpDeleteSessionExpectSessionNotFound,
   mcpInitialize,
+  mcpInitializeExpectBadRequest,
   mcpInitializeExpectUnauthorized,
   mcpToolsList,
   mcpToolsListExpectBadRequest,
@@ -62,6 +64,7 @@ describe("MCP HTTP server (multi-session)", () => {
           await mcpToolsList(url, token, sessionId);
 
           await mcpDeleteSession(url, token, sessionId);
+          await mcpDeleteSessionExpectSessionNotFound(url, token, sessionId);
           await mcpToolsListExpectSessionNotFound(url, token, sessionId);
         },
       );
@@ -86,6 +89,25 @@ describe("MCP HTTP server (multi-session)", () => {
             "other",
           );
           await mcpToolsList(url, token, sessionId);
+        },
+      );
+    });
+  });
+
+  it("accepts trailing-slash MCP paths and returns JSON-RPC for malformed JSON", async () => {
+    await withTempDir("ailss-mcp-http-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      await withMcpHttpServer(
+        { dbPath, maxSessions: 5, idleTtlMs: 60_000 },
+        async ({ url, token }) => {
+          const u = new URL(url);
+          u.pathname = `${u.pathname}/`;
+
+          const sessionId = await mcpInitialize(u.toString(), token, "client-trailing-slash");
+          await mcpToolsList(u.toString(), token, sessionId);
+
+          await mcpInitializeExpectBadRequest(url, token);
         },
       );
     });

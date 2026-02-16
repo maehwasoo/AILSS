@@ -190,11 +190,62 @@ jobs:
 
           ls -la "${out}"
 
+      - name: Resolve previous stable tag
+        id: stable_tag
+        if: steps.meta.outputs.prerelease == 'false'
+        shell: bash
+        run: |
+          current="${GITHUB_REF_NAME}"
+          current_commit="$(git rev-list -n 1 "${current}")"
+          previous=""
+
+          while IFS= read -r tag; do
+            tag_commit="$(git rev-list -n 1 "${tag}")"
+            if git merge-base --is-ancestor "${tag_commit}" "${current_commit}"; then
+              previous="${tag}"
+              break
+            fi
+          done < <(
+            git tag --list 'v*' --sort=-v:refname \
+              | grep -Ev -- '-' \
+              | grep -Fxv -- "${current}"
+          )
+
+          echo "previous=${previous}" >> "${GITHUB_OUTPUT}"
+
+      - name: Generate stable release notes
+        id: stable_notes
+        if: steps.meta.outputs.prerelease == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const tagName = process.env.GITHUB_REF_NAME;
+            const previousTag = `${{ steps.stable_tag.outputs.previous }}`.trim();
+            const params = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              configuration_file_path: ".github/release.yml",
+            };
+
+            if (previousTag) {
+              params.previous_tag_name = previousTag;
+            }
+
+            const response = await github.request(
+              "POST /repos/{owner}/{repo}/releases/generate-notes",
+              params
+            );
+
+            core.setOutput("body", response.data.body);
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.meta.outputs.version }}
           prerelease: ${{ steps.meta.outputs.prerelease }}
-          generate_release_notes: true
+          generate_release_notes: false
+          body: ${{ steps.meta.outputs.prerelease == 'true' && 'Pre-release build' || steps.stable_notes.outputs.body }}
           files: |
             ailss-${{ steps.meta.outputs.version }}.zip

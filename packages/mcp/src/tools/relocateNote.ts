@@ -10,8 +10,8 @@ import { z } from "zod";
 
 import type { McpToolDeps } from "../mcpDeps.js";
 import { nowIsoSeconds } from "../lib/ailssNoteTemplate.js";
-import { reindexVaultPaths } from "../lib/reindexVaultPaths.js";
 import { resolveVaultPathSafely, writeVaultFileText } from "../lib/vaultFs.js";
+import { applyAndOptionalReindex, runWithOptionalWriteLock } from "../lib/writeToolExecution.js";
 
 async function fileExists(absPath: string): Promise<boolean> {
   try {
@@ -157,90 +157,59 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
           throw new Error(`Destination already exists: to_path="${args.to_path}".`);
         }
 
-        if (!args.apply) {
-          const payload = {
-            from_path: args.from_path,
-            to_path: args.to_path,
-            applied: false,
-            overwritten: false,
-            updated_applied: false,
-            updated_value: null,
-            needs_reindex: false,
-            reindexed: false,
-            reindex_summary: null,
-            reindex_error: null,
-          };
-          return {
-            structuredContent: payload,
-            content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
-          };
-        }
-
-        await fs.mkdir(toDir, { recursive: true });
-        if (destExists && args.overwrite) {
-          await fs.unlink(toAbs);
-        }
-
-        await renameOrCopy(fromAbs, toAbs);
-
         let updatedApplied = false;
-        try {
-          const movedText = await fs.readFile(toAbs, "utf8");
-          const updated = updateUpdatedInFrontmatterBlock(movedText, now);
-          if (updated.updated) {
-            await writeVaultFileText({
-              vaultPath,
-              vaultRelPath: args.to_path,
-              text: updated.nextMarkdown,
-            });
-            updatedApplied = true;
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          try {
-            if (!(await fileExists(fromAbs))) {
-              await renameOrCopy(toAbs, fromAbs);
+        const reindexState = await applyAndOptionalReindex({
+          deps,
+          apply: args.apply,
+          changed: true,
+          reindexAfterApply: args.reindex_after_apply,
+          reindexPaths: [args.from_path, args.to_path],
+          applyWrite: async () => {
+            await fs.mkdir(toDir, { recursive: true });
+            if (destExists && args.overwrite) {
+              await fs.unlink(toAbs);
             }
-          } catch {
-            // ignore rollback failure (best-effort)
-          }
-          throw new Error(`Failed to update frontmatter.updated for "${args.to_path}": ${message}`);
-        }
 
-        let reindexed = false;
-        let reindexSummary: {
-          changed_files: number;
-          indexed_chunks: number;
-          deleted_files: number;
-        } | null = null;
-        let reindexError: string | null = null;
+            await renameOrCopy(fromAbs, toAbs);
 
-        if (args.reindex_after_apply) {
-          try {
-            const summary = await reindexVaultPaths(deps, [args.from_path, args.to_path]);
-            reindexed = true;
-            reindexSummary = {
-              changed_files: summary.changedFiles,
-              indexed_chunks: summary.indexedChunks,
-              deleted_files: summary.deletedFiles,
-            };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            reindexError = message;
-          }
-        }
+            try {
+              const movedText = await fs.readFile(toAbs, "utf8");
+              const updated = updateUpdatedInFrontmatterBlock(movedText, now);
+              if (updated.updated) {
+                await writeVaultFileText({
+                  vaultPath,
+                  vaultRelPath: args.to_path,
+                  text: updated.nextMarkdown,
+                });
+                updatedApplied = true;
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              try {
+                if (!(await fileExists(fromAbs))) {
+                  await renameOrCopy(toAbs, fromAbs);
+                }
+              } catch {
+                // rollback best-effort
+              }
+              throw new Error(
+                `Failed to update frontmatter.updated for "${args.to_path}": ${message}`,
+              );
+            }
+          },
+        });
 
         const payload = {
           from_path: args.from_path,
           to_path: args.to_path,
-          applied: true,
-          overwritten,
+          applied: reindexState.applied,
+          overwritten: reindexState.applied ? overwritten : false,
           updated_applied: updatedApplied,
           updated_value: updatedApplied ? now : null,
-          needs_reindex: Boolean(!reindexed),
-          reindexed,
-          reindex_summary: reindexSummary,
-          reindex_error: reindexError,
+          needs_reindex: reindexState.needs_reindex,
+          reindexed: reindexState.reindexed,
+          reindex_summary: reindexState.reindex_summary,
+          reindex_error: reindexState.reindex_error,
         };
 
         return {
@@ -249,10 +218,7 @@ export function registerRelocateNoteTool(server: McpServer, deps: McpToolDeps): 
         };
       };
 
-      if (args.apply) {
-        return await (deps.writeLock ? deps.writeLock.runExclusive(run) : run());
-      }
-      return await run();
+      return await runWithOptionalWriteLock({ apply: args.apply, writeLock: deps.writeLock, run });
     },
   );
 }

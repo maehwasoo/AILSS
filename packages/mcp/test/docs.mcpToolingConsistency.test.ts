@@ -8,7 +8,7 @@ import {
   assertArray,
   assertRecord,
   mcpInitialize,
-  parseFirstSseData,
+  parseFirstMcpPayload,
   withMcpHttpServer,
   withTempDir,
 } from "./httpTestUtils.js";
@@ -50,7 +50,7 @@ async function mcpToolsList(
   });
 
   expect(res.status).toBe(200);
-  const payload = parseFirstSseData(await res.text());
+  const payload = parseFirstMcpPayload(await res.text());
 
   assertRecord(payload, "tools/list payload");
   const result = payload["result"];

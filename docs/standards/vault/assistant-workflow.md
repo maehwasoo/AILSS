@@ -46,10 +46,12 @@ Global working rules for the AILSS Obsidian vault.
 - `search_notes`: DB-backed metadata filtering (frontmatter-derived fields, tags/keywords/sources); no embeddings calls.
 - `list_tags`: list indexed tags and counts (use to reuse existing vocabulary).
 - `list_keywords`: list indexed keywords and counts (use to reuse existing vocabulary).
+- `list_typed_link_rels`: list typed-link relation keys (`rel`) with usage counts and canonical/non-canonical classification.
 - `expand_typed_links_outgoing`: expands outgoing typed links into a bounded graph (metadata only).
-- `find_typed_links_incoming`: find notes that link _to_ a target via typed links (incoming edges).
+- `find_typed_links_incoming`: find notes that link _to_ a target via typed links (incoming edges; `canonical_only=true` by default).
 - `get_vault_tree`: returns a folder/file tree for vault Markdown files.
-- `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency.
+- `frontmatter_validate`: validates vault-wide frontmatter key presence + `id`/`created` consistency, and can also emit typed-link ontology diagnostics (`typed_link_constraint_mode`: `off`/`warn`/`error`).
+  - `path_prefix` limits the source-note scan set, but typed-link target resolution for diagnostics still uses vault-wide metadata.
 - `find_broken_links`: detects unresolved wikilinks/typed links by resolving targets against indexed notes.
 - `capture_note`: creates a new note (`apply=false` preview → `apply=true` auto-apply by default).
 - `edit_note`: applies line-based patch ops to a note (`apply=false` preview → `apply=true` auto-apply by default).
@@ -75,7 +77,8 @@ Global working rules for the AILSS Obsidian vault.
   - Title: specific and stable; default to English; add disambiguators when needed (parentheses OK for disambiguation; avoid translation parentheses — use `aliases` instead).
   - Summary: 2–5 sentences that answer “what is this note for?”
 - Tags/keywords: before adding a new value, check existing vocabulary via `list_tags` / `list_keywords` and reuse when possible.
-- Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `same_as`, `supersedes`).
+- Typed links: review the coverage checklist items (`instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`).
+- Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
 - Coverage log: keep semantic retrieval + literal checks together (what `get_context` returned, and what `read_note` confirmed).
 - Links: run `find_broken_links` (preferred) and fix unresolved targets; fall back to `rg "\\[\\[" -n` if needed.
 - Assets: if a folder contains local assets, ensure a note-adjacent `assets/` folder exists (create it when adding the first asset); avoid absolute/external file paths.

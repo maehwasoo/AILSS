@@ -155,7 +155,9 @@ export function renderFrontmatterYaml(frontmatter: AilssFrontmatter): string {
     "source",
   ] satisfies string[];
 
-  const typedLinkKeys = [...AILSS_TYPED_LINK_KEYS];
+  const typedLinkKeys = [...AILSS_TYPED_LINK_KEYS] satisfies Array<
+    (typeof AILSS_TYPED_LINK_KEYS)[number]
+  >;
 
   const reservedKeys = new Set<string>([...requiredKeys, ...typedLinkKeys]);
 

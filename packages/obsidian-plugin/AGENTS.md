@@ -32,7 +32,7 @@ This directory contains the **Obsidian community plugin** for AILSS.
     - Log snapshot file export: `packages/obsidian-plugin/src/indexer/indexerLogFile.ts`
 - MCP HTTP service: `packages/obsidian-plugin/src/mcp/*`
     - Lifecycle: `packages/obsidian-plugin/src/mcp/mcpHttpServiceController.ts`
-    - Search wrapper: `packages/obsidian-plugin/src/mcp/semanticSearchService.ts`
+    - Shared types: `packages/obsidian-plugin/src/mcp/mcpHttpServiceTypes.ts`
 - UI helpers (keep `main.ts` thin): `packages/obsidian-plugin/src/ui/*`
     - Modal open helpers: `packages/obsidian-plugin/src/ui/pluginModals.ts`
     - Status bar mounting/rendering: `packages/obsidian-plugin/src/ui/statusBars.ts`

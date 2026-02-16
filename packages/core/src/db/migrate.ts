@@ -7,6 +7,7 @@ export function nowIso(): string {
 export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
   // Schema: files, chunks, chunk_embeddings(vec0), note metadata, typed links
   // - vec0 is rowid-based, so we map chunk_id to rowid
+  const EMBEDDING_INPUT_VERSION = "title-summary-heading-path-v1";
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS files (
@@ -27,6 +28,7 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
       heading_path_json TEXT NOT NULL,
       content TEXT NOT NULL,
       content_sha256 TEXT NOT NULL,
+      embedding_input_sha256 TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(path) REFERENCES files(path) ON DELETE CASCADE
     );
@@ -38,6 +40,10 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
   const hasChunkIndex = chunkCols.some((c) => c.name === "chunk_index");
   if (!hasChunkIndex) {
     db.exec(`ALTER TABLE chunks ADD COLUMN chunk_index INTEGER NOT NULL DEFAULT 0;`);
+  }
+  const hasEmbeddingInputSha = chunkCols.some((c) => c.name === "embedding_input_sha256");
+  if (!hasEmbeddingInputSha) {
+    db.exec(`ALTER TABLE chunks ADD COLUMN embedding_input_sha256 TEXT NOT NULL DEFAULT '';`);
   }
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_chunks_path_chunk_index ON chunks(path, chunk_index);`);
@@ -76,6 +82,7 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
   const existingModel = getMeta("embedding_model");
   const existingDimRaw = getMeta("embedding_dim");
   const existingDim = existingDimRaw ? Number(existingDimRaw) : null;
+  const existingEmbeddingInputVersion = getMeta("embedding_input_version");
 
   const missingMeta = !existingModel || !existingDimRaw || !Number.isFinite(existingDim);
   if (missingMeta) {
@@ -104,6 +111,30 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
         ].join(" "),
       );
     }
+  }
+
+  if (!existingEmbeddingInputVersion) {
+    if (hasAnyChunks) {
+      throw new Error(
+        [
+          "Index DB does not record the embedding input format version.",
+          "Refusing to continue to avoid mixing embeddings built from different input formats in one DB.",
+          `DB path: ${options.dbPath}`,
+          "Fix: delete the DB and reindex (or choose a new --db path).",
+        ].join(" "),
+      );
+    }
+    setMeta("embedding_input_version", EMBEDDING_INPUT_VERSION);
+  } else if (existingEmbeddingInputVersion !== EMBEDDING_INPUT_VERSION) {
+    throw new Error(
+      [
+        "Embedding input format mismatch for the index DB.",
+        `DB path: ${options.dbPath}`,
+        `DB expects: embedding_input_version=${existingEmbeddingInputVersion}`,
+        `Current run: embedding_input_version=${EMBEDDING_INPUT_VERSION}`,
+        "Fix: delete the DB and reindex (or choose a new --db path).",
+      ].join(" "),
+    );
   }
 
   // sqlite-vec vec0 table
@@ -135,6 +166,7 @@ export function migrate(db: AilssDb, options: OpenAilssDbOptions): void {
       c.heading_path_json,
       c.content,
       c.content_sha256,
+      c.embedding_input_sha256,
       c.updated_at
     FROM chunks c
     JOIN chunk_rowids r ON r.chunk_id = c.chunk_id;

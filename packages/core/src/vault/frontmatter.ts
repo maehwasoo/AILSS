@@ -1,30 +1,10 @@
 // AILSS frontmatter utilities
 // - normalization for stable indexing and querying
 
-export const AILSS_TYPED_LINK_KEYS = [
-  "instance_of",
-  "part_of",
-  "depends_on",
-  "uses",
-  "implements",
-  "cites",
-  "summarizes",
-  "derived_from",
-  "explains",
-  "supports",
-  "contradicts",
-  "verifies",
-  "blocks",
-  "mitigates",
-  "measures",
-  "produces",
-  "authored_by",
-  "owned_by",
-  "supersedes",
-  "same_as",
-] as const;
+import { AILSS_TYPED_LINK_KEYS } from "./typedLinkOntology.js";
 
-export type AilssTypedLinkKey = (typeof AILSS_TYPED_LINK_KEYS)[number];
+export { AILSS_TYPED_LINK_KEYS };
+export type { AilssTypedLinkKey } from "./typedLinkOntology.js";
 
 export type TypedLink = {
   rel: string;
@@ -32,6 +12,176 @@ export type TypedLink = {
   toWikilink: string;
   position: number;
 };
+
+// Frontmatter enums
+// - keep in sync with docs/standards/vault/frontmatter-schema.md
+export const AILSS_FRONTMATTER_STATUS_VALUES = [
+  "draft",
+  "in-review",
+  "active",
+  "archived",
+] as const;
+export type AilssFrontmatterStatus = (typeof AILSS_FRONTMATTER_STATUS_VALUES)[number];
+
+export const AILSS_FRONTMATTER_LAYER_VALUES = [
+  "strategic",
+  "conceptual",
+  "logical",
+  "physical",
+  "operational",
+] as const;
+export type AilssFrontmatterLayer = (typeof AILSS_FRONTMATTER_LAYER_VALUES)[number];
+
+export const AILSS_FRONTMATTER_ENTITY_VALUES = [
+  // Interface entities
+  "interface",
+  "pipeline",
+  "procedure",
+  "dashboard",
+  "checklist",
+  "workflow",
+
+  // Action entities
+  "decide",
+  "review",
+  "plan",
+  "implement",
+  "approve",
+  "reject",
+  "observe",
+  "measure",
+  "test",
+  "verify",
+  "learn",
+  "research",
+  "summarize",
+  "publish",
+  "meet",
+  "audit",
+  "deploy",
+  "rollback",
+  "refactor",
+  "design",
+  "delete",
+  "update",
+  "create",
+  "schedule",
+  "migrate",
+  "analyze",
+
+  // Object entities
+  "concept",
+  "document",
+  "project",
+  "artifact",
+  "person",
+  "organization",
+  "place",
+  "event",
+  "task",
+  "method",
+  "tool",
+  "idea",
+  "principle",
+  "heuristic",
+  "pattern",
+  "definition",
+  "question",
+  "software",
+  "dataset",
+  "reference",
+  "hub",
+  "guide",
+  "log",
+  "structure",
+  "architecture",
+] as const;
+export type AilssFrontmatterEntity = (typeof AILSS_FRONTMATTER_ENTITY_VALUES)[number];
+
+const AILSS_FRONTMATTER_STATUS_SET = new Set<string>(AILSS_FRONTMATTER_STATUS_VALUES);
+const AILSS_FRONTMATTER_LAYER_SET = new Set<string>(AILSS_FRONTMATTER_LAYER_VALUES);
+const AILSS_FRONTMATTER_ENTITY_SET = new Set<string>(AILSS_FRONTMATTER_ENTITY_VALUES);
+
+export function isAilssFrontmatterStatus(value: string): value is AilssFrontmatterStatus {
+  return AILSS_FRONTMATTER_STATUS_SET.has(value);
+}
+
+export function isAilssFrontmatterLayer(value: string): value is AilssFrontmatterLayer {
+  return AILSS_FRONTMATTER_LAYER_SET.has(value);
+}
+
+export function isAilssFrontmatterEntity(value: string): value is AilssFrontmatterEntity {
+  return AILSS_FRONTMATTER_ENTITY_SET.has(value);
+}
+
+export type AilssFrontmatterEnumViolation = {
+  key: "status" | "layer" | "entity";
+  value: string | null;
+  allowed: readonly string[];
+};
+
+export function validateAilssFrontmatterEnums(
+  frontmatter: Record<string, unknown>,
+): AilssFrontmatterEnumViolation[] {
+  const violations: AilssFrontmatterEnumViolation[] = [];
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(frontmatter, key);
+  const describeValue = (value: unknown): string | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (value instanceof Date && Number.isFinite(value.getTime()))
+      return value.toISOString().slice(0, 19);
+    try {
+      const json = JSON.stringify(value);
+      if (typeof json === "string") return json;
+    } catch {
+      // ignore
+    }
+    return String(value);
+  };
+
+  if (hasOwn("status")) {
+    const value = frontmatter.status;
+    const raw = coerceString(value);
+    if (!raw || !isAilssFrontmatterStatus(raw)) {
+      violations.push({
+        key: "status",
+        value: describeValue(value),
+        allowed: AILSS_FRONTMATTER_STATUS_VALUES,
+      });
+    }
+  }
+
+  if (hasOwn("layer")) {
+    const value = frontmatter.layer;
+    const raw = coerceString(value);
+    const isUnset =
+      value === null || value === undefined || (typeof value === "string" && !value.trim());
+    if (!isUnset && (!raw || !isAilssFrontmatterLayer(raw))) {
+      violations.push({
+        key: "layer",
+        value: describeValue(value),
+        allowed: AILSS_FRONTMATTER_LAYER_VALUES,
+      });
+    }
+  }
+
+  if (hasOwn("entity")) {
+    const value = frontmatter.entity;
+    const raw = coerceString(value);
+    const isUnset =
+      value === null || value === undefined || (typeof value === "string" && !value.trim());
+    if (!isUnset && (!raw || !isAilssFrontmatterEntity(raw))) {
+      violations.push({
+        key: "entity",
+        value: describeValue(value),
+        allowed: AILSS_FRONTMATTER_ENTITY_VALUES,
+      });
+    }
+  }
+
+  return violations;
+}
 
 export type NormalizedAilssNoteMeta = {
   noteId: string | null;

@@ -11,7 +11,7 @@ created: "{{date:YYYY-MM-DDTHH:mm:ss}}"
 title: {{title}}
 summary:
 aliases:
-# concept | document | project | artifact | person | organization | place | event | task | method | tool | idea | principle | heuristic | pattern | definition | question | software | dataset | pipeline | procedure | dashboard | checklist | workflow | decide | review | plan | implement | approve | reject | observe | measure | test | verify | learn | research | summarize | publish | meet | audit | deploy | rollback | refactor | design | delete | update | create | schedule | migrate | reference | hub
+# interface | concept | document | project | artifact | person | organization | place | event | task | method | tool | idea | principle | heuristic | pattern | definition | question | software | dataset | pipeline | procedure | dashboard | checklist | workflow | decide | review | plan | implement | approve | reject | observe | measure | test | verify | learn | research | analyze | summarize | publish | meet | audit | deploy | rollback | refactor | design | delete | update | create | schedule | migrate | reference | hub | guide | log | structure | architecture
 entity:
 # strategic | conceptual | logical | physical | operational
 # why / what / structure / implementation / operations
@@ -76,7 +76,9 @@ Supported keys:
 - `supersedes` (replacement/versioning)
 - `same_as` (equivalence/duplicates)
 
-The supported key list is also encoded in the implementation (see `./typed-links-relation-catalog.md` and `./typed-links-governance.md` for the SoT artifacts that must be updated together when adding new keys).
+Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
+
+The supported key list is also encoded in the implementation (see `./typed-links.md` for canonical guidance, plus `./typed-links-relation-catalog.md` and `./typed-links-governance.md` for SoT artifacts to update together when adding new keys).
 
 ## Layers: definition and classification
 
