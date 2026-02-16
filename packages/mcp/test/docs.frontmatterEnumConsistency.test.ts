@@ -19,7 +19,7 @@ const EXPECTED_BY_KEY: Record<EnumKey, readonly string[]> = {
 };
 
 function extractTemplateCodeBlock(markdown: string): string {
-  const match = markdown.match(/```(?:[a-zA-Z]+)?\n([\s\S]*?)\n```/);
+  const match = markdown.match(/```(?:[a-zA-Z]+)?\r?\n([\s\S]*?)\r?\n```/);
   if (!match || !match[1]) return "";
   return match[1];
 }
