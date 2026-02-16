@@ -16,13 +16,13 @@
 
 Use these canonical docs for typed-link decisions and governance:
 
-- `typed-links.md` (index)
-- `typed-links-relation-catalog.md` (relation semantics)
-- `typed-links-decision-tree.md` (selection rules)
-- `typed-links-governance.md` (SoT + change process)
+- `docs/standards/vault/typed-links.md` (index)
+- `docs/standards/vault/typed-links-relation-catalog.md` (relation semantics)
+- `docs/standards/vault/typed-links-decision-tree.md` (selection rules)
+- `docs/standards/vault/typed-links-governance.md` (SoT + change process)
 
 ## Frontmatter/vault references
 
-- `frontmatter-schema.md`
-- `vault-structure.md`
-- `note-style.md`
+- `docs/standards/vault/frontmatter-schema.md`
+- `docs/standards/vault/vault-structure.md`
+- `docs/standards/vault/note-style.md`
