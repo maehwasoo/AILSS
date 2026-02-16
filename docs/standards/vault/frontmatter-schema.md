@@ -32,6 +32,7 @@ source: []
 - The `entity` field should use an allowed type (concept, document, project, guide, tool, etc.).
 - The `layer` field should be one of: strategic, conceptual, logical, physical, operational.
 - The `status` field should be one of: draft, in-review, active, archived.
+- Source of truth for `entity`/`layer`/`status` allowed values is `packages/core/src/vault/frontmatterEnums.ts` (docs and code are validated for drift in CI).
 - Relationship keys should use the typed-link keys (see `./typed-links.md`).
 - If you are unsure, it is acceptable to leave `layer` empty temporarily and refine during review.
 - Fill `tags`, `aliases`, `keywords`, and `source` only when needed (but keep the keys present).
