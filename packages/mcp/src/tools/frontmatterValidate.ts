@@ -2,23 +2,17 @@
 // - filesystem scan + YAML frontmatter presence checks
 
 import {
-  AILSS_TYPED_LINK_ONTOLOGY_BY_REL,
-  listMarkdownFiles,
-  normalizeAilssNoteMeta,
-  parseMarkdownNote,
+  AILSS_FRONTMATTER_ENTITY_VALUES,
+  AILSS_FRONTMATTER_LAYER_VALUES,
+  AILSS_FRONTMATTER_STATUS_VALUES,
 } from "@ailss/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
 import type { McpToolDeps } from "../mcpDeps.js";
-import {
-  coerceTrimmedStringOrEmpty,
-  hasFrontmatterBlock,
-  idFromCreated,
-} from "../lib/frontmatterIdentity.js";
+import { scanVaultNotesForFrontmatterValidate } from "../lib/frontmatterValidate/scanVaultNotes.js";
+import type { TypedLinkDiagnostic } from "../lib/frontmatterValidate/types.js";
+import { collectTypedLinkDiagnostics } from "../lib/frontmatterValidate/typedLinkDiagnostics.js";
 
 const REQUIRED_KEYS = [
   "id",
@@ -36,229 +30,6 @@ const REQUIRED_KEYS = [
 ] as const;
 
 const TYPED_LINK_CONSTRAINT_MODES = ["off", "warn", "error"] as const;
-type TypedLinkConstraintMode = (typeof TYPED_LINK_CONSTRAINT_MODES)[number];
-
-type TypedLinkRecord = {
-  rel: string;
-  to_target: string;
-  to_wikilink: string;
-  position: number;
-};
-
-type ScannedNote = {
-  path: string;
-  has_frontmatter: boolean;
-  parsed_frontmatter: boolean;
-  missing_keys: string[];
-  id_value: string | null;
-  created_value: string | null;
-  id_format_ok: boolean;
-  created_format_ok: boolean;
-  id_matches_created: boolean;
-  note_id: string | null;
-  title: string | null;
-  entity: string | null;
-  typed_links: TypedLinkRecord[];
-};
-
-type TargetLookupNote = Pick<
-  ScannedNote,
-  "path" | "parsed_frontmatter" | "note_id" | "title" | "entity"
->;
-
-type TypedLinkDiagnostic = {
-  path: string;
-  rel: string;
-  target: string | null;
-  reason: string;
-  fix_hint: string;
-  severity: "warn" | "error";
-};
-
-function relPathFromAbs(vaultPath: string, absPath: string): string {
-  return path.relative(vaultPath, absPath).split(path.sep).join(path.posix.sep);
-}
-
-function normalizeEntity(value: string | null): string | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return normalized ? normalized : null;
-}
-
-function normalizeValueForLookup(value: string | null): string | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim();
-  return normalized ? normalized : null;
-}
-
-function collectTypedLinkDiagnostics(
-  notes: ScannedNote[],
-  lookupNotes: TargetLookupNote[],
-  mode: Exclude<TypedLinkConstraintMode, "off">,
-): TypedLinkDiagnostic[] {
-  const noteIdIndex = new Map<string, TargetLookupNote[]>();
-  const titleIndex = new Map<string, TargetLookupNote[]>();
-
-  const parseableNotes = notes.filter((note) => note.parsed_frontmatter);
-  const parseableLookupNotes = lookupNotes.filter((note) => note.parsed_frontmatter);
-
-  for (const note of parseableLookupNotes) {
-    const noteId = normalizeValueForLookup(note.note_id);
-    if (noteId) {
-      const existing = noteIdIndex.get(noteId) ?? [];
-      existing.push(note);
-      noteIdIndex.set(noteId, existing);
-    }
-
-    const title = normalizeValueForLookup(note.title);
-    if (title) {
-      const existing = titleIndex.get(title) ?? [];
-      existing.push(note);
-      titleIndex.set(title, existing);
-    }
-  }
-
-  const resolveTargetEntity = (
-    target: string,
-  ): { status: "unresolved" | "ambiguous" | "resolved"; entity: string | null } => {
-    const trimmed = target.trim();
-    if (!trimmed) return { status: "unresolved", entity: null };
-
-    const targetNoExt = trimmed.toLowerCase().endsWith(".md") ? trimmed.slice(0, -3) : trimmed;
-    const targetWithExt = trimmed.toLowerCase().endsWith(".md") ? trimmed : `${trimmed}.md`;
-
-    const matches: TargetLookupNote[] = [];
-    const seenPaths = new Set<string>();
-    const addMatch = (candidate: TargetLookupNote): void => {
-      if (seenPaths.has(candidate.path)) return;
-      seenPaths.add(candidate.path);
-      matches.push(candidate);
-    };
-
-    for (const note of parseableLookupNotes) {
-      if (note.path === targetWithExt || note.path.endsWith(`/${targetWithExt}`)) addMatch(note);
-    }
-
-    for (const note of noteIdIndex.get(targetNoExt) ?? []) addMatch(note);
-    for (const note of titleIndex.get(targetNoExt) ?? []) addMatch(note);
-
-    if (matches.length === 0) return { status: "unresolved", entity: null };
-    if (matches.length >= 2) return { status: "ambiguous", entity: null };
-    return { status: "resolved", entity: normalizeEntity(matches[0]?.entity ?? null) };
-  };
-
-  const severity: "warn" | "error" = mode === "error" ? "error" : "warn";
-  const diagnostics: TypedLinkDiagnostic[] = [];
-  const seenDiagnostics = new Set<string>();
-  const pushDiagnostic = (diag: TypedLinkDiagnostic): void => {
-    const key = `${diag.path}\u0000${diag.rel}\u0000${diag.target ?? ""}\u0000${diag.reason}`;
-    if (seenDiagnostics.has(key)) return;
-    seenDiagnostics.add(key);
-    diagnostics.push(diag);
-  };
-
-  for (const note of parseableNotes) {
-    if (note.typed_links.length === 0) continue;
-
-    const sourceEntity = normalizeEntity(note.entity);
-    const targetsByRel = new Map<string, Set<string>>();
-
-    for (const link of note.typed_links) {
-      const rel = link.rel.trim();
-      if (!rel) continue;
-      const target = link.to_target.trim();
-      const targets = targetsByRel.get(rel) ?? new Set<string>();
-      if (target) targets.add(target);
-      targetsByRel.set(rel, targets);
-    }
-
-    for (const [rel, targets] of targetsByRel) {
-      const ontology =
-        AILSS_TYPED_LINK_ONTOLOGY_BY_REL[rel as keyof typeof AILSS_TYPED_LINK_ONTOLOGY_BY_REL];
-      const constraints = ontology && "constraints" in ontology ? ontology.constraints : undefined;
-      if (!constraints) continue;
-
-      if (typeof constraints.maxTargets === "number" && targets.size > constraints.maxTargets) {
-        pushDiagnostic({
-          path: note.path,
-          rel,
-          target: null,
-          reason: `cardinality exceeded: ${targets.size} targets (max ${constraints.maxTargets})`,
-          fix_hint: `Keep at most ${constraints.maxTargets} target(s) for \`${rel}\`.`,
-          severity,
-        });
-      }
-
-      if (constraints.sourceEntities?.length && sourceEntity) {
-        const allowedSourceEntities = constraints.sourceEntities.map((entity: string) =>
-          entity.toLowerCase(),
-        );
-        if (!allowedSourceEntities.includes(sourceEntity)) {
-          pushDiagnostic({
-            path: note.path,
-            rel,
-            target: null,
-            reason: `source entity "${sourceEntity}" is incompatible with relation "${rel}"`,
-            fix_hint: `Use one of: ${constraints.sourceEntities.join(", ")}, or move this link to a compatible note.`,
-            severity,
-          });
-        }
-      }
-
-      if (constraints.conflictsWith?.length) {
-        for (const conflictRel of constraints.conflictsWith) {
-          const conflictTargets = targetsByRel.get(conflictRel) ?? new Set<string>();
-          for (const target of targets) {
-            if (!conflictTargets.has(target)) continue;
-            pushDiagnostic({
-              path: note.path,
-              rel,
-              target,
-              reason: `conflict: same target appears in both "${rel}" and "${conflictRel}"`,
-              fix_hint: `Keep "${target}" in only one of the two relations.`,
-              severity,
-            });
-          }
-        }
-      }
-    }
-
-    for (const link of note.typed_links) {
-      const rel = link.rel.trim();
-      if (!rel) continue;
-
-      const target = link.to_target.trim();
-      if (!target) continue;
-
-      const ontology =
-        AILSS_TYPED_LINK_ONTOLOGY_BY_REL[rel as keyof typeof AILSS_TYPED_LINK_ONTOLOGY_BY_REL];
-      const constraints = ontology && "constraints" in ontology ? ontology.constraints : undefined;
-      if (!constraints?.targetEntities || constraints.targetEntities.length === 0) continue;
-
-      const resolved = resolveTargetEntity(target);
-      if (resolved.status !== "resolved") continue;
-
-      const targetEntity = normalizeEntity(resolved.entity);
-      if (!targetEntity) continue;
-
-      const allowedTargetEntities = constraints.targetEntities.map((entity: string) =>
-        entity.toLowerCase(),
-      );
-      if (allowedTargetEntities.includes(targetEntity)) continue;
-
-      pushDiagnostic({
-        path: note.path,
-        rel,
-        target,
-        reason: `target entity "${targetEntity}" is incompatible with relation "${rel}"`,
-        fix_hint: `Point \`${rel}\` to one of: ${constraints.targetEntities.join(", ")}.`,
-        severity,
-      });
-    }
-  }
-
-  return diagnostics;
-}
 
 export function registerFrontmatterValidateTool(server: McpServer, deps: McpToolDeps): void {
   server.registerTool(
@@ -293,6 +64,11 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         ok_count: z.number().int().nonnegative(),
         issue_count: z.number().int().nonnegative(),
         truncated: z.boolean(),
+        enum_schema: z.object({
+          status: z.array(z.string()),
+          layer: z.array(z.string()),
+          entity: z.array(z.string()),
+        }),
         typed_link_constraint_mode: z.enum(TYPED_LINK_CONSTRAINT_MODES),
         typed_link_diagnostic_count: z.number().int().nonnegative(),
         typed_link_diagnostics: z.array(
@@ -317,6 +93,12 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
             id_format_ok: z.boolean(),
             created_format_ok: z.boolean(),
             id_matches_created: z.boolean(),
+            enum_violations: z.array(
+              z.object({
+                key: z.enum(["status", "layer", "entity"]),
+                value: z.string().nullable(),
+              }),
+            ),
             typed_link_diagnostics: z.array(
               z.object({
                 path: z.string(),
@@ -338,112 +120,20 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
       }
 
       const prefix = args.path_prefix ? args.path_prefix.trim() : null;
-      const absFiles = await listMarkdownFiles(vaultPath);
-      const relFiles = absFiles.map((abs) => relPathFromAbs(vaultPath, abs));
-      const filtered = prefix ? relFiles.filter((p) => p.startsWith(prefix)) : relFiles;
 
-      const scannedNotes: ScannedNote[] = [];
-
-      let filesScanned = 0;
-      let truncated = false;
-
-      for (const relPath of filtered) {
-        if (filesScanned >= args.max_files) {
-          truncated = true;
-          break;
-        }
-
-        const absPath = path.join(vaultPath, relPath);
-        filesScanned += 1;
-
-        const markdown = await fs.readFile(absPath, "utf8");
-        const hasFm = hasFrontmatterBlock(markdown);
-        const parsed = parseMarkdownNote(markdown);
-        const fm = parsed.frontmatter ?? {};
-        const normalizedMeta = normalizeAilssNoteMeta(fm);
-
-        const missing: string[] = [];
-        for (const key of REQUIRED_KEYS) {
-          if (!Object.prototype.hasOwnProperty.call(fm, key)) missing.push(key);
-        }
-
-        const idRaw = coerceTrimmedStringOrEmpty((fm as Record<string, unknown>).id);
-        const createdRaw = coerceTrimmedStringOrEmpty((fm as Record<string, unknown>).created);
-        const createdId = createdRaw ? idFromCreated(createdRaw) : null;
-
-        const idValue = idRaw;
-        const createdValue = createdRaw;
-
-        const idFormatOk = typeof idValue === "string" && /^\d{14}$/.test(idValue);
-        const createdFormatOk = typeof createdId === "string" && /^\d{14}$/.test(createdId);
-        const idMatchesCreated = Boolean(idFormatOk && createdFormatOk && idValue === createdId);
-
-        // Frontmatter parse status
-        const parsedFrontmatter = hasFm && Object.keys(fm).length > 0;
-        scannedNotes.push({
-          path: relPath,
-          has_frontmatter: hasFm,
-          parsed_frontmatter: parsedFrontmatter,
-          missing_keys: missing,
-          id_value: idValue,
-          created_value: createdValue,
-          id_format_ok: idFormatOk,
-          created_format_ok: createdFormatOk,
-          id_matches_created: idMatchesCreated,
-          note_id: normalizedMeta.noteId,
-          title: normalizedMeta.title,
-          entity: normalizeEntity(normalizedMeta.entity),
-          typed_links: normalizedMeta.typedLinks.map((link) => ({
-            rel: link.rel,
-            to_target: link.toTarget,
-            to_wikilink: link.toWikilink,
-            position: link.position,
-          })),
-        });
-      }
-
-      let targetLookupNotes: TargetLookupNote[] = scannedNotes.map((note) => ({
-        path: note.path,
-        parsed_frontmatter: note.parsed_frontmatter,
-        note_id: note.note_id,
-        title: note.title,
-        entity: note.entity,
-      }));
-
-      // Prefix scan policy
-      // - source-note set is limited by path_prefix/max_files
-      // - target resolution uses vault-wide metadata for better relation validation accuracy
-      if (prefix) {
-        const scannedPathSet = new Set(scannedNotes.map((note) => note.path));
-        const additionalLookupNotes: TargetLookupNote[] = [];
-
-        for (const relPath of relFiles) {
-          if (scannedPathSet.has(relPath)) continue;
-          const absPath = path.join(vaultPath, relPath);
-          const markdown = await fs.readFile(absPath, "utf8");
-          const hasFm = hasFrontmatterBlock(markdown);
-          const parsed = parseMarkdownNote(markdown);
-          const fm = parsed.frontmatter ?? {};
-          const normalizedMeta = normalizeAilssNoteMeta(fm);
-
-          additionalLookupNotes.push({
-            path: relPath,
-            parsed_frontmatter: hasFm && Object.keys(fm).length > 0,
-            note_id: normalizedMeta.noteId,
-            title: normalizedMeta.title,
-            entity: normalizeEntity(normalizedMeta.entity),
-          });
-        }
-
-        targetLookupNotes = [...targetLookupNotes, ...additionalLookupNotes];
-      }
+      const scan = await scanVaultNotesForFrontmatterValidate({
+        vaultPath,
+        pathPrefix: prefix,
+        maxFiles: args.max_files,
+        requiredKeys: REQUIRED_KEYS,
+      });
 
       const typedLinkDiagnostics =
         args.typed_link_constraint_mode === "off"
           ? []
           : collectTypedLinkDiagnostics(
-              scannedNotes,
-              targetLookupNotes,
+              scan.scannedNotes,
+              scan.targetLookupNotes,
               args.typed_link_constraint_mode,
             );
 
@@ -464,11 +154,12 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
         id_format_ok: boolean;
         created_format_ok: boolean;
         id_matches_created: boolean;
+        enum_violations: Array<{ key: "status" | "layer" | "entity"; value: string | null }>;
         typed_link_diagnostics: TypedLinkDiagnostic[];
       }> = [];
 
       let okCount = 0;
-      for (const note of scannedNotes) {
+      for (const note of scan.scannedNotes) {
         const noteDiagnostics = diagnosticsByPath.get(note.path) ?? [];
         const hasConstraintError =
           args.typed_link_constraint_mode === "error" && noteDiagnostics.length > 0;
@@ -477,6 +168,7 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           note.has_frontmatter &&
           note.parsed_frontmatter &&
           note.missing_keys.length === 0 &&
+          note.enum_violations.length === 0 &&
           note.id_format_ok &&
           note.created_format_ok &&
           note.id_matches_created;
@@ -497,16 +189,22 @@ export function registerFrontmatterValidateTool(server: McpServer, deps: McpTool
           id_format_ok: note.id_format_ok,
           created_format_ok: note.created_format_ok,
           id_matches_created: note.id_matches_created,
+          enum_violations: note.enum_violations,
           typed_link_diagnostics: noteDiagnostics,
         });
       }
 
       const payload = {
         path_prefix: prefix,
-        files_scanned: filesScanned,
+        files_scanned: scan.filesScanned,
         ok_count: okCount,
         issue_count: issues.length,
-        truncated,
+        truncated: scan.truncated,
+        enum_schema: {
+          status: [...AILSS_FRONTMATTER_STATUS_VALUES],
+          layer: [...AILSS_FRONTMATTER_LAYER_VALUES],
+          entity: [...AILSS_FRONTMATTER_ENTITY_VALUES],
+        },
         typed_link_constraint_mode: args.typed_link_constraint_mode,
         typed_link_diagnostic_count: typedLinkDiagnostics.length,
         typed_link_diagnostics: typedLinkDiagnostics,

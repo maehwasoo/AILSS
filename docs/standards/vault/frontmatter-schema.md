@@ -11,7 +11,7 @@ created: "{{date:YYYY-MM-DDTHH:mm:ss}}"
 title: {{title}}
 summary:
 aliases:
-# concept | document | project | artifact | person | organization | place | event | task | method | tool | idea | principle | heuristic | pattern | definition | question | software | dataset | pipeline | procedure | dashboard | checklist | workflow | decide | review | plan | implement | approve | reject | observe | measure | test | verify | learn | research | summarize | publish | meet | audit | deploy | rollback | refactor | design | delete | update | create | schedule | migrate | reference | hub
+# interface | concept | document | project | artifact | person | organization | place | event | task | method | tool | idea | principle | heuristic | pattern | definition | question | software | dataset | pipeline | procedure | dashboard | checklist | workflow | decide | review | plan | implement | approve | reject | observe | measure | test | verify | learn | research | analyze | summarize | publish | meet | audit | deploy | rollback | refactor | design | delete | update | create | schedule | migrate | reference | hub | guide | log | structure | architecture
 entity:
 # strategic | conceptual | logical | physical | operational
 # why / what / structure / implementation / operations
