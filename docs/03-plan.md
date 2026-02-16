@@ -33,6 +33,17 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
 
+## Remaining backlog (snapshot)
+
+These items are not fully implemented yet (or are intentionally deferred). Details remain tracked in the relevant sections below.
+
+- User-configurable exclusions / blocked-path events (see section 5)
+- Throttling / rate limiting beyond batch size (see section 5)
+- Full schema validation expansion in `frontmatter_validate` (see section 6)
+- `read_note` pagination token/perf follow-ups (see section 6)
+- Privacy docs + opt-in options (see section 7)
+- Cross-process single-writer lock for concurrent indexers (plugin runner + CLI `ailss-indexer`) (see section 8)
+
 ## 1) Design the index schema
 
 - File level: `path`, `mtime`, `size`, `hash`
@@ -70,7 +81,6 @@ Implemented:
 Remaining / TODO:
 
 - User-configurable exclusions + “blocked paths” events
-- Pause/resume UX (if needed)
 - Throttling/rate limiting (beyond batch size) for large vaults
 
 Goal:
@@ -85,7 +95,7 @@ UX target (Smart Connections-style):
   - “initial indexing complete”
   - “indexing in progress”
   - “exclusions blocked indexing for some paths”
-- Pause/resume: allow freezing UI updates while keeping results visible (separate from indexing).
+- Pause/resume: implemented as the auto-index on/off toggle (pauses/resumes background indexing).
 
 Recommended approach (desktop-first):
 
@@ -150,10 +160,13 @@ Planned:
     - Example: in-process LRU cache for recently-read note text (watch memory footprint and invalidation).
     - Example: byte-offset partial reads (would require a contract change because `start_index` is a string index today).
 
-TODO (to expand structured queries):
+Structured query support (current):
 
-- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys (e.g. `created`, `updated`).
 - Date/range filters for `created` / `updated`: implemented via `search_notes` (`created_from`/`created_to`, `updated_from`/`updated_to`); requires consistent formatting across the vault.
+
+Remaining TODO (to expand structured queries):
+
+- Add a generic frontmatter key/value index (e.g. `note_frontmatter_kv`) and an MCP tool to filter by arbitrary keys not covered by current fixed filters (e.g. `created`, `updated`).
 
 Write tools (explicit apply):
 
