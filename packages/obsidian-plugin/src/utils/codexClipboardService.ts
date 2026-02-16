@@ -1,4 +1,4 @@
-import { codexPrometheusAgentPrompt } from "./codexPrompts.js";
+import { codexPrometheusAgentPrompt, codexSkillPrompt, type CodexSkillId } from "./codexPrompts.js";
 import { writeTextToClipboard } from "./clipboard.js";
 
 export function buildCodexMcpConfigBlock(options: { url: string; token: string }): string {
@@ -19,4 +19,8 @@ export async function copyCodexMcpConfigBlockToClipboard(options: {
 
 export async function copyCodexPrometheusAgentPromptToClipboard(): Promise<void> {
 	await writeTextToClipboard(codexPrometheusAgentPrompt());
+}
+
+export async function copyCodexSkillPromptToClipboard(skillId: CodexSkillId): Promise<void> {
+	await writeTextToClipboard(codexSkillPrompt(skillId));
 }

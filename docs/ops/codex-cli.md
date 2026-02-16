@@ -25,7 +25,11 @@ If you have not enabled the plugin-hosted service yet, the legacy stdio setup be
 
 For Codex CLI guidance artifacts:
 
-- Prometheus Agent workflow (Codex skill snapshot): `docs/ops/codex-skills/prometheus-agent/SKILL.md`
+- Core workflow: `docs/ops/codex-skills/ailss-agent/SKILL.md`
+- Ontology workflow: `docs/ops/codex-skills/ailss-agent-ontology/SKILL.md`
+- Curation workflow: `docs/ops/codex-skills/ailss-agent-curator/SKILL.md`
+- Maintenance workflow: `docs/ops/codex-skills/ailss-agent-maintenance/SKILL.md`
+- Legacy shim (one release cycle): `docs/ops/codex-skills/prometheus-agent/SKILL.md`
 
 ## Codex setup (plugin-hosted HTTP service)
 

@@ -79,7 +79,7 @@ Supported keys:
 
 Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
 
-The supported key list is also encoded in the implementation (see `./typed-links.md` for the “sources of truth” that must be updated together when adding new keys).
+The supported key list is also encoded in the implementation (see `./typed-links.md` for canonical guidance, plus `./typed-links-relation-catalog.md` and `./typed-links-governance.md` for SoT artifacts to update together when adding new keys).
 
 ## Layers: definition and classification
 

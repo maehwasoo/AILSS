@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { AILSS_TYPED_LINK_KEYS } from "@ailss/core";
 
 import {
   assertArray,
@@ -17,6 +18,14 @@ const MCP_PROTOCOL_VERSION = "2025-03-26" as const;
 type ListedTool = {
   name?: unknown;
 };
+
+const CODEX_SKILL_PATHS = [
+  path.join(process.cwd(), "docs", "ops", "codex-skills", "ailss-agent", "SKILL.md"),
+  path.join(process.cwd(), "docs", "ops", "codex-skills", "ailss-agent-ontology", "SKILL.md"),
+  path.join(process.cwd(), "docs", "ops", "codex-skills", "ailss-agent-curator", "SKILL.md"),
+  path.join(process.cwd(), "docs", "ops", "codex-skills", "ailss-agent-maintenance", "SKILL.md"),
+  path.join(process.cwd(), "docs", "ops", "codex-skills", "prometheus-agent", "SKILL.md"),
+];
 
 async function mcpToolsList(
   url: string,
@@ -118,12 +127,12 @@ function extractYamlFrontmatterBlock(markdown: string): string | null {
   return lines.slice(fmStart, fmEnd).join("\n");
 }
 
-function extractMcpToolsFromPromptFrontmatter(markdown: string): string[] | null {
+function extractStringListFromPromptFrontmatter(markdown: string, key: string): string[] | null {
   const frontmatter = extractYamlFrontmatterBlock(markdown);
   if (!frontmatter) return null;
 
   const lines = frontmatter.split("\n");
-  const start = lines.findIndex((l) => (l ?? "").trim() === "mcp_tools:");
+  const start = lines.findIndex((l) => (l ?? "").trim() === `${key}:`);
   if (start < 0) return null;
 
   const tools: string[] = [];
@@ -145,6 +154,38 @@ function extractMcpToolsFromPromptFrontmatter(markdown: string): string[] | null
   }
 
   return tools;
+}
+
+function extractMcpToolsFromPromptFrontmatter(markdown: string): string[] | null {
+  return extractStringListFromPromptFrontmatter(markdown, "mcp_tools");
+}
+
+function extractTypedLinkKeysFromPromptFrontmatter(markdown: string): string[] | null {
+  return extractStringListFromPromptFrontmatter(markdown, "typed_link_keys");
+}
+
+function extractTypedLinkKeysFromCatalog(markdown: string): string[] {
+  const fencedYaml = markdown.match(/```yaml\s*([\s\S]*?)```/);
+  if (!fencedYaml?.[1]) return [];
+
+  const lines = fencedYaml[1].split("\n");
+  const start = lines.findIndex((l) => (l ?? "").trim() === "typed_link_keys:");
+  if (start < 0) return [];
+
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    if (/^[A-Za-z0-9_-]+:\s*$/.test(line.trim())) break;
+
+    const key = line.match(/^\s*-\s*([A-Za-z0-9_]+)\s*$/)?.[1];
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+
+  return keys;
 }
 
 describe("Docs/prompt MCP tool consistency", () => {
@@ -200,30 +241,10 @@ describe("Docs/prompt MCP tool consistency", () => {
         return toolNames;
       });
 
-      const promptPaths = [
-        path.join(process.cwd(), "docs", "ops", "codex-skills", "prometheus-agent", "SKILL.md"),
-      ];
-
       const issues: Array<{ file: string; message: string }> = [];
 
-      for (const promptPath of promptPaths) {
+      for (const promptPath of CODEX_SKILL_PATHS) {
         const text = await fs.readFile(promptPath, "utf8");
-
-        // Guard against reintroducing the known mismatch pattern (warn-only).
-        if (promptPath.includes(`${path.sep}prometheus-agent${path.sep}`)) {
-          if (/incoming\s*\+\s*outgoing/i.test(text)) {
-            issues.push({
-              file: path.relative(process.cwd(), promptPath),
-              message: 'Contains outdated phrase: "incoming + outgoing"',
-            });
-          }
-          if (/up to\s+2\s+hops/i.test(text)) {
-            issues.push({
-              file: path.relative(process.cwd(), promptPath),
-              message: 'Contains outdated phrase: "up to 2 hops"',
-            });
-          }
-        }
 
         const declaredTools = extractMcpToolsFromPromptFrontmatter(text);
         if (!declaredTools || declaredTools.length === 0) {
@@ -257,5 +278,29 @@ describe("Docs/prompt MCP tool consistency", () => {
         }
       }
     });
+  });
+
+  it("keeps typed-link key SoT aligned across code/docs/skills", async () => {
+    const canonical = [...AILSS_TYPED_LINK_KEYS].sort((a, b) => a.localeCompare(b));
+
+    const catalogPath = path.join(
+      process.cwd(),
+      "docs",
+      "standards",
+      "vault",
+      "typed-links-relation-catalog.md",
+    );
+    const catalogText = await fs.readFile(catalogPath, "utf8");
+    const catalogKeys = extractTypedLinkKeysFromCatalog(catalogText).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    expect(catalogKeys).toEqual(canonical);
+
+    for (const skillPath of CODEX_SKILL_PATHS) {
+      const text = await fs.readFile(skillPath, "utf8");
+      const declaredKeys = extractTypedLinkKeysFromPromptFrontmatter(text);
+      const sorted = declaredKeys?.sort((a, b) => a.localeCompare(b));
+      expect(sorted).toEqual(canonical);
+    }
   });
 });
