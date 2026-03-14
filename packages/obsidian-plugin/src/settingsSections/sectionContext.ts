@@ -10,4 +10,5 @@ export type SettingsSectionContext = {
 	plugin: AilssObsidianPlugin;
 	updateSetting: SettingUpdater;
 	updateSettingAndRestartMcpIfEnabled: SettingUpdater;
+	updateSettingAndRestartPythonApiIfEnabled: SettingUpdater;
 };

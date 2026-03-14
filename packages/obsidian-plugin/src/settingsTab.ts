@@ -8,6 +8,7 @@ import { renderIndexMaintenanceSection } from "./settingsSections/indexMaintenan
 import { renderMcpServiceSection } from "./settingsSections/mcpServiceSection.js";
 import { renderOpenAiSection } from "./settingsSections/openAiSection.js";
 import { renderPromptInstallerSection } from "./settingsSections/promptInstallerSection.js";
+import { renderPythonApiSection } from "./settingsSections/pythonApiSection.js";
 import type { SettingsSectionContext } from "./settingsSections/sectionContext.js";
 
 export class AilssObsidianSettingTab extends PluginSettingTab {
@@ -27,6 +28,7 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		const sectionContext = this.getSectionContext();
 		renderPromptInstallerSection(containerEl, sectionContext);
 		renderOpenAiSection(containerEl, sectionContext);
+		renderPythonApiSection(containerEl, sectionContext);
 		renderMcpServiceSection(containerEl, sectionContext);
 		renderIndexMaintenanceSection(containerEl, sectionContext);
 		renderAutoIndexSection(containerEl, sectionContext);
@@ -46,6 +48,9 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 			updateSettingAndRestartMcpIfEnabled: async (key, value) => {
 				await this.updateSettingAndRestartMcpIfEnabled(key, value);
 			},
+			updateSettingAndRestartPythonApiIfEnabled: async (key, value) => {
+				await this.updateSettingAndRestartPythonApiIfEnabled(key, value);
+			},
 		};
 	}
 
@@ -64,6 +69,16 @@ export class AilssObsidianSettingTab extends PluginSettingTab {
 		await this.updateSetting(key, value);
 		if (this.plugin.settings.mcpHttpServiceEnabled) {
 			await this.plugin.restartMcpHttpService();
+		}
+	}
+
+	private async updateSettingAndRestartPythonApiIfEnabled<K extends keyof AilssObsidianSettings>(
+		key: K,
+		value: AilssObsidianSettings[K],
+	): Promise<void> {
+		await this.updateSetting(key, value);
+		if (this.plugin.settings.pythonApiServiceEnabled) {
+			await this.plugin.restartPythonApiService();
 		}
 	}
 }

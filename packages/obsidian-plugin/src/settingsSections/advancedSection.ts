@@ -46,6 +46,39 @@ export function renderAdvancedSection(
 			});
 		});
 
+	advancedContainer.createEl("h4", { text: "Python backend (local)" });
+	new Setting(advancedContainer)
+		.setName("Command")
+		.setDesc(
+			"How to launch the local Python backend. If you see 'spawn uv ENOENT', set this to your absolute uv path.",
+		)
+		.addText((text) => {
+			text.setPlaceholder("uv");
+			text.setValue(plugin.settings.pythonApiCommand);
+			text.onChange(async (value) => {
+				await updateSetting(
+					"pythonApiCommand",
+					value.trim() || DEFAULT_SETTINGS.pythonApiCommand,
+				);
+			});
+		});
+
+	new Setting(advancedContainer)
+		.setName("Arguments (one per line)")
+		.setDesc(
+			[
+				"Optional override for the Python backend args.",
+				"Leave empty to use the workspace apps/api runner when available.",
+				'Example: "run", "--directory", "/absolute/path/to/AILSS-project/apps/api", "ailss-api".',
+			].join("\n"),
+		)
+		.addTextArea((text) => {
+			text.setValue(plugin.settings.pythonApiArgs.join("\n"));
+			text.onChange(async (value) => {
+				await updateSetting("pythonApiArgs", parseArgs(value));
+			});
+		});
+
 	advancedContainer.createEl("h4", { text: "Indexer (local)" });
 	new Setting(advancedContainer)
 		.setName("Command")

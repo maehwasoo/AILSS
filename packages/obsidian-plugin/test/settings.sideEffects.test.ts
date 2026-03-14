@@ -16,6 +16,10 @@ type PluginStub = {
 	stopMcpHttpService: ReturnType<typeof vi.fn>;
 	restartMcpHttpService: ReturnType<typeof vi.fn>;
 	getMcpHttpServiceStatusLine: ReturnType<typeof vi.fn>;
+	startPythonApiService: ReturnType<typeof vi.fn>;
+	stopPythonApiService: ReturnType<typeof vi.fn>;
+	restartPythonApiService: ReturnType<typeof vi.fn>;
+	getPythonApiServiceStatusLine: ReturnType<typeof vi.fn>;
 	regenerateMcpHttpServiceToken: ReturnType<typeof vi.fn>;
 	copyCodexMcpConfigBlockToClipboard: ReturnType<typeof vi.fn>;
 	installVaultRootPrompt: ReturnType<typeof vi.fn>;
@@ -37,6 +41,10 @@ function createPluginStub(overrides: Partial<AilssObsidianSettings> = {}): Plugi
 		stopMcpHttpService: vi.fn(async () => {}),
 		restartMcpHttpService: vi.fn(async () => {}),
 		getMcpHttpServiceStatusLine: vi.fn(() => "Status: Stopped"),
+		startPythonApiService: vi.fn(async () => {}),
+		stopPythonApiService: vi.fn(async () => {}),
+		restartPythonApiService: vi.fn(async () => {}),
+		getPythonApiServiceStatusLine: vi.fn(() => "Status: Stopped"),
 		regenerateMcpHttpServiceToken: vi.fn(async () => {}),
 		copyCodexMcpConfigBlockToClipboard: vi.fn(async () => {}),
 		installVaultRootPrompt: vi.fn(async () => {}),
@@ -81,6 +89,27 @@ async function changeText(name: string, value: string): Promise<void> {
 }
 
 describe("AilssObsidianSettingTab side effects", () => {
+	it("starts Python backend when enable backend is turned on", async () => {
+		const plugin = renderSettingsTab({ pythonApiServiceEnabled: false });
+
+		await changeToggle("Enable backend", true);
+
+		expect(plugin.settings.pythonApiServiceEnabled).toBe(true);
+		expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+		expect(plugin.startPythonApiService).toHaveBeenCalledTimes(1);
+		expect(plugin.stopPythonApiService).not.toHaveBeenCalled();
+	});
+
+	it("restarts Python backend after port change when backend is enabled", async () => {
+		const plugin = renderSettingsTab({ pythonApiServiceEnabled: true });
+
+		await changeText("Backend port", "8788.7");
+
+		expect(plugin.settings.pythonApiServicePort).toBe(8788);
+		expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+		expect(plugin.restartPythonApiService).toHaveBeenCalledTimes(1);
+	});
+
 	it("starts MCP service when enable service is turned on", async () => {
 		const plugin = renderSettingsTab({ mcpHttpServiceEnabled: false });
 

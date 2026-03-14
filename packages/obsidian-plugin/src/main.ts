@@ -9,6 +9,8 @@ import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexe
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
 import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
+import { PythonApiServiceController } from "./pythonApi/pythonApiServiceController.js";
+import type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiServiceTypes.js";
 import {
 	AilssObsidianSettingTab,
 	DEFAULT_SETTINGS,
@@ -40,12 +42,14 @@ import {
 	getVaultPath,
 	resolveIndexerArgs,
 	resolveMcpHttpArgs,
+	resolvePythonApiArgs,
 } from "./utils/pluginPaths.js";
 import { type PromptKind } from "./utils/promptTemplates.js";
 import { installVaultRootPromptAtVaultRoot } from "./utils/vaultRootPromptInstaller.js";
 
 export type { AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 export type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
+export type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiServiceTypes.js";
 
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
@@ -69,6 +73,24 @@ export default class AilssObsidianPlugin extends Plugin {
 		onStatusChanged: () => {
 			if (!this.mcpStatusBarEl) return;
 			renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
+		},
+	});
+
+	private readonly pythonApiService = new PythonApiServiceController({
+		getSettings: () => this.settings,
+		saveSettings: async () => {
+			await this.saveSettings();
+		},
+		getVaultPath: () => getVaultPath(this.app),
+		getPluginDirRealpathOrNull: () => getPluginDirRealpathOrNull(this.app, this.manifest.id),
+		resolvePythonApiArgs: () =>
+			resolvePythonApiArgs({
+				settings: this.settings,
+				pluginDirRealpathOrNull: getPluginDirRealpathOrNull(this.app, this.manifest.id),
+			}),
+		getUrl: () => this.getPythonApiServiceUrl(),
+		onStatusChanged: () => {
+			// settings-only status for now
 		},
 	});
 
@@ -121,6 +143,9 @@ export default class AilssObsidianPlugin extends Plugin {
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.startMcpHttpService();
 		}
+		if (this.settings.pythonApiServiceEnabled) {
+			await this.startPythonApiService();
+		}
 
 		this.indexer.emitNow();
 		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
@@ -129,6 +154,9 @@ export default class AilssObsidianPlugin extends Plugin {
 	onunload(): void {
 		void this.stopMcpHttpService().catch((error) => {
 			console.error("AILSS MCP service stop failed", error);
+		});
+		void this.stopPythonApiService().catch((error) => {
+			console.error("AILSS Python backend stop failed", error);
 		});
 	}
 
@@ -163,6 +191,42 @@ export default class AilssObsidianPlugin extends Plugin {
 			lastStoppedAt: this.mcpHttpService.getLastStoppedAt(),
 			lastErrorMessage: this.mcpHttpService.getLastErrorMessage(),
 		};
+	}
+
+	getPythonApiServiceUrl(): string {
+		const port = clampPort(this.settings.pythonApiServicePort);
+		return `http://127.0.0.1:${port}`;
+	}
+
+	getPythonApiServiceStatusSnapshot(): AilssPythonApiServiceStatusSnapshot {
+		return {
+			enabled: this.settings.pythonApiServiceEnabled,
+			url: this.getPythonApiServiceUrl(),
+			running: this.pythonApiService.isRunning(),
+			startedAt: this.pythonApiService.getStartedAt(),
+			lastExitCode: this.pythonApiService.getLastExitCode(),
+			lastStoppedAt: this.pythonApiService.getLastStoppedAt(),
+			lastErrorMessage: this.pythonApiService.getLastErrorMessage(),
+		};
+	}
+
+	getPythonApiServiceStatusLine(): string {
+		if (this.pythonApiService.isRunning()) {
+			return `Status: Running (${this.getPythonApiServiceUrl()})`;
+		}
+
+		const errorMessage = this.pythonApiService.getLastErrorMessage();
+		if (errorMessage) {
+			return `Status: Error\n${errorMessage}`;
+		}
+
+		const lastStoppedAtRaw = this.pythonApiService.getLastStoppedAt();
+		if (lastStoppedAtRaw) {
+			const lastStoppedAt = formatAilssTimestampForUi(lastStoppedAtRaw);
+			return `Status: Stopped (last: ${lastStoppedAt ?? lastStoppedAtRaw})`;
+		}
+
+		return "Status: Stopped";
 	}
 
 	getMcpHttpServiceStatusLine(): string {
@@ -257,6 +321,24 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	async restartMcpHttpService(): Promise<void> {
 		await this.mcpHttpService.restart();
+	}
+
+	async startPythonApiService(): Promise<void> {
+		try {
+			await this.pythonApiService.start();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.pythonApiService.recordError(message);
+			showErrorNotice("AILSS Python backend failed", error);
+		}
+	}
+
+	async stopPythonApiService(): Promise<void> {
+		await this.pythonApiService.stop();
+	}
+
+	async restartPythonApiService(): Promise<void> {
+		await this.pythonApiService.restart();
 	}
 
 	private async ensureMcpHttpServiceToken(): Promise<void> {

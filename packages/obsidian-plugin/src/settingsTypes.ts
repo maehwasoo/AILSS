@@ -9,6 +9,10 @@ export interface AilssObsidianSettings {
 	mcpHttpServiceToken: string;
 	mcpHttpServiceShutdownToken: string;
 	mcpHttpServiceEnableWriteTools: boolean;
+	pythonApiServiceEnabled: boolean;
+	pythonApiServicePort: number;
+	pythonApiCommand: string;
+	pythonApiArgs: string[];
 	indexerCommand: string;
 	indexerArgs: string[];
 	autoIndexEnabled: boolean;
@@ -26,6 +30,10 @@ export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	mcpHttpServiceToken: "",
 	mcpHttpServiceShutdownToken: "",
 	mcpHttpServiceEnableWriteTools: false,
+	pythonApiServiceEnabled: false,
+	pythonApiServicePort: 8787,
+	pythonApiCommand: "uv",
+	pythonApiArgs: [],
 	indexerCommand: "node",
 	indexerArgs: [],
 	autoIndexEnabled: false,
