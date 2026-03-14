@@ -9,6 +9,7 @@ import { IndexerRunner, type AilssIndexerStatusSnapshot } from "./indexer/indexe
 import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
 import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
+import { requestPythonApiHealth, runPythonApiEval } from "./pythonApi/client.js";
 import { PythonApiServiceController } from "./pythonApi/pythonApiServiceController.js";
 import type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiServiceTypes.js";
 import {
@@ -127,6 +128,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		await this.loadSettings();
 		await this.ensureMcpHttpServiceToken();
 		await this.ensureMcpHttpServiceShutdownToken();
+		await this.ensurePythonApiServiceShutdownToken();
 
 		this.statusBarEl = mountIndexerStatusBar(this, {
 			onClick: () => this.openIndexerStatusModal(),
@@ -325,6 +327,7 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	async startPythonApiService(): Promise<void> {
 		try {
+			await this.ensurePythonApiServiceShutdownToken();
 			await this.pythonApiService.start();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -351,6 +354,87 @@ export default class AilssObsidianPlugin extends Plugin {
 		if (this.settings.mcpHttpServiceShutdownToken.trim()) return;
 		this.settings.mcpHttpServiceShutdownToken = generateToken();
 		await this.saveSettings();
+	}
+
+	private async ensurePythonApiServiceShutdownToken(): Promise<void> {
+		if (this.settings.pythonApiServiceShutdownToken.trim()) return;
+		this.settings.pythonApiServiceShutdownToken = generateToken();
+		await this.saveSettings();
+	}
+
+	private getPythonApiConnectionInfo(): { host: string; port: number } {
+		return {
+			host: "127.0.0.1",
+			port: clampPort(this.settings.pythonApiServicePort),
+		};
+	}
+
+	private async ensurePythonApiCallable(): Promise<{ host: string; port: number } | null> {
+		if (!this.settings.pythonApiServiceEnabled) {
+			showNotice("Python backend is disabled. Enable backend in settings first.");
+			return null;
+		}
+
+		if (!this.pythonApiService.isRunning()) {
+			await this.startPythonApiService();
+		}
+		if (!this.pythonApiService.isRunning()) {
+			return null;
+		}
+
+		return this.getPythonApiConnectionInfo();
+	}
+
+	async checkPythonApiHealth(): Promise<void> {
+		const connection = await this.ensurePythonApiCallable();
+		if (!connection) return;
+
+		try {
+			const health = await requestPythonApiHealth({
+				host: connection.host,
+				port: connection.port,
+			});
+			const failingChecks = Object.entries(health.checks)
+				.filter(([, ok]) => !ok)
+				.map(([name]) => name);
+			if (failingChecks.length === 0) {
+				showNotice(`AILSS Python backend health: ${health.status}.`);
+				return;
+			}
+
+			showNotice(
+				`AILSS Python backend health: ${health.status}. Failing checks: ${failingChecks.join(", ")}.`,
+			);
+		} catch (error) {
+			showErrorNotice("AILSS Python backend health check failed", error);
+		}
+	}
+
+	async runPythonBackendEval(): Promise<void> {
+		const connection = await this.ensurePythonApiCallable();
+		if (!connection) return;
+
+		showNotice("AILSS Python backend eval started…");
+		try {
+			const result = await runPythonApiEval({
+				host: connection.host,
+				port: connection.port,
+				body: {},
+				timeoutMs: 30_000,
+			});
+			const summary = result.summary;
+			const retrievalRate = Math.round(summary.retrieval_pass_rate * 100);
+			const agentRate = Math.round(summary.agent_pass_rate * 100);
+			const artifactSuffix = result.artifact_dir ? ` Artifact: ${result.artifact_dir}` : "";
+			showNotice(
+				`AILSS Python backend eval complete. ` +
+					`${summary.cases_passed}/${summary.cases_total} passed, ` +
+					`retrieval ${retrievalRate}%, agent ${agentRate}%, ` +
+					`p95 ${Math.round(summary.latency_ms_p95)} ms.${artifactSuffix}`,
+			);
+		} catch (error) {
+			showErrorNotice("AILSS Python backend eval failed", error);
+		}
 	}
 
 	async reindexVault(): Promise<void> {

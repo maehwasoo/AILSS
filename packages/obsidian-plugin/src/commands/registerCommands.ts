@@ -12,4 +12,16 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 		name: "AILSS: Indexing status",
 		callback: () => plugin.openIndexerStatusModal(),
 	});
+
+	plugin.addCommand({
+		id: "python-backend-health-check",
+		name: "AILSS: Check Python backend health",
+		callback: () => void plugin.checkPythonApiHealth(),
+	});
+
+	plugin.addCommand({
+		id: "python-backend-run-eval",
+		name: "AILSS: Run Python backend eval",
+		callback: () => void plugin.runPythonBackendEval(),
+	});
 }

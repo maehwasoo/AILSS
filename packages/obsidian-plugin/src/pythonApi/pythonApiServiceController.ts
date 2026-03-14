@@ -7,6 +7,7 @@ import { clampPort, clampTopK } from "../utils/clamp.js";
 import { nowIso } from "../utils/misc.js";
 import { resolveSpawnCommandAndEnv } from "../utils/spawn.js";
 import { waitForTcpPortToBeAvailable } from "../utils/tcp.js";
+import { requestPythonApiShutdown } from "./client.js";
 
 export type PythonApiServiceControllerDeps = {
 	getSettings: () => AilssObsidianSettings;
@@ -26,6 +27,12 @@ type StartupPreflight = {
 	args: string[];
 	vaultPath: string;
 	settings: AilssObsidianSettings;
+};
+
+type PortNegotiationResult = {
+	available: boolean;
+	shutdownAttempted: boolean;
+	shutdownSucceeded: boolean;
 };
 
 export class PythonApiServiceController {
@@ -69,17 +76,13 @@ export class PythonApiServiceController {
 		try {
 			this.stopRequested = false;
 			const preflight = await this.prepareStartupPreflight();
-			const portAvailable = await waitForTcpPortToBeAvailable({
+			const portState = await this.negotiatePortAvailability({
 				host: preflight.host,
 				port: preflight.port,
-				timeoutMs: 2_000,
+				tokens: [preflight.settings.pythonApiServiceShutdownToken],
 			});
-			if (!portAvailable) {
-				const message =
-					"Python API port is already in use. Stop the existing process or change the Python backend port in settings.";
-				this.lastErrorMessage = message;
-				new Notice(`AILSS Python backend failed: ${message}`);
-				this.deps.onStatusChanged();
+			if (!portState.available) {
+				this.handlePortNegotiationFailure(preflight, portState);
 				return;
 			}
 
@@ -159,6 +162,11 @@ export class PythonApiServiceController {
 
 	private async prepareStartupPreflight(): Promise<StartupPreflight> {
 		const settings = this.deps.getSettings();
+		const shutdownToken = settings.pythonApiServiceShutdownToken.trim();
+		if (!shutdownToken) {
+			throw new Error("Missing Python backend shutdown token.");
+		}
+
 		const command = settings.pythonApiCommand.trim();
 		const args = this.deps.resolvePythonApiArgs();
 		if (!command || args.length === 0) {
@@ -188,6 +196,80 @@ export class PythonApiServiceController {
 			vaultPath: this.deps.getVaultPath(),
 			settings,
 		};
+	}
+
+	private async negotiatePortAvailability(options: {
+		host: string;
+		port: number;
+		tokens: string[];
+	}): Promise<PortNegotiationResult> {
+		let available = await waitForTcpPortToBeAvailable({
+			host: options.host,
+			port: options.port,
+			timeoutMs: 3_000,
+		});
+		let shutdownAttempted = false;
+		let shutdownSucceeded = false;
+
+		if (!available) {
+			shutdownAttempted = true;
+			shutdownSucceeded = await this.requestShutdown(options);
+			if (shutdownSucceeded) {
+				available = await waitForTcpPortToBeAvailable({
+					host: options.host,
+					port: options.port,
+					timeoutMs: 5_000,
+				});
+			}
+		}
+
+		return { available, shutdownAttempted, shutdownSucceeded };
+	}
+
+	private async requestShutdown(options: {
+		host: string;
+		port: number;
+		tokens: string[];
+	}): Promise<boolean> {
+		return await requestPythonApiShutdown({
+			host: options.host,
+			port: options.port,
+			tokens: options.tokens,
+			recordError: (message) => {
+				this.lastErrorMessage = message;
+			},
+		});
+	}
+
+	private handlePortNegotiationFailure(
+		preflight: StartupPreflight,
+		portState: PortNegotiationResult,
+	): void {
+		const message = this.composePortInUseErrorMessage({
+			host: preflight.host,
+			port: preflight.port,
+			shutdownAttempted: portState.shutdownAttempted,
+			shutdownSucceeded: portState.shutdownSucceeded,
+		});
+		this.lastErrorMessage = message;
+		new Notice(`AILSS Python backend failed: ${message}`);
+		this.deps.onStatusChanged();
+	}
+
+	private composePortInUseErrorMessage(options: {
+		host: string;
+		port: number;
+		shutdownAttempted: boolean;
+		shutdownSucceeded: boolean;
+	}): string {
+		const baseMessage =
+			`Python backend port ${options.port} is already in use (${options.host}). ` +
+			"Stop the process using it, or change the Python backend port in settings.";
+		if (!options.shutdownAttempted || options.shutdownSucceeded || !this.lastErrorMessage) {
+			return baseMessage;
+		}
+
+		return `${this.lastErrorMessage}\n\n${baseMessage}`;
 	}
 
 	private buildSpawnPlan(preflight: StartupPreflight): {
@@ -221,6 +303,7 @@ export class PythonApiServiceController {
 			env.AILSS_OPENAI_API_KEY = openaiApiKey;
 			env.OPENAI_API_KEY = openaiApiKey;
 		}
+		env.AILSS_API_SHUTDOWN_TOKEN = preflight.settings.pythonApiServiceShutdownToken;
 
 		return env;
 	}
