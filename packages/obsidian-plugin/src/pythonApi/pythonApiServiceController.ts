@@ -7,7 +7,7 @@ import { clampPort, clampTopK } from "../utils/clamp.js";
 import { nowIso } from "../utils/misc.js";
 import { resolveSpawnCommandAndEnv } from "../utils/spawn.js";
 import { waitForTcpPortToBeAvailable } from "../utils/tcp.js";
-import { requestPythonApiShutdown } from "./client.js";
+import { requestPythonApiShutdown, waitForPythonApiHealth } from "./client.js";
 
 export type PythonApiServiceControllerDeps = {
 	getSettings: () => AilssObsidianSettings;
@@ -97,6 +97,7 @@ export class PythonApiServiceController {
 				env,
 			});
 			this.attachChildProcessListeners(this.proc);
+			await this.waitUntilHealthy(preflight);
 			new Notice(`AILSS Python backend started: ${this.deps.getUrl()}`);
 			this.deps.onStatusChanged();
 		} catch (error) {
@@ -306,6 +307,23 @@ export class PythonApiServiceController {
 		env.AILSS_API_SHUTDOWN_TOKEN = preflight.settings.pythonApiServiceShutdownToken;
 
 		return env;
+	}
+
+	private async waitUntilHealthy(preflight: StartupPreflight): Promise<void> {
+		try {
+			await waitForPythonApiHealth({
+				host: preflight.host,
+				port: preflight.port,
+				timeoutMs: 5_000,
+				pollIntervalMs: 150,
+			});
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			await this.stop();
+			this.lastErrorMessage = message;
+			this.deps.onStatusChanged();
+			throw new Error(`Python backend failed readiness check: ${message}`);
+		}
 	}
 
 	private attachChildProcessListeners(child: ChildProcess): void {

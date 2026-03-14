@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
 	requestPythonApiHealth,
+	requestPythonApiRetrieve,
 	requestPythonApiShutdownOnce,
+	runPythonApiAgent,
 	runPythonApiEval,
 	waitForPythonApiHealth,
 } from "../../src/pythonApi/client.js";
@@ -125,6 +127,132 @@ describe("Python API HTTP client", () => {
 		expect(response.summary.cases_total).toBe(4);
 		expect(response.summary.failure_counts.grounding_failure).toBe(1);
 		expect(response.artifact_dir).toBe("/tmp/evals/run-123");
+	});
+
+	it("requests Python retrieval and parses grounded results", async () => {
+		const server = await startServer(async (req, res) => {
+			expect(req.method).toBe("POST");
+			expect(req.url).toBe("/retrieve");
+
+			let body = "";
+			for await (const chunk of req) {
+				body += chunk.toString();
+			}
+			expect(JSON.parse(body)).toEqual({
+				query: "python backend",
+				top_k: 3,
+				path_prefix: "docs/",
+			});
+
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(
+				JSON.stringify({
+					status: "ok",
+					query: "python backend",
+					mode: "semantic_local",
+					results: [
+						{
+							path: "docs/03-plan.md",
+							title: "Plan",
+							snippet: "Python-first backend direction.",
+							evidence: [
+								{
+									chunk_id: "docs-03-plan-0",
+									text: "Python-first backend direction.",
+									score: 0.91,
+								},
+							],
+						},
+					],
+					warnings: [],
+					usage: {
+						latency_ms: 12.4,
+						used_chunks_k: 3,
+						embedding_model: "text-embedding-3-large",
+						embedding_prompt_tokens: 7,
+					},
+				}),
+			);
+		});
+		servers.push(server);
+
+		const response = await requestPythonApiRetrieve({
+			host: server.host,
+			port: server.port,
+			body: {
+				query: "python backend",
+				top_k: 3,
+				path_prefix: "docs/",
+			},
+		});
+
+		expect(response.mode).toBe("semantic_local");
+		expect(response.results[0]?.path).toBe("docs/03-plan.md");
+		expect(response.usage.embedding_prompt_tokens).toBe(7);
+	});
+
+	it("runs Python agent and parses answer plus citations", async () => {
+		const server = await startServer(async (req, res) => {
+			expect(req.method).toBe("POST");
+			expect(req.url).toBe("/agent/run");
+
+			let body = "";
+			for await (const chunk of req) {
+				body += chunk.toString();
+			}
+			expect(JSON.parse(body)).toEqual({
+				input: "Summarize the Python backend direction.",
+				context: {
+					top_k: 2,
+					path_prefix: "docs/",
+				},
+			});
+
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(
+				JSON.stringify({
+					status: "ok",
+					run_id: "run-123",
+					outcome: "completed",
+					answer: "AILSS is moving toward a Python-first local agent backend.",
+					citations: [
+						{
+							path: "docs/03-plan.md",
+							chunk_id: "docs-03-plan-0",
+						},
+					],
+					workflow: [
+						{ name: "validate", outcome: "completed", detail: "1 citations attached" },
+					],
+					write_actions: [],
+					metrics: {
+						latency_ms: 21.5,
+						retrieval_latency_ms: 10.2,
+						retrieval_mode: "semantic_local",
+						selected_notes: 1,
+						embedding_prompt_tokens: 7,
+					},
+					artifact_path: "/tmp/runs/run-123.json",
+				}),
+			);
+		});
+		servers.push(server);
+
+		const response = await runPythonApiAgent({
+			host: server.host,
+			port: server.port,
+			body: {
+				input: "Summarize the Python backend direction.",
+				context: {
+					top_k: 2,
+					path_prefix: "docs/",
+				},
+			},
+		});
+
+		expect(response.outcome).toBe("completed");
+		expect(response.citations[0]?.path).toBe("docs/03-plan.md");
+		expect(response.metrics.selected_notes).toBe(1);
 	});
 
 	it("retries health polling until the backend becomes ready", async () => {

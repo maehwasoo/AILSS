@@ -25,6 +25,93 @@ export type PythonApiEvalResponse = {
 	warnings: string[];
 };
 
+export type PythonApiRetrieveRequest = {
+	query: string;
+	mode?: "semantic" | "lexical";
+	top_k?: number;
+	path_prefix?: string;
+	tags_any?: string[];
+	tags_all?: string[];
+	hit_chunks_per_note?: number;
+	neighbor_window?: number;
+};
+
+export type PythonApiRetrieveResponse = {
+	status: "ok";
+	query: string;
+	mode: "semantic_local" | "lexical_baseline";
+	results: Array<{
+		path: string;
+		title?: string | null;
+		summary?: string | null;
+		score?: number | null;
+		distance?: number | null;
+		snippet: string;
+		evidence: Array<{
+			chunk_id: string;
+			text: string;
+			score?: number | null;
+			distance?: number | null;
+		}>;
+	}>;
+	warnings: string[];
+	usage: {
+		latency_ms: number;
+		used_chunks_k: number;
+		embedding_model?: string | null;
+		embedding_prompt_tokens?: number | null;
+	};
+};
+
+export type PythonApiAgentRunRequest = {
+	input: string;
+	session_id?: string;
+	apply?: boolean;
+	requested_write_action?: string;
+	context?: {
+		retrieval_mode?: "semantic" | "lexical";
+		path_prefix?: string;
+		tags_any?: string[];
+		tags_all?: string[];
+		top_k?: number;
+		hit_chunks_per_note?: number;
+		neighbor_window?: number;
+	};
+};
+
+export type PythonApiAgentRunResponse = {
+	status: "ok";
+	run_id: string;
+	outcome: "completed" | "failed";
+	answer?: string | null;
+	citations: Array<{
+		path: string;
+		chunk_id: string;
+	}>;
+	workflow: Array<{
+		name: string;
+		outcome: "completed" | "failed" | "skipped";
+		detail?: string | null;
+	}>;
+	failure?: {
+		code: string;
+		message: string;
+	} | null;
+	write_actions: Array<{
+		action: string;
+		allowed: boolean;
+		reason: string;
+	}>;
+	metrics: {
+		latency_ms: number;
+		retrieval_latency_ms: number;
+		retrieval_mode: "semantic_local" | "lexical_baseline";
+		selected_notes: number;
+		embedding_prompt_tokens?: number | null;
+	};
+	artifact_path?: string | null;
+};
+
 export type ShutdownRequestResult = { ok: boolean; status: number | null };
 
 class PythonApiRequestError extends Error {
@@ -62,6 +149,38 @@ export async function runPythonApiEval(options: {
 		path: "/eval/run",
 		method: "POST",
 		body: options.body ?? {},
+		timeoutMs: options.timeoutMs,
+	});
+}
+
+export async function requestPythonApiRetrieve(options: {
+	host: string;
+	port: number;
+	timeoutMs?: number;
+	body: PythonApiRetrieveRequest;
+}): Promise<PythonApiRetrieveResponse> {
+	return await requestJson<PythonApiRetrieveResponse>({
+		host: options.host,
+		port: options.port,
+		path: "/retrieve",
+		method: "POST",
+		body: options.body,
+		timeoutMs: options.timeoutMs,
+	});
+}
+
+export async function runPythonApiAgent(options: {
+	host: string;
+	port: number;
+	timeoutMs?: number;
+	body: PythonApiAgentRunRequest;
+}): Promise<PythonApiAgentRunResponse> {
+	return await requestJson<PythonApiAgentRunResponse>({
+		host: options.host,
+		port: options.port,
+		path: "/agent/run",
+		method: "POST",
+		body: options.body,
 		timeoutMs: options.timeoutMs,
 	});
 }

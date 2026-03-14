@@ -20,6 +20,18 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 	});
 
 	plugin.addCommand({
+		id: "python-backend-retrieve",
+		name: "AILSS: Retrieve with Python backend",
+		callback: () => void plugin.retrieveWithPythonBackend(),
+	});
+
+	plugin.addCommand({
+		id: "python-backend-agent-run",
+		name: "AILSS: Ask Python backend agent",
+		callback: () => void plugin.askPythonBackendAgent(),
+	});
+
+	plugin.addCommand({
 		id: "python-backend-run-eval",
 		name: "AILSS: Run Python backend eval",
 		callback: () => void plugin.runPythonBackendEval(),
