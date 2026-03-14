@@ -39,6 +39,8 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
     latencies: list[float] = []
     retrieval_passes = 0
     agent_passes = 0
+    embedding_prompt_tokens_total = 0
+    failure_counts: dict[str, int] = {}
     case_reports: list[dict[str, object]] = []
 
     for case in cases:
@@ -82,6 +84,10 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
             retrieval_passes += 1
         if agent_pass:
             agent_passes += 1
+        if agent.metrics.embedding_prompt_tokens is not None:
+            embedding_prompt_tokens_total += agent.metrics.embedding_prompt_tokens
+        if agent.failure is not None:
+            failure_counts[agent.failure.code] = failure_counts.get(agent.failure.code, 0) + 1
 
         case_reports.append(
             {
@@ -91,7 +97,10 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
                 "latency_ms": round(latency_ms, 3),
                 "retrieval_paths": retrieval_paths,
                 "agent_outcome": agent.outcome,
+                "agent_failure": agent.failure.model_dump() if agent.failure else None,
                 "citations": [citation.model_dump() for citation in agent.citations],
+                "metrics": agent.metrics.model_dump(),
+                "artifact_path": agent.artifact_path,
             },
         )
 
@@ -108,6 +117,8 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
         agent_pass_rate=_ratio(agent_passes, cases_total),
         latency_ms_p50=round(_percentile(latencies, 50), 3),
         latency_ms_p95=round(_percentile(latencies, 95), 3),
+        embedding_prompt_tokens_total=embedding_prompt_tokens_total or None,
+        failure_counts=failure_counts,
     )
 
     artifact_dir: str | None = None

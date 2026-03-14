@@ -5,15 +5,19 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+import sqlite_vec  # type: ignore[import-untyped]
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from ailss_api.config import Settings
+from ailss_api.embeddings import EmbedQueryResult
 from ailss_api.main import create_app
 
 
 def test_health_reports_ready_index(tmp_path: Path) -> None:
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
+    (vault_path / ".ailss").mkdir()
     db_path = tmp_path / "index.sqlite"
     _seed_index_db(db_path)
 
@@ -21,6 +25,8 @@ def test_health_reports_ready_index(tmp_path: Path) -> None:
         vault_path=vault_path,
         db_path=db_path,
         dataset_dir=tmp_path / "datasets",
+        openai_api_key="sk-test",
+        openai_embedding_model="test-embeddings",
     )
     settings.resolved_dataset_dir.mkdir(parents=True, exist_ok=True)
 
@@ -31,10 +37,15 @@ def test_health_reports_ready_index(tmp_path: Path) -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["checks"]["index_schema_ready"] is True
+    assert payload["checks"]["vector_index_ready"] is True
 
 
-def test_retrieve_returns_ranked_matches(tmp_path: Path) -> None:
+def test_retrieve_returns_semantic_matches(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
     client = TestClient(create_app(settings))
 
     response = client.post(
@@ -49,13 +60,38 @@ def test_retrieve_returns_ranked_matches(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["mode"] == "lexical_baseline"
+    assert payload["mode"] == "semantic_local"
     assert payload["results"][0]["path"] == "docs/03-plan.md"
     assert payload["results"][0]["evidence"][0]["chunk_id"] == "docs-03-plan-0"
+    assert payload["usage"]["embedding_prompt_tokens"] == 7
 
 
-def test_agent_run_returns_grounded_answer(tmp_path: Path) -> None:
+def test_retrieve_supports_explicit_lexical_mode(tmp_path: Path) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "python backend",
+            "mode": "lexical",
+            "top_k": 2,
+            "path_prefix": "docs/",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "lexical_baseline"
+    assert payload["results"][0]["path"] == "docs/03-plan.md"
+
+
+def test_agent_run_returns_grounded_answer(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
     client = TestClient(create_app(settings))
 
     response = client.post(
@@ -71,6 +107,8 @@ def test_agent_run_returns_grounded_answer(tmp_path: Path) -> None:
     assert payload["outcome"] == "completed"
     assert payload["citations"][0]["path"] == "docs/03-plan.md"
     assert payload["workflow"][-1]["name"] == "validate"
+    assert payload["metrics"]["retrieval_mode"] == "semantic_local"
+    assert payload["artifact_path"].endswith(".json")
     assert "python-first" in payload["answer"].lower()
 
 
@@ -93,8 +131,12 @@ def test_agent_run_rejects_write_request_without_apply(tmp_path: Path) -> None:
     assert payload["failure"]["code"] == "apply_not_requested"
 
 
-def test_eval_run_writes_artifacts(tmp_path: Path) -> None:
+def test_eval_run_writes_artifacts(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
     dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
     dataset_path.write_text(
         json.dumps(
@@ -118,6 +160,7 @@ def test_eval_run_writes_artifacts(tmp_path: Path) -> None:
     payload = response.json()
     assert payload["summary"]["cases_total"] == 1
     assert payload["summary"]["cases_passed"] == 1
+    assert payload["summary"]["embedding_prompt_tokens_total"] == 7
     artifact_dir = Path(payload["artifact_dir"])
     assert (artifact_dir / "summary.json").exists()
     assert (artifact_dir / "cases.json").exists()
@@ -127,6 +170,7 @@ def _build_settings_with_seed_data(tmp_path: Path) -> Settings:
     vault_path = tmp_path / "vault"
     docs_dir = vault_path / "docs"
     docs_dir.mkdir(parents=True)
+    (vault_path / ".ailss").mkdir(parents=True)
     (docs_dir / "03-plan.md").write_text(
         "# Plan\n\nPython-first backend direction for AILSS.\n",
         encoding="utf-8",
@@ -142,11 +186,17 @@ def _build_settings_with_seed_data(tmp_path: Path) -> Settings:
         db_path=db_path,
         eval_artifact_dir=tmp_path / "eval-artifacts",
         dataset_dir=dataset_dir,
+        run_artifact_dir=tmp_path / "run-artifacts",
+        openai_api_key="sk-test",
+        openai_embedding_model="test-embeddings",
     )
 
 
 def _seed_index_db(db_path: Path) -> None:
     with closing(sqlite3.connect(db_path)) as conn:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
         conn.executescript(
             """
             CREATE TABLE db_meta (
@@ -172,6 +222,11 @@ def _seed_index_db(db_path: Path) -> None:
               tag TEXT NOT NULL,
               PRIMARY KEY(path, tag)
             );
+            CREATE TABLE note_keywords (
+              path TEXT NOT NULL,
+              keyword TEXT NOT NULL,
+              PRIMARY KEY(path, keyword)
+            );
             CREATE TABLE chunks (
               chunk_id TEXT PRIMARY KEY,
               path TEXT NOT NULL,
@@ -182,6 +237,13 @@ def _seed_index_db(db_path: Path) -> None:
               content_sha256 TEXT NOT NULL,
               embedding_input_sha256 TEXT NOT NULL,
               updated_at TEXT NOT NULL
+            );
+            CREATE TABLE chunk_rowids (
+              chunk_id TEXT PRIMARY KEY,
+              rowid INTEGER UNIQUE NOT NULL
+            );
+            CREATE VIRTUAL TABLE chunk_embeddings USING vec0(
+              embedding FLOAT[3]
             );
             """
         )
@@ -245,6 +307,13 @@ def _seed_index_db(db_path: Path) -> None:
             ],
         )
         conn.executemany(
+            "INSERT INTO note_keywords(path, keyword) VALUES (?, ?)",
+            [
+                ("docs/03-plan.md", "python-first"),
+                ("docs/03-plan.md", "backend"),
+            ],
+        )
+        conn.executemany(
             """
             INSERT INTO chunks(
               chunk_id,
@@ -286,4 +355,22 @@ def _seed_index_db(db_path: Path) -> None:
                 ),
             ],
         )
+        conn.executemany(
+            "INSERT INTO chunk_rowids(chunk_id, rowid) VALUES (?, ?)",
+            [
+                ("docs-03-plan-0", 1),
+                ("notes-random-0", 2),
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO chunk_embeddings(rowid, embedding) VALUES (?, ?)",
+            [
+                (1, "[0.1, 0.2, 0.3]"),
+                (2, "[0.9, 0.1, 0.0]"),
+            ],
+        )
         conn.commit()
+
+
+def _fake_embedding_result(vector: list[float]) -> EmbedQueryResult:
+    return EmbedQueryResult(vector=vector, model="test-embeddings", prompt_tokens=7)

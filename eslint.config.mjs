@@ -17,6 +17,7 @@ export default [
       ".npm-cache/**",
       ".node-gyp/**",
       ".uv-cache/**",
+      "**/.uv-cache/**",
       ".ailss/**",
       "**/.venv/**",
       "**/*.d.ts",

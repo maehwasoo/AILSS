@@ -28,6 +28,18 @@ class Settings(BaseSettings):
         default=DEFAULT_DATASET_DIR,
         validation_alias=AliasChoices("AILSS_API_DATASET_DIR"),
     )
+    run_artifact_dir: Path | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AILSS_API_RUN_ARTIFACT_DIR"),
+    )
+    openai_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AILSS_OPENAI_API_KEY", "OPENAI_API_KEY"),
+    )
+    openai_embedding_model: str = Field(
+        default="text-embedding-3-large",
+        validation_alias=AliasChoices("AILSS_OPENAI_EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL"),
+    )
     default_top_k: int = Field(
         default=5,
         ge=1,
@@ -68,6 +80,14 @@ class Settings(BaseSettings):
         if self.resolved_vault_path is not None:
             return self.resolved_vault_path / ".ailss" / "evals"
         return Path(".ailss") / "evals"
+
+    @property
+    def resolved_run_artifact_dir(self) -> Path:
+        if self.run_artifact_dir is not None:
+            return self.run_artifact_dir.expanduser()
+        if self.resolved_vault_path is not None:
+            return self.resolved_vault_path / ".ailss" / "runs"
+        return Path(".ailss") / "runs"
 
     @property
     def resolved_dataset_dir(self) -> Path:
