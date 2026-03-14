@@ -1,6 +1,11 @@
 # System overview
 
-This document describes the full AILSS flow by splitting the system into **three parts**.
+This document describes the current AILSS runtime and the transition baseline established by
+issue #175.
+
+Today, the implemented system is split into **three parts**. The next baseline keeps those
+parts in place while adding a Python-first local backend surface for retrieval, agent
+orchestration, evaluation, and lightweight observability.
 
 ## 1) Indexer
 
@@ -114,3 +119,17 @@ Responsibilities:
 - Indexing = file read + DB write
 - Recommendation = DB read
 - Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `capture_note`/`edit_note`).
+
+## Transition baseline (issue #175)
+
+- Obsidian plugin remains the local UX shell and launcher.
+- Existing Node/TypeScript packages remain the transition baseline for indexing, MCP
+  transport, and gated vault writes.
+- A new Python-first backend surface will own local API contracts for retrieval, agent
+  orchestration, evaluation, and lightweight observability.
+- The initial backend contract is `GET /health`, `POST /retrieve`, `POST /agent/run`, and
+  `POST /eval/run`.
+- Local-first, single-user scope remains the project boundary for this phase.
+
+See `docs/architecture/python-first-local-agent-backend.md` for the service boundaries,
+contract details, and acceptance criteria.

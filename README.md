@@ -2,10 +2,13 @@
 
 **Actionable Integrated Linked Semantic System**.
 
-AILSS helps you structure knowledge in Obsidian and work efficiently with AI.
-Your Obsidian vault is the single source of truth.
+AILSS is a local-first knowledge backend for Obsidian that is moving toward a Python-first
+agent runtime. Your Obsidian vault remains the single source of truth.
 
-AILSS connects AI tooling to an Obsidian vault by building a local index database and exposing retrieval tools over MCP.
+Today, AILSS ships a Node/TypeScript indexer, MCP server, and Obsidian plugin. The next
+baseline keeps the plugin as the local UX shell, keeps the current Node packages as the
+transition layer, and adds a Python-first backend surface for retrieval, agent
+orchestration, evaluation, and lightweight observability.
 
 ## What AILSS Solves
 
@@ -14,7 +17,24 @@ Instead, it keeps context in your vault: notes you can read, edit, and maintain.
 AI tools consult that context through explicit, auditable retrieval over MCP.
 By default, tools are read-only; any writes are gated and require an explicit apply.
 
+For this phase, the product boundary stays local-first and single-user. Remote hosting,
+multi-tenant SaaS concerns, and heavy cloud-first infrastructure are intentionally out of
+scope.
+
+## Baseline Direction
+
+- Obsidian plugin: local UX shell and launcher
+- Node/TypeScript packages: current indexing, MCP transport, and gated write baseline
+- Python backend: planned FastAPI surface for `/health`, `/retrieve`, `/agent/run`, and
+  `/eval/run`
+- Migration rule: incremental replacement only, with existing local retrieval and explicit
+  write safety preserved
+
+Architecture and API contract: `docs/architecture/python-first-local-agent-backend.md`.
+
 ## Architecture
+Current runtime (today):
+
 <img width="3072" height="2070" alt="image" src="https://github.com/user-attachments/assets/76de6fe3-c9ac-4abe-9f6c-0f48a9d87c73" />
 
 ### Package structure (monorepo)
@@ -155,6 +175,7 @@ Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 
 - `docs/README.md`: documentation index
 - `docs/01-overview.md`: architecture + MCP tool surface
+- `docs/architecture/python-first-local-agent-backend.md`: transition baseline, service boundaries, API contract
 - `docs/ops/codex-cli.md`: Codex CLI setup
 - `docs/ops/local-dev.md`: local development
 - `docs/standards/vault/README.md`: vault model and rules
