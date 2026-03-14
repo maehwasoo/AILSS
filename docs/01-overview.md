@@ -125,10 +125,11 @@ Responsibilities:
 - Obsidian plugin remains the local UX shell and launcher.
 - Existing Node/TypeScript packages remain the transition baseline for indexing, MCP
   transport, and gated vault writes.
-- A new Python-first backend surface will own local API contracts for retrieval, agent
+- The Python-first backend surface now owns the local API contracts for retrieval, agent
   orchestration, evaluation, and lightweight observability.
-- The initial backend contract is `GET /health`, `POST /retrieve`, `POST /agent/run`, and
-  `POST /eval/run`.
+- The current backend contract is `GET /health`, `POST /retrieve`, `POST /agent/run`, and
+  `POST /eval/run`, with plugin-managed lifecycle plus a guarded shutdown path for stale
+  local processes.
 - Local-first, single-user scope remains the project boundary for this phase.
 
 See `docs/architecture/python-first-local-agent-backend.md` for the service boundaries,

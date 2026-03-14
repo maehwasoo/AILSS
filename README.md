@@ -25,8 +25,8 @@ scope.
 
 - Obsidian plugin: local UX shell and launcher
 - Node/TypeScript packages: current indexing, MCP transport, and gated write baseline
-- Python backend: planned FastAPI surface for `/health`, `/retrieve`, `/agent/run`, and
-  `/eval/run`
+- Python backend: implemented FastAPI surface for `/health`, `/retrieve`, `/agent/run`, and
+  `/eval/run`, with plugin-managed lifecycle and shutdown
 - Migration rule: incremental replacement only, with existing local retrieval and explicit
   write safety preserved
 
@@ -115,11 +115,13 @@ pnpm install --prod
 ```
 
 4. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
-5. Enable the “MCP service (Codex, localhost)” setting and copy the token.
+5. Enable the “Python backend (local)” setting if you want retrieval, agent, and eval
+   commands inside Obsidian.
+6. Enable the “MCP service (Codex, localhost)” setting and copy the token.
 
 ### Codex CLI
 
-6. Add this to `~/.codex/config.toml` (replace `<token>`):
+7. Add this to `~/.codex/config.toml` (replace `<token>`):
 
 ```toml
 [mcp_servers.ailss]
@@ -129,7 +131,7 @@ http_headers = { Authorization = "Bearer <token>" }
 
 ### Claude Code
 
-6. Add the MCP server in Claude Code:
+7. Add the MCP server in Claude Code:
 
 ```json
 {
@@ -145,11 +147,25 @@ http_headers = { Authorization = "Bearer <token>" }
 }
 ```
 
-Set `AILSS_MCP_BEARER_TOKEN` to the token from step 5.
+Set `AILSS_MCP_BEARER_TOKEN` to the token from step 6.
+
+### Obsidian Python backend commands
+
+After enabling the local Python backend, the plugin exposes these commands:
+
+- `AILSS: Check Python backend health`
+- `AILSS: Retrieve with Python backend`
+- `AILSS: Ask Python backend agent`
+- `AILSS: Run Python backend eval`
+
+The current agent path is a grounded local baseline: semantic retrieval + LangGraph
+workflow + deterministic answer synthesis with inspectable citations.
 
 ## How it works
 
-AILSS writes a local index DB at `<vault>/.ailss/index.sqlite` and serves retrieval over an MCP endpoint hosted by the Obsidian plugin.
+AILSS writes a local index DB at `<vault>/.ailss/index.sqlite`, serves MCP over the
+Obsidian-managed Node service, and can also start a local Python backend for retrieval,
+agent execution, evaluation, and run artifacts.
 
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 

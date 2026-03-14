@@ -6,6 +6,20 @@ It does not require a full runtime rewrite. Instead, it defines the target servi
 boundaries, the first local API contract, and the acceptance criteria for the next phase of
 AILSS.
 
+## Current implementation snapshot
+
+- `apps/api` now runs a local FastAPI service with `GET /health`, `POST /retrieve`,
+  `POST /agent/run`, and `POST /eval/run`.
+- Retrieval reuses the existing SQLite index and supports both `semantic_local`
+  (`sqlite-vec` + embeddings) and `lexical_baseline` modes.
+- `POST /agent/run` now executes a LangGraph workflow for
+  `retrieve -> decide -> read -> answer -> validate`.
+- The current answer stage is still a deterministic grounded baseline, not a full LLM
+  reasoning agent.
+- The Obsidian plugin launches the Python backend, waits for `/health`, can reclaim stale
+  local processes through a guarded shutdown token, and exposes command entrypoints for
+  health, retrieval, agent runs, and eval runs.
+
 ## Goals
 
 - Reposition AILSS as a Python-first local agent backend for personal knowledge workflows.
@@ -58,6 +72,7 @@ Responsibilities:
 - User-facing settings, status, and token/config management
 - Explicit write approval surface
 - Starting and supervising local services needed for the desktop workflow
+- Invoking backend commands for retrieval, grounded agent runs, and eval inspection
 
 Constraints:
 
@@ -87,7 +102,7 @@ Constraints:
 
 ### Python backend
 
-Planned repo location:
+Repo location:
 
 - `apps/api`
 
@@ -113,6 +128,7 @@ Constraints:
 Purpose:
 
 - Liveness and local dependency checks
+- Readiness target for the Obsidian plugin before user-facing commands call the backend
 
 Response shape:
 
@@ -132,11 +148,19 @@ Failure expectation:
 
 - Return a non-`ok` status and explicit check values when local prerequisites are missing.
 
+Current checks include:
+
+- vault path and DB configuration
+- index DB/schema/vector readiness
+- OpenAI embedding configuration
+- dataset and run-artifact directory readiness
+
 ### `POST /retrieve`
 
 Purpose:
 
 - Python-side retrieval entrypoint that reuses the existing local index and vault model
+- Primary command path for `AILSS: Retrieve with Python backend`
 
 Request shape:
 
@@ -177,11 +201,17 @@ Failure expectation:
 - Missing index or unsupported scope filters should fail explicitly rather than silently
   degrading to unrelated retrieval.
 
+Implementation notes:
+
+- Default mode is semantic retrieval over the existing `sqlite-vec` index.
+- Explicit `mode: lexical` remains available for baseline/local fallback inspection.
+
 ### `POST /agent/run`
 
 Purpose:
 
 - Execute the core local agent workflow
+- Primary command path for `AILSS: Ask Python backend agent`
 
 Request shape:
 
@@ -223,6 +253,12 @@ Required explicit failure codes:
 - `write_not_allowed`
 - `apply_not_requested`
 
+Implementation notes:
+
+- The workflow is implemented with LangGraph.
+- The current answer stage is deterministic and citation-grounded; it does not yet call a
+  general-purpose reasoning LLM.
+
 ### `POST /eval/run`
 
 Purpose:
@@ -258,6 +294,18 @@ Failure expectation:
 
 - Missing dataset/config should fail with a clear error instead of running a partial or
   implicit fallback evaluation.
+
+## Plugin command flows
+
+- `AILSS: Check Python backend health`
+  - Verifies the running local backend and surfaces failing checks.
+- `AILSS: Retrieve with Python backend`
+  - Prompts for a query and optional `path_prefix`, then shows grounded note matches.
+- `AILSS: Ask Python backend agent`
+  - Prompts for a query and optional `path_prefix`, then shows answer, citations, workflow,
+    and explicit failure details.
+- `AILSS: Run Python backend eval`
+  - Executes the local golden dataset and surfaces summary metrics plus artifact location.
 
 ## Acceptance criteria
 

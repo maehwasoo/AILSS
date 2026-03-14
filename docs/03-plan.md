@@ -42,9 +42,18 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
+- Python backend baseline exists (`apps/api`)
+  - FastAPI app with `GET /health`, `POST /retrieve`, `POST /agent/run`, and `POST /eval/run`
+  - Semantic retrieval over the existing SQLite + `sqlite-vec` index, plus explicit lexical baseline mode
+  - LangGraph workflow for `retrieve -> decide -> read -> answer -> validate`
+  - Eval dataset runner + local run/eval artifacts
+- Obsidian plugin now manages the local Python backend
+  - Lifecycle: start, stop, restart, readiness wait, guarded shutdown reclaim
+  - Commands: backend health, retrieval, grounded agent run, eval run
 - Gap relative to the portfolio goal:
   - strong local MCP + retrieval + Obsidian integration already exist
-  - Python backend, explicit agent runtime, automated evaluation, and portfolio-facing evidence are not yet implemented
+  - Python backend baseline, explicit workflow orchestration, and reproducible eval now exist
+  - remaining gaps are full LLM reasoning quality, deeper lifecycle recovery, richer eval/cost trending, and transition cleanup
 
 ## 1) Design the index schema
 
@@ -429,6 +438,8 @@ Why this direction:
 
 Phase A — narrative + contract cleanup
 
+Status: completed
+
 - Update docs/README language so the project is described as a local agent backend, not only an Obsidian MCP utility.
 - Define the minimal Python service contract and request/response shapes before implementing runtime logic.
 - Record explicit portfolio boundaries:
@@ -439,6 +450,8 @@ Phase A — narrative + contract cleanup
 
 Phase B — Python backend skeleton
 
+Status: completed
+
 - Add `apps/api` with:
   - FastAPI app entrypoint
   - Pydantic settings / request / response models
@@ -448,6 +461,8 @@ Phase B — Python backend skeleton
 - Avoid premature infrastructure additions that do not strengthen the portfolio evidence.
 
 Phase C — retrieval + agent workflow
+
+Status: completed for the baseline
 
 - Implement a Python retrieval path that reuses the existing local index and vault model.
 - Add a LangGraph-based workflow for the core path:
@@ -460,6 +475,8 @@ Phase C — retrieval + agent workflow
 
 Phase D — evaluation + lightweight observability
 
+Status: completed for the baseline
+
 - Add a golden dataset for representative knowledge tasks.
 - Add an evaluation runner that reports:
   - answer quality / grounding pass rate
@@ -469,6 +486,8 @@ Phase D — evaluation + lightweight observability
 
 Phase E — portfolio polish
 
+Status: in progress
+
 - Add a concise architecture diagram for the Python-first local stack.
 - Publish example request/response flows for retrieval and agent execution.
 - Document failure handling and tradeoffs:
@@ -476,6 +495,7 @@ Phase E — portfolio polish
   - why SQLite remains acceptable here
   - what would justify a future move to heavier infra
 - Summarize eval outcomes in a way that can be cited in a resume / portfolio / interview.
+- Keep docs synchronized with the current plugin command flow and the implemented API/runtime boundaries.
 
 ### 11.4 Proposed GitHub issue breakdown
 
