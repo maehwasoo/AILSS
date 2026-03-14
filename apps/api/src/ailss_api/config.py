@@ -32,6 +32,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("AILSS_API_RUN_ARTIFACT_DIR"),
     )
+    shutdown_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AILSS_API_SHUTDOWN_TOKEN"),
+    )
     openai_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("AILSS_OPENAI_API_KEY", "OPENAI_API_KEY"),

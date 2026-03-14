@@ -166,6 +166,37 @@ def test_eval_run_writes_artifacts(tmp_path: Path, monkeypatch: MonkeyPatch) -> 
     assert (artifact_dir / "cases.json").exists()
 
 
+def test_shutdown_requires_valid_token(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    settings.shutdown_token = "shutdown-token"
+    client = TestClient(create_app(settings))
+
+    response = client.post("/__ailss/shutdown")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid shutdown token."
+
+
+def test_shutdown_succeeds_with_valid_token(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    settings.shutdown_token = "shutdown-token"
+    terminated: list[str] = []
+    monkeypatch.setattr(
+        "ailss_api.main._terminate_current_process",
+        lambda: terminated.append("called"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/__ailss/shutdown",
+        headers={"Authorization": "Bearer shutdown-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert terminated == ["called"]
+
+
 def _build_settings_with_seed_data(tmp_path: Path) -> Settings:
     vault_path = tmp_path / "vault"
     docs_dir = vault_path / "docs"
