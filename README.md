@@ -33,6 +33,7 @@ scope.
 Architecture and API contract: `docs/architecture/python-first-local-agent-backend.md`.
 
 ## Architecture
+
 Current runtime (today):
 
 <img width="3072" height="2070" alt="image" src="https://github.com/user-attachments/assets/76de6fe3-c9ac-4abe-9f6c-0f48a9d87c73" />

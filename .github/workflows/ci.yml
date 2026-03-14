@@ -57,8 +57,18 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.6.12"
+          python-version: "3.12"
+          enable-cache: true
+
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: uv sync --directory apps/api --locked
 
       - name: Commitlint (pull_request)
         if: github.event_name == 'pull_request'
