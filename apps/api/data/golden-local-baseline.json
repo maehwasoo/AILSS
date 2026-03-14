@@ -1,0 +1,9 @@
+[
+  {
+    "case_id": "python-first-transition",
+    "input": "Summarize the Python-first backend direction for this repo.",
+    "context": { "path_prefix": "docs/", "top_k": 2 },
+    "expected_paths": ["docs/03-plan.md"],
+    "expected_terms": ["python-first", "backend"]
+  }
+]
