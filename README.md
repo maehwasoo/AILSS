@@ -15,6 +15,7 @@ AI tools consult that context through explicit, auditable retrieval over MCP.
 By default, tools are read-only; any writes are gated and require an explicit apply.
 
 ## Architecture
+
 <img width="3072" height="2070" alt="image" src="https://github.com/user-attachments/assets/76de6fe3-c9ac-4abe-9f6c-0f48a9d87c73" />
 
 ### Package structure (monorepo)
