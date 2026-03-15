@@ -11,9 +11,18 @@ import {
 import { waitForTcpPortToBeAvailable } from "../../src/utils/tcp.js";
 
 type TestSettings = ReturnType<PythonApiServiceControllerDeps["getSettings"]>;
+type StartupPreflight = {
+	host: string;
+	port: number;
+	topK: number;
+	command: string;
+	args: string[];
+	vaultPath: string;
+	settings: TestSettings;
+};
 
 type ControllerInternals = {
-	prepareStartupPreflight: () => Promise<unknown>;
+	prepareStartupPreflight: () => Promise<StartupPreflight>;
 	negotiatePortAvailability: (options: {
 		host: string;
 		port: number;
@@ -119,6 +128,30 @@ describe("PythonApiServiceController startup helper branches", () => {
 		await expect(asInternals(controller).prepareStartupPreflight()).rejects.toThrow(
 			"Missing Python API args. Ensure apps/api exists or configure the Python backend command + args in settings.",
 		);
+	});
+
+	it("falls back to the Python default port and persists the normalized setting", async () => {
+		const settings = createSettings({ pythonApiServicePort: 70000 });
+		const { controller, saveSettings } = createController({ settings });
+
+		await expect(asInternals(controller).prepareStartupPreflight()).resolves.toMatchObject({
+			port: 8787,
+			topK: 10,
+		});
+		expect(settings.pythonApiServicePort).toBe(8787);
+		expect(saveSettings).toHaveBeenCalledTimes(1);
+	});
+
+	it("caps the Python default top_k without mutating the shared plugin setting", async () => {
+		const settings = createSettings({ topK: 80 });
+		const { controller, saveSettings } = createController({ settings });
+
+		await expect(asInternals(controller).prepareStartupPreflight()).resolves.toMatchObject({
+			port: 8787,
+			topK: 20,
+		});
+		expect(settings.topK).toBe(80);
+		expect(saveSettings).not.toHaveBeenCalled();
 	});
 
 	it("returns available when the Python port is already free", async () => {

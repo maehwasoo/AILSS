@@ -36,7 +36,12 @@ import {
 	renderIndexerStatusBar,
 	renderMcpStatusBar,
 } from "./ui/statusBars.js";
-import { clampPort, clampTopK } from "./utils/clamp.js";
+import {
+	clampPort,
+	clampPythonApiAgentTopK,
+	clampPythonApiDefaultTopK,
+	clampPythonApiPort,
+} from "./utils/clamp.js";
 import {
 	buildCodexMcpConfigBlock,
 	copyCodexMcpConfigBlockToClipboard as copyCodexMcpConfigBlockToClipboardImpl,
@@ -202,7 +207,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	getPythonApiServiceUrl(): string {
-		const port = clampPort(this.settings.pythonApiServicePort);
+		const port = clampPythonApiPort(this.settings.pythonApiServicePort);
 		return `http://127.0.0.1:${port}`;
 	}
 
@@ -371,7 +376,7 @@ export default class AilssObsidianPlugin extends Plugin {
 	private getPythonApiConnectionInfo(): { host: string; port: number } {
 		return {
 			host: "127.0.0.1",
-			port: clampPort(this.settings.pythonApiServicePort),
+			port: clampPythonApiPort(this.settings.pythonApiServicePort),
 		};
 	}
 
@@ -463,7 +468,7 @@ export default class AilssObsidianPlugin extends Plugin {
 				port: connection.port,
 				body: {
 					query: prompt.query,
-					top_k: clampTopK(this.settings.topK),
+					top_k: clampPythonApiDefaultTopK(this.settings.topK),
 					path_prefix: prompt.pathPrefix ?? undefined,
 				},
 				timeoutMs: 15_000,
@@ -502,7 +507,7 @@ export default class AilssObsidianPlugin extends Plugin {
 				body: {
 					input: prompt.query,
 					context: {
-						top_k: clampTopK(this.settings.topK),
+						top_k: clampPythonApiAgentTopK(this.settings.topK),
 						path_prefix: prompt.pathPrefix ?? undefined,
 					},
 				},

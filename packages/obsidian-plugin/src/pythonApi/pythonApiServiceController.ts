@@ -3,7 +3,7 @@ import { Notice } from "obsidian";
 import { spawn, type ChildProcess } from "node:child_process";
 
 import { type AilssObsidianSettings, DEFAULT_SETTINGS } from "../settings.js";
-import { clampPort, clampTopK } from "../utils/clamp.js";
+import { clampPythonApiDefaultTopK, clampPythonApiPort } from "../utils/clamp.js";
 import { nowIso } from "../utils/misc.js";
 import { resolveSpawnCommandAndEnv } from "../utils/spawn.js";
 import { waitForTcpPortToBeAvailable } from "../utils/tcp.js";
@@ -176,17 +176,13 @@ export class PythonApiServiceController {
 			);
 		}
 
-		const port = clampPort(settings.pythonApiServicePort);
+		const port = clampPythonApiPort(settings.pythonApiServicePort);
 		if (port !== settings.pythonApiServicePort) {
 			settings.pythonApiServicePort = port;
 			await this.deps.saveSettings();
 		}
 
-		const topK = clampTopK(settings.topK);
-		if (topK !== settings.topK) {
-			settings.topK = topK;
-			await this.deps.saveSettings();
-		}
+		const topK = clampPythonApiDefaultTopK(settings.topK);
 
 		return {
 			host: "127.0.0.1",
