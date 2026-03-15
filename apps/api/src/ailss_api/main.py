@@ -8,7 +8,7 @@ from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 
 from .agent import run_agent_workflow
 from .config import Settings, get_settings
-from .evals import DatasetNotFoundError, run_eval
+from .evals import DatasetNotFoundError, InvalidEvalDatasetError, run_eval
 from .models import (
     AgentRunRequest,
     AgentRunResponse,
@@ -59,6 +59,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return run_eval(request, app_settings)
         except DatasetNotFoundError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
+        except InvalidEvalDatasetError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except IndexNotReadyError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
 

@@ -25,6 +25,10 @@ class DatasetNotFoundError(RuntimeError):
     """Dataset resolution failure."""
 
 
+class InvalidEvalDatasetError(RuntimeError):
+    """Dataset content validation failure."""
+
+
 class EvalCase(BaseModel):
     case_id: str
     input: str
@@ -45,7 +49,11 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
 
     for case in cases:
         started = perf_counter()
-        top_k = _coerce_int(case.context.get("top_k"), settings.default_top_k)
+        top_k = _coerce_eval_top_k(
+            case.context.get("top_k"),
+            settings.default_top_k,
+            case.case_id,
+        )
         agent_top_k = _clamp_agent_top_k(top_k)
         path_prefix = _optional_string(case.context.get("path_prefix"))
         tags_any = _normalize_string_list(case.context.get("tags_any"))
@@ -176,6 +184,21 @@ def _coerce_int(value: object, default: int) -> int:
     if isinstance(value, int):
         return value
     return int(str(value))
+
+
+def _coerce_eval_top_k(value: object, default: int, case_id: str) -> int:
+    try:
+        candidate = _coerce_int(value, default)
+    except (TypeError, ValueError) as error:
+        raise InvalidEvalDatasetError(
+            f"Eval dataset case {case_id} has a non-integer context.top_k."
+        ) from error
+
+    if candidate < 1 or candidate > 20:
+        raise InvalidEvalDatasetError(
+            f"Eval dataset case {case_id} has invalid context.top_k={candidate}. Expected 1..20."
+        )
+    return candidate
 
 
 def _clamp_agent_top_k(value: int) -> int:
