@@ -34,9 +34,7 @@ Architecture and API contract: `docs/architecture/python-first-local-agent-backe
 
 ## Architecture
 
-Current runtime (today):
-
-<img width="3072" height="2070" alt="image" src="https://github.com/user-attachments/assets/76de6fe3-c9ac-4abe-9f6c-0f48a9d87c73" />
+Transition runtime (current baseline):
 
 ### Package structure (monorepo)
 
@@ -45,6 +43,7 @@ flowchart LR
   core["@ailss/core"]
   indexer["@ailss/indexer"]
   mcp["@ailss/mcp"]
+  api["apps/api<br/>(ailss-api)"]
   plugin["obsidian-plugin"]
 
   indexer -->|depends on| core
@@ -52,6 +51,7 @@ flowchart LR
 
   plugin -.->|spawns| indexer
   plugin -.->|spawns| mcp
+  plugin -.->|spawns| api
 ```
 
 ### Runtime flow
@@ -63,14 +63,19 @@ flowchart LR
 
   indexer["Indexer<br/>(@ailss/indexer)"]
   mcpServer["MCP server<br/>(@ailss/mcp)"]
-  clients["AI clients<br/>(Codex CLI, Claude Code, ...)"]
+  pythonApi["Python backend<br/>(FastAPI + LangGraph)"]
+  clients["AI clients<br/>(Codex CLI, Claude Code, future UI flows)"]
   obsidian["Obsidian plugin"]
 
   vault -->|read| indexer -->|write| db
   db -->|query| mcpServer -->|MCP: HTTP or stdio| clients
+  db -->|query| pythonApi
+  vault -->|read previews| pythonApi
 
   obsidian -.->|triggers| indexer
   obsidian -.->|hosts| mcpServer
+  obsidian -.->|starts + monitors| pythonApi
+  obsidian -.->|retrieve/agent/eval commands| pythonApi
   clients -.->|write tools: gated, explicit apply| mcpServer
 ```
 
@@ -95,9 +100,18 @@ flowchart TB
     mcp_tools["src/tools/*<br/>(MCP tool implementations)"]
   end
 
+  subgraph api["apps/api"]
+    api_cli["src/ailss_api/cli.py<br/>(ailss-api)"]
+    api_main["src/ailss_api/main.py<br/>(FastAPI routes)"]
+    api_agent["src/ailss_api/agent.py<br/>(LangGraph workflow)"]
+    api_retrieval["src/ailss_api/retrieval_*<br/>(semantic + lexical retrieval)"]
+    api_eval["src/ailss_api/evals.py<br/>(eval artifacts)"]
+  end
+
   subgraph plugin["obsidian-plugin"]
     plugin_main["src/main.ts<br/>(Obsidian entry)"]
     plugin_mcp["src/mcp/*<br/>(MCP service wrapper)"]
+    plugin_python["src/pythonApi/*<br/>(Python backend wrapper)"]
     plugin_indexer["src/indexer/*<br/>(indexer runner)"]
     plugin_ui["src/ui/*<br/>(Obsidian UI)"]
   end
@@ -114,14 +128,15 @@ cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service"
 pnpm install --prod
 ```
 
-4. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
-5. Enable the “Python backend (local)” setting if you want retrieval, agent, and eval
+4. If you want the Python backend commands, install Python 3.12+ and `uv`.
+5. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
+6. Enable the “Python backend (local)” setting if you want retrieval, agent, and eval
    commands inside Obsidian.
-6. Enable the “MCP service (Codex, localhost)” setting and copy the token.
+7. Enable the “MCP service (Codex, localhost)” setting and copy the token.
 
 ### Codex CLI
 
-7. Add this to `~/.codex/config.toml` (replace `<token>`):
+8. Add this to `~/.codex/config.toml` (replace `<token>`):
 
 ```toml
 [mcp_servers.ailss]
@@ -131,7 +146,7 @@ http_headers = { Authorization = "Bearer <token>" }
 
 ### Claude Code
 
-7. Add the MCP server in Claude Code:
+8. Add the MCP server in Claude Code:
 
 ```json
 {
@@ -147,7 +162,7 @@ http_headers = { Authorization = "Bearer <token>" }
 }
 ```
 
-Set `AILSS_MCP_BEARER_TOKEN` to the token from step 6.
+Set `AILSS_MCP_BEARER_TOKEN` to the token from step 7.
 
 ### Obsidian Python backend commands
 

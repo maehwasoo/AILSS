@@ -1,6 +1,6 @@
 # Local development
 
-This document describes how to run the indexer and MCP server locally.
+This document describes how to run the indexer, MCP server, and Python backend locally.
 
 ## 1) Environment variables
 
@@ -10,10 +10,14 @@ Create a `.env` at the repo root based on `.env.example`, and set:
 - `AILSS_VAULT_PATH` (absolute path)
 - `OPENAI_EMBEDDING_MODEL` (optional; default: `text-embedding-3-large`)
 - `AILSS_DB_PATH` (optional; MCP only): absolute path to an existing DB file when `AILSS_VAULT_PATH` is not set
+- `AILSS_API_DATASET_DIR` (optional; Python eval dataset directory)
+- `AILSS_API_RUN_ARTIFACT_DIR` (optional; Python run artifact directory)
+- `AILSS_EVAL_ARTIFACT_DIR` (optional; Python eval artifact directory)
+- `AILSS_API_SHUTDOWN_TOKEN` (optional; enables guarded `POST /__ailss/shutdown`)
 
 Notes:
 
-- The indexer and MCP server load `.env` by searching upwards from the current working directory for the nearest `.env` file.
+- The Node services and the Python backend load `.env` by searching upwards from the current working directory for the nearest `.env` file.
 
 ## 2) Install / build
 
@@ -23,7 +27,14 @@ Notes:
 ```bash
 CI=0 npm_config_cache="$PWD/.npm-cache" npm_config_devdir="$PWD/.node-gyp" pnpm install --no-frozen-lockfile
 pnpm build
+pnpm py:sync
 ```
+
+Requirements:
+
+- Node 20+
+- Python 3.12+
+- `uv`
 
 ## 3) Run indexing
 
@@ -83,7 +94,27 @@ Example:
 npx @modelcontextprotocol/inspector node packages/mcp/dist/stdio.js
 ```
 
-## 5) Obsidian plugin (ailss-obsidian)
+## 5) Run Python backend (FastAPI)
+
+Run the backend directly from the workspace:
+
+```bash
+uv run --directory apps/api ailss-api --host 127.0.0.1 --port 8787
+```
+
+Notes:
+
+- The CLI default port is `8000`; `8787` matches the plugin's default Python backend port.
+- `GET /health`, `POST /retrieve`, `POST /agent/run`, and `POST /eval/run` are the current baseline routes.
+- The backend reads the existing local SQLite index and expects the same vault/DB env configuration as the Node tools.
+
+Quick check:
+
+```bash
+curl http://127.0.0.1:8787/health
+```
+
+## 6) Obsidian plugin (ailss-obsidian)
 
 The plugin lives in `packages/obsidian-plugin/` and is currently desktop-only.
 
@@ -127,6 +158,12 @@ If you are testing from source build output, rebuild and recopy plugin files aft
 - **MCP command/args** (stdio)
   - Release archive default: command `node`, args empty
   - Source build example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
+- **Python backend** (optional; enables retrieval/agent/eval commands)
+  - Requires Python 3.12+ and `uv`
+  - Default command: `uv`
+  - Default args: empty in settings, resolved to `run --directory <workspace-or-bundled>/apps/api ailss-api`
+  - Default port: `8787`
+  - If you see `spawn uv ENOENT`, set the command to your absolute `uv` path
 - **Indexer command/args** (optional; enables reindex + auto-index)
   - Release archive default: command `node`, args empty
   - Source build example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
@@ -135,13 +172,17 @@ If you are testing from source build output, rebuild and recopy plugin files aft
 - Command palette: `AILSS: Reindex vault`
 - Optional: enable auto indexing (debounced; costs money)
 
-## 5) Quality checks
+## 7) Quality checks
 
 During development, these commands are used frequently:
 
 - Full check: `pnpm check`
+- CI-equivalent check: `pnpm check:ci`
 - Format: `pnpm format` / `pnpm format:check`
 - Lint: `pnpm lint` / `pnpm lint:fix`
-- Test: `pnpm test`
+- Typecheck: `pnpm typecheck` / `pnpm py:typecheck`
+- Test: `pnpm test` / `pnpm py:test`
+- Coverage: `pnpm test:coverage` / `pnpm py:test:coverage`
+- Python quality gate: `pnpm py:check`
 
 Git hooks are installed automatically via Lefthook during `pnpm install`. See `docs/standards/quality-gates.md`.
