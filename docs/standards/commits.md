@@ -24,6 +24,7 @@ Note:
 Examples:
 
 - `feat(monorepo): scaffold core/db + indexer + mcp stdio`
+- `feat(api): add Python backend health endpoint`
 - `feat(docs): document vault rules (frontmatter + typed links)`
 
 ## `type` rules
@@ -48,6 +49,7 @@ Scope expresses where the change happened. Prefer one of:
 - `indexer`: `packages/indexer`
 - `mcp`: `packages/mcp`
 - `plugin`: `packages/obsidian-plugin`
+- `api`: `apps/api`
 - `docs`: `docs/*`
 - `ops`: local runbook docs or ops scripts
 
@@ -62,6 +64,7 @@ Examples:
 
 - `ci(monorepo): tighten workflow permissions`
 - `build(monorepo): bump pnpm version`
+- `fix(api): reject blank retrieval queries`
 - `docs(ops): document indexer reset flow`
 
 ## `subject` rules

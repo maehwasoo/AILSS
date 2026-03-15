@@ -9,7 +9,11 @@ module.exports = {
       "always",
       ["feat", "fix", "docs", "refactor", "test", "chore", "build", "ci", "perf", "revert"],
     ],
-    "scope-enum": [2, "always", ["monorepo", "core", "indexer", "mcp", "plugin", "docs", "ops"]],
+    "scope-enum": [
+      2,
+      "always",
+      ["monorepo", "core", "indexer", "mcp", "plugin", "api", "docs", "ops"],
+    ],
     "scope-empty": [2, "never"],
     "subject-full-stop": [2, "never", "."],
   },

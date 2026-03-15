@@ -76,8 +76,9 @@ This repo enforces Conventional Commits (commitlint + Lefthook).
 - Format: `<type>(<scope>): <subject>`
 - Details: `docs/standards/commits.md`
 - **Agent rule (must follow)**: before drafting a commit message, check `commitlint.config.cjs` (source of truth) and use only allowed scopes.
-  - Allowed scopes: `monorepo`, `core`, `indexer`, `mcp`, `plugin`, `docs`, `ops`
+  - Allowed scopes: `monorepo`, `core`, `indexer`, `mcp`, `plugin`, `api`, `docs`, `ops`
   - Example mapping: changes under `packages/obsidian-plugin/*` → scope `plugin` (not `obsidian-plugin`)
+  - Example mapping: changes under `apps/api/*` → scope `api`
   - If a change spans multiple areas, **default to splitting into multiple commits** with the tightest valid scope per commit; use `monorepo` only for inherently cross-cutting changes (or when the user explicitly wants a single commit)
 
 ### 2.8 Pull Request conventions (required)
