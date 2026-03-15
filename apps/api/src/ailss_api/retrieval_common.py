@@ -63,6 +63,23 @@ class StitchResult:
     used_chunk_ids: list[str]
 
 
+def resolve_note_path_within_vault(settings: Settings, note_path: str) -> Path | None:
+    vault_path = settings.resolved_vault_path
+    if vault_path is None:
+        return None
+
+    vault_root = vault_path.resolve()
+    candidate = (vault_root / Path(note_path)).resolve()
+    try:
+        candidate.relative_to(vault_root)
+    except ValueError:
+        return None
+
+    if not candidate.is_file():
+        return None
+    return candidate
+
+
 def load_note_metadata(
     conn: sqlite3.Connection,
     paths: list[str],
@@ -201,12 +218,8 @@ def read_note_preview(
     if not include_preview:
         return PreviewResult(text=None, truncated=False)
 
-    vault_path = settings.resolved_vault_path
-    if vault_path is None:
-        return PreviewResult(text=None, truncated=False)
-
-    candidate = vault_path / Path(note_path)
-    if not candidate.exists():
+    candidate = resolve_note_path_within_vault(settings, note_path)
+    if candidate is None:
         return PreviewResult(text=None, truncated=False)
 
     text = candidate.read_text(encoding="utf-8")

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import lru_cache
-from pathlib import Path
 from time import perf_counter
 from typing import Any, Literal, TypedDict
 from uuid import uuid4
@@ -25,6 +24,7 @@ from .models import (
 )
 from .observability import write_run_artifact
 from .retrieval import retrieve_notes
+from .retrieval_common import resolve_note_path_within_vault
 
 
 class AgentGraphState(TypedDict):
@@ -371,12 +371,8 @@ def _compose_answer(
 
 
 def _read_note_excerpt(settings: Settings, note_path: str) -> str | None:
-    vault_path = settings.resolved_vault_path
-    if vault_path is None:
-        return None
-
-    candidate = vault_path / Path(note_path)
-    if not candidate.exists():
+    candidate = resolve_note_path_within_vault(settings, note_path)
+    if candidate is None:
         return None
 
     text = candidate.read_text(encoding="utf-8")

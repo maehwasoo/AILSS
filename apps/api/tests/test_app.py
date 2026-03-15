@@ -12,6 +12,7 @@ from pytest import MonkeyPatch
 from ailss_api.config import Settings
 from ailss_api.embeddings import EmbedQueryResult
 from ailss_api.main import create_app
+from ailss_api.models import EvidenceChunk, RetrievalUsage, RetrieveResponse, RetrieveResult
 
 
 def test_health_reports_ready_index(tmp_path: Path) -> None:
@@ -86,6 +87,21 @@ def test_retrieve_supports_explicit_lexical_mode(tmp_path: Path) -> None:
     assert payload["results"][0]["path"] == "docs/03-plan.md"
 
 
+def test_retrieve_rejects_blank_query_in_lexical_mode(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "   ",
+            "mode": "lexical",
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_agent_run_returns_grounded_answer(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     monkeypatch.setattr(
@@ -110,6 +126,64 @@ def test_agent_run_returns_grounded_answer(tmp_path: Path, monkeypatch: MonkeyPa
     assert payload["metrics"]["retrieval_mode"] == "semantic_local"
     assert payload["artifact_path"].endswith(".json")
     assert "python-first" in payload["answer"].lower()
+
+
+def test_agent_run_rejects_blank_input(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/agent/run",
+        json={
+            "input": "   ",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_agent_run_does_not_read_outside_vault(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    outside_file = tmp_path / "secret.txt"
+    outside_file.write_text("TOP SECRET", encoding="utf-8")
+    monkeypatch.setattr(
+        "ailss_api.agent.retrieve_notes",
+        lambda request, settings: RetrieveResponse(
+            query=request.query,
+            mode="semantic_local",
+            results=[
+                RetrieveResult(
+                    path="../secret.txt",
+                    title="Escaped note",
+                    summary="Tampered path outside the vault.",
+                    snippet="Safe indexed content that should remain grounded.",
+                    evidence_text="Safe indexed content that should remain grounded.",
+                    evidence=[
+                        EvidenceChunk(
+                            chunk_id="escaped-0",
+                            text="Safe indexed content that should remain grounded.",
+                        )
+                    ],
+                )
+            ],
+            usage=RetrievalUsage(latency_ms=1.0, used_chunks_k=1),
+        ),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/agent/run",
+        json={
+            "input": "Summarize the escaped note.",
+            "context": {"top_k": 1},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["outcome"] == "completed"
+    assert "TOP SECRET" not in (payload["answer"] or "")
+    assert payload["citations"][0]["path"] == "../secret.txt"
 
 
 def test_agent_run_rejects_write_request_without_apply(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 FailureCode = Literal[
     "missing_context",
@@ -46,6 +46,13 @@ class RetrieveRequest(BaseModel):
     include_file_preview: bool = False
     max_evidence_chars_per_note: int = Field(default=1500, ge=200, le=20_000)
     max_chars_per_note: int = Field(default=800, ge=200, le=50_000)
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def strip_query(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 class EvidenceChunk(BaseModel):
@@ -131,6 +138,13 @@ class AgentRunRequest(BaseModel):
     apply: bool = False
     requested_write_action: str | None = None
     context: AgentRunContext = Field(default_factory=AgentRunContext)
+
+    @field_validator("input", mode="before")
+    @classmethod
+    def strip_input(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 class AgentRunMetrics(BaseModel):
