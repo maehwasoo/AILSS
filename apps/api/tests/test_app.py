@@ -109,6 +109,31 @@ def test_retrieve_surfaces_embedding_provider_failures(
     )
 
 
+def test_retrieve_surfaces_sqlite_vec_load_failures(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
+    monkeypatch.setattr("ailss_api.retrieval_index.sqlite_vec.load", _raise_sqlite_vec_load_error)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "python backend",
+            "top_k": 3,
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "sqlite-vec extension could not be loaded. Verify the sqlite-vec dependency for this host."
+    )
+
+
 def test_retrieve_rejects_blank_query_in_lexical_mode(tmp_path: Path) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     client = TestClient(create_app(settings))
@@ -384,6 +409,33 @@ def test_eval_run_rejects_invalid_dataset_entry_shape(tmp_path: Path) -> None:
     )
 
 
+def test_eval_run_rejects_blank_dataset_input(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
+    dataset_path.write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "python-first-blank-input",
+                    "input": "   ",
+                    "context": {"path_prefix": "docs/", "top_k": 2},
+                    "expected_paths": ["docs/03-plan.md"],
+                    "expected_terms": ["python-first", "backend"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "golden-local-baseline", "limit": 5})
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail.startswith("Eval dataset entry 0 failed validation: input:")
+    assert "at least 1 character" in detail
+
+
 def test_shutdown_requires_valid_token(tmp_path: Path) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     settings.shutdown_token = "shutdown-token"
@@ -627,3 +679,7 @@ def _fake_embedding_result(vector: list[float]) -> EmbedQueryResult:
 
 def _raise_openai_error(settings: Settings, text: str) -> EmbedQueryResult:
     raise OpenAIError("embedding boom")
+
+
+def _raise_sqlite_vec_load_error(conn: sqlite3.Connection) -> None:
+    raise sqlite3.OperationalError("sqlite-vec boom")

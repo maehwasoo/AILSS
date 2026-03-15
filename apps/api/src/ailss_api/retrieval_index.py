@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -116,9 +116,18 @@ def connect_db(db_path: Path | None, *, load_vector_extension: bool) -> sqlite3.
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     if load_vector_extension:
-        conn.enable_load_extension(True)
-        sqlite_vec.load(conn)
-        conn.enable_load_extension(False)
+        try:
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            conn.enable_load_extension(False)
+        except Exception as error:
+            with suppress(sqlite3.Error):
+                conn.enable_load_extension(False)
+            conn.close()
+            raise IndexNotReadyError(
+                "sqlite-vec extension could not be loaded. "
+                "Verify the sqlite-vec dependency for this host."
+            ) from error
     return conn
 
 

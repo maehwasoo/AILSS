@@ -7,7 +7,7 @@ from statistics import median
 from time import perf_counter
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .agent import run_agent_workflow
 from .config import Settings
@@ -32,10 +32,17 @@ class InvalidEvalDatasetError(RuntimeError):
 
 class EvalCase(BaseModel):
     case_id: str
-    input: str
+    input: str = Field(min_length=1)
     context: dict[str, object] = Field(default_factory=dict)
     expected_paths: list[str] = Field(default_factory=list)
     expected_terms: list[str] = Field(default_factory=list)
+
+    @field_validator("input", mode="before")
+    @classmethod
+    def strip_input(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
