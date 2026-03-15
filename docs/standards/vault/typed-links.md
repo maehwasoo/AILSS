@@ -27,6 +27,12 @@ AILSS indexes and queries typed links by these frontmatter keys:
 
 Canonical relation key order (for tooling/tests): `instance_of`, `part_of`, `depends_on`, `uses`, `implements`, `cites`, `summarizes`, `derived_from`, `explains`, `supports`, `contradicts`, `verifies`, `blocks`, `mitigates`, `measures`, `produces`, `authored_by`, `owned_by`, `supersedes`, `same_as`
 
+Companion references:
+
+- Relation catalog: `./typed-links-relation-catalog.md`
+- Decision tree: `./typed-links-decision-tree.md`
+- Governance: `./typed-links-governance.md`
+
 Semantics notes:
 
 - `derived_from` includes extraction/refactoring and translation/paraphrase. Do not add a separate `translates` key.

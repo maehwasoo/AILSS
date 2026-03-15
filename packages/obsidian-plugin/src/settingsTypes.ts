@@ -1,3 +1,10 @@
+export type CodexSkillId =
+	| "ailss-agent"
+	| "ailss-agent-ontology"
+	| "ailss-agent-curator"
+	| "ailss-agent-maintenance"
+	| "ailss-prometheus-agent";
+
 export interface AilssObsidianSettings {
 	openaiApiKey: string;
 	openaiEmbeddingModel: string;
@@ -9,6 +16,10 @@ export interface AilssObsidianSettings {
 	mcpHttpServiceToken: string;
 	mcpHttpServiceShutdownToken: string;
 	mcpHttpServiceEnableWriteTools: boolean;
+	codexSkillId: CodexSkillId;
+	codexSkillsInstallRootDir: string;
+	codexSkillsInstallOverwrite: boolean;
+	codexSkillsInstallBackup: boolean;
 	indexerCommand: string;
 	indexerArgs: string[];
 	autoIndexEnabled: boolean;
@@ -26,6 +37,10 @@ export const DEFAULT_SETTINGS: AilssObsidianSettings = {
 	mcpHttpServiceToken: "",
 	mcpHttpServiceShutdownToken: "",
 	mcpHttpServiceEnableWriteTools: false,
+	codexSkillId: "ailss-agent",
+	codexSkillsInstallRootDir: "",
+	codexSkillsInstallOverwrite: false,
+	codexSkillsInstallBackup: true,
 	indexerCommand: "node",
 	indexerArgs: [],
 	autoIndexEnabled: false,

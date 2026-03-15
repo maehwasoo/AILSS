@@ -31,8 +31,10 @@ import { clampPort } from "./utils/clamp.js";
 import {
 	buildCodexMcpConfigBlock,
 	copyCodexMcpConfigBlockToClipboard as copyCodexMcpConfigBlockToClipboardImpl,
-	copyCodexPrometheusAgentPromptToClipboard as copyCodexPrometheusAgentPromptToClipboardImpl,
+	copyCodexSkillPromptToClipboard as copyCodexSkillPromptToClipboardImpl,
 } from "./utils/codexClipboardService.js";
+import { installCodexSkill } from "./utils/codexSkillInstaller.js";
+import { CODEX_SKILLS, type CodexSkillId } from "./utils/codexPrompts.js";
 import { formatAilssTimestampForUi } from "./utils/dateTime.js";
 import { generateToken } from "./utils/misc.js";
 import {
@@ -134,7 +136,22 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	async loadSettings(): Promise<void> {
 		const parsed = parseAilssPluginData(await this.loadData());
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings);
+		const merged = Object.assign({}, DEFAULT_SETTINGS, parsed.settings);
+
+		if (!CODEX_SKILLS.some((skill) => skill.id === merged.codexSkillId)) {
+			merged.codexSkillId = DEFAULT_SETTINGS.codexSkillId;
+		}
+		if (typeof merged.codexSkillsInstallRootDir !== "string") {
+			merged.codexSkillsInstallRootDir = DEFAULT_SETTINGS.codexSkillsInstallRootDir;
+		}
+		if (typeof merged.codexSkillsInstallOverwrite !== "boolean") {
+			merged.codexSkillsInstallOverwrite = DEFAULT_SETTINGS.codexSkillsInstallOverwrite;
+		}
+		if (typeof merged.codexSkillsInstallBackup !== "boolean") {
+			merged.codexSkillsInstallBackup = DEFAULT_SETTINGS.codexSkillsInstallBackup;
+		}
+
+		this.settings = merged;
 		this.indexer.setLastSuccessAt(parsed.indexer.lastSuccessAt);
 	}
 
@@ -209,11 +226,60 @@ export default class AilssObsidianPlugin extends Plugin {
 	}
 
 	async copyCodexPrometheusAgentPromptToClipboard(): Promise<void> {
+		await this.copyCodexSkillToClipboard("ailss-prometheus-agent");
+	}
+
+	async copySelectedCodexSkillToClipboard(): Promise<void> {
+		await this.copyCodexSkillToClipboard(this.settings.codexSkillId);
+	}
+
+	private codexSkillLabel(skillId: CodexSkillId): string {
+		const found = CODEX_SKILLS.find((skill) => skill.id === skillId);
+		return found?.label ?? skillId;
+	}
+
+	private async copyCodexSkillToClipboard(skillId: CodexSkillId): Promise<void> {
 		try {
-			await copyCodexPrometheusAgentPromptToClipboardImpl();
-			showNotice("Copied Prometheus Agent skill.");
+			await copyCodexSkillPromptToClipboardImpl(skillId);
+			showNotice(`Copied Codex skill: ${this.codexSkillLabel(skillId)}.`);
 		} catch (error) {
 			showErrorNotice("Copy failed", error);
+		}
+	}
+
+	async installSelectedCodexSkill(): Promise<void> {
+		const skillId = this.settings.codexSkillId;
+		try {
+			const result = await installCodexSkill({
+				skillId,
+				installRootDir: this.settings.codexSkillsInstallRootDir,
+				overwrite: this.settings.codexSkillsInstallOverwrite,
+				backup: this.settings.codexSkillsInstallBackup,
+			});
+
+			if (result.status === "exists") {
+				showNotice(
+					`Skill already exists: ${result.targetPath}. Enable overwrite to replace it.`,
+				);
+				return;
+			}
+
+			if (result.status === "fallback_copied") {
+				showNotice(
+					[
+						`Install failed for ${this.codexSkillLabel(skillId)} (${result.reason}).`,
+						"Copied skill content to clipboard instead.",
+					].join("\n"),
+				);
+				return;
+			}
+
+			const backupInfo = result.backupPath ? ` (backup: ${result.backupPath})` : "";
+			showNotice(
+				`Installed ${this.codexSkillLabel(skillId)} at ${result.targetPath}${backupInfo}`,
+			);
+		} catch (error) {
+			showErrorNotice("Install failed", error);
 		}
 	}
 

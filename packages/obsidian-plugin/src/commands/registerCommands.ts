@@ -12,4 +12,10 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 		name: "AILSS: Indexing status",
 		callback: () => plugin.openIndexerStatusModal(),
 	});
+
+	plugin.addCommand({
+		id: "install-selected-codex-skill",
+		name: "AILSS: Install selected Codex skill",
+		callback: () => void plugin.installSelectedCodexSkill(),
+	});
 }
