@@ -296,8 +296,7 @@ def test_eval_run_rejects_invalid_dataset_top_k(tmp_path: Path) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Eval dataset case python-first-invalid-top-k has invalid context.top_k=50. "
-        "Expected 1..20."
+        "Eval dataset case python-first-invalid-top-k has invalid context.top_k=50. Expected 1..20."
     )
 
 
