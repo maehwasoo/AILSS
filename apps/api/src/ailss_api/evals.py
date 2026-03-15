@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+from json import JSONDecodeError
 from pathlib import Path
 from statistics import median
 from time import perf_counter
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from .agent import run_agent_workflow
 from .config import Settings
@@ -157,10 +158,23 @@ def _load_dataset(dataset_dir: Path, dataset_id: str) -> list[EvalCase]:
     if not dataset_path.exists():
         raise DatasetNotFoundError(f"Eval dataset not found: {dataset_path}")
 
-    payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+    except JSONDecodeError as error:
+        raise InvalidEvalDatasetError(f"Eval dataset is not valid JSON: {dataset_path}") from error
+
     if not isinstance(payload, list):
-        raise DatasetNotFoundError(f"Eval dataset must be a JSON array: {dataset_path}")
-    return [EvalCase.model_validate(item) for item in payload]
+        raise InvalidEvalDatasetError(f"Eval dataset must be a JSON array: {dataset_path}")
+
+    cases: list[EvalCase] = []
+    for index, item in enumerate(payload):
+        try:
+            cases.append(EvalCase.model_validate(item))
+        except ValidationError as error:
+            raise InvalidEvalDatasetError(
+                f"Eval dataset entry {index} failed validation: {_format_validation_error(error)}"
+            ) from error
+    return cases
 
 
 def _optional_string(value: object) -> str | None:
@@ -203,6 +217,12 @@ def _coerce_eval_top_k(value: object, default: int, case_id: str) -> int:
 
 def _clamp_agent_top_k(value: int) -> int:
     return min(value, 10)
+
+
+def _format_validation_error(error: ValidationError) -> str:
+    issue = error.errors()[0]
+    location = ".".join(str(part) for part in issue["loc"])
+    return f"{location}: {issue['msg']}"
 
 
 def _ratio(passed: int, total: int) -> float:

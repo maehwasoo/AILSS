@@ -7,6 +7,7 @@ from pathlib import Path
 
 import sqlite_vec  # type: ignore[import-untyped]
 from fastapi.testclient import TestClient
+from openai import OpenAIError
 from pytest import MonkeyPatch
 
 from ailss_api.config import Settings
@@ -87,6 +88,27 @@ def test_retrieve_supports_explicit_lexical_mode(tmp_path: Path) -> None:
     assert payload["results"][0]["path"] == "docs/03-plan.md"
 
 
+def test_retrieve_surfaces_embedding_provider_failures(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr("ailss_api.retrieval.embed_query", _raise_openai_error)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "python backend",
+            "top_k": 3,
+        },
+    )
+
+    assert response.status_code == 503
+    assert (
+        response.json()["detail"] == "Semantic retrieval embedding request failed: embedding boom"
+    )
+
+
 def test_retrieve_rejects_blank_query_in_lexical_mode(tmp_path: Path) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     client = TestClient(create_app(settings))
@@ -126,6 +148,27 @@ def test_agent_run_returns_grounded_answer(tmp_path: Path, monkeypatch: MonkeyPa
     assert payload["metrics"]["retrieval_mode"] == "semantic_local"
     assert payload["artifact_path"].endswith(".json")
     assert "python-first" in payload["answer"].lower()
+
+
+def test_agent_run_surfaces_embedding_provider_failures(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr("ailss_api.retrieval.embed_query", _raise_openai_error)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/agent/run",
+        json={
+            "input": "Summarize the Python-first backend direction for this repo.",
+            "context": {"path_prefix": "docs/", "top_k": 2},
+        },
+    )
+
+    assert response.status_code == 503
+    assert (
+        response.json()["detail"] == "Semantic retrieval embedding request failed: embedding boom"
+    )
 
 
 def test_agent_run_rejects_blank_input(tmp_path: Path) -> None:
@@ -297,6 +340,47 @@ def test_eval_run_rejects_invalid_dataset_top_k(tmp_path: Path) -> None:
     assert response.status_code == 400
     assert response.json()["detail"] == (
         "Eval dataset case python-first-invalid-top-k has invalid context.top_k=50. Expected 1..20."
+    )
+
+
+def test_eval_run_rejects_non_array_dataset_payload(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
+    dataset_path.write_text(
+        json.dumps({"case_id": "python-first-transition"}),
+        encoding="utf-8",
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "golden-local-baseline", "limit": 5})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"Eval dataset must be a JSON array: {dataset_path}"
+
+
+def test_eval_run_rejects_invalid_dataset_entry_shape(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
+    dataset_path.write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "python-first-missing-input",
+                    "context": {"path_prefix": "docs/", "top_k": 2},
+                    "expected_paths": ["docs/03-plan.md"],
+                    "expected_terms": ["python-first", "backend"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "golden-local-baseline", "limit": 5})
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"] == "Eval dataset entry 0 failed validation: input: Field required"
     )
 
 
@@ -539,3 +623,7 @@ def _seed_index_db(db_path: Path) -> None:
 
 def _fake_embedding_result(vector: list[float]) -> EmbedQueryResult:
     return EmbedQueryResult(vector=vector, model="test-embeddings", prompt_tokens=7)
+
+
+def _raise_openai_error(settings: Settings, text: str) -> EmbedQueryResult:
+    raise OpenAIError("embedding boom")

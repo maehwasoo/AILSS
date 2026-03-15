@@ -18,7 +18,12 @@ from .models import (
     RetrieveRequest,
     RetrieveResponse,
 )
-from .retrieval import IndexNotReadyError, build_health_response, retrieve_notes
+from .retrieval import (
+    EmbeddingServiceError,
+    IndexNotReadyError,
+    build_health_response,
+    retrieve_notes,
+)
 
 
 def _terminate_current_process() -> None:
@@ -45,12 +50,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return retrieve_notes(request, app_settings)
         except IndexNotReadyError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
+        except EmbeddingServiceError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
 
     @app.post("/agent/run", response_model=AgentRunResponse)
     def agent_run(request: AgentRunRequest) -> AgentRunResponse:
         try:
             return run_agent_workflow(request, app_settings)
         except IndexNotReadyError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        except EmbeddingServiceError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
 
     @app.post("/eval/run", response_model=EvalRunResponse)

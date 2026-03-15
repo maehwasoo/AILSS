@@ -7,13 +7,14 @@ from .embeddings import embed_query as _embed_query
 from .models import RetrieveRequest, RetrieveResponse
 from .retrieval_index import IndexNotReadyError, build_health_response, inspect_index
 from .retrieval_lexical import run_lexical_retrieval
-from .retrieval_semantic import run_semantic_retrieval
+from .retrieval_semantic import EmbeddingServiceError, run_semantic_retrieval
 
 # Test seam
 embed_query = _embed_query
 
 __all__ = [
     "IndexNotReadyError",
+    "EmbeddingServiceError",
     "build_health_response",
     "embed_query",
     "inspect_index",

@@ -6,6 +6,7 @@ from contextlib import closing
 from time import perf_counter
 
 import sqlite_vec  # type: ignore[import-untyped]
+from openai import OpenAIError
 
 from .config import Settings
 from .embeddings import EmbedQueryResult
@@ -34,6 +35,10 @@ from .retrieval_index import (
 )
 
 
+class EmbeddingServiceError(RuntimeError):
+    """Embedding provider failure."""
+
+
 def run_semantic_retrieval(
     request: RetrieveRequest,
     settings: Settings,
@@ -53,6 +58,11 @@ def run_semantic_retrieval(
         embedding = embed_query_fn(settings, request.query)
     except ValueError as error:
         raise IndexNotReadyError(str(error)) from error
+    except OpenAIError as error:
+        message = str(error).strip() or error.__class__.__name__
+        raise EmbeddingServiceError(
+            f"Semantic retrieval embedding request failed: {message}"
+        ) from error
 
     with closing(connect_db(index_status.db_path, load_vector_extension=True)) as conn:
         tables = load_available_tables(conn)
