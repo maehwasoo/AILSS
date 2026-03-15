@@ -127,14 +127,14 @@ When filing an issue, optimize for fast, high-confidence triage.
   - Obsidian version (if plugin-related)
   - AILSS package versions (plugin/mcp/indexer/core) and how installed (release vs local build)
   - Relevant env vars (names + non-secret values), especially `AILSS_*` (never include tokens/keys)
-- Component tagging: clearly state which component(s) are involved (`indexer`, `mcp`, `plugin`, `core`, `docs`).
+- Component tagging: clearly state which component(s) are involved (`indexer`, `mcp`, `plugin`, `api`, `core`, `docs`).
 - MCP HTTP issues: include HTTP status, endpoint/path, whether `Mcp-Session-Id` was present, and which `AILSS_MCP_HTTP_*` settings were used (token redacted).
 - Proposed solution (optional): if you have a hypothesis or fix direction, add it as a separate bullet list.
 - Security: if the issue involves secrets or an exploitable vulnerability, do **not** file a public issue; report privately.
 
 ### 2.10 GitHub labels (area + type labeler)
 
-- Area labels (`plugin`, `mcp`, `indexer`, `core`, `docs`, `ops`) are auto-applied by the GitHub Actions labeler based on changed file paths.
+- Area labels (`plugin`, `mcp`, `indexer`, `core`, `api`, `docs`, `ops`) are auto-applied by the GitHub Actions labeler based on changed file paths.
   - Config: `.github/workflows/labeler.yml` + `.github/labeler.yml`
 - Type labels are auto-applied from PR title prefixes (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`) via `.github/workflows/pr-title-type-labeler.yml`.
   - Mapping: `feat` → `enhancement`, `fix` → `bug`, `docs` → `docs`, `refactor` → `refactor`, `test` → `test`

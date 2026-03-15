@@ -15,6 +15,9 @@ changelog:
     - title: Core
       labels:
         - core
+    - title: Python API
+      labels:
+        - api
     - title: CI / Ops / Monorepo
       labels:
         - ops
