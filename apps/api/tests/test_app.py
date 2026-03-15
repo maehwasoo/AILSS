@@ -240,6 +240,39 @@ def test_eval_run_writes_artifacts(tmp_path: Path, monkeypatch: MonkeyPatch) -> 
     assert (artifact_dir / "cases.json").exists()
 
 
+def test_eval_run_clamps_agent_top_k_to_agent_limit(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
+    dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
+    dataset_path.write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "python-first-transition-high-top-k",
+                    "input": "Summarize the Python-first backend direction for this repo.",
+                    "context": {"path_prefix": "docs/", "top_k": 20},
+                    "expected_paths": ["docs/03-plan.md"],
+                    "expected_terms": ["python-first", "backend"],
+                }
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "golden-local-baseline", "limit": 5})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["cases_total"] == 1
+    assert payload["summary"]["cases_passed"] == 1
+
+
 def test_shutdown_requires_valid_token(tmp_path: Path) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     settings.shutdown_token = "shutdown-token"

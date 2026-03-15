@@ -46,6 +46,7 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
     for case in cases:
         started = perf_counter()
         top_k = _coerce_int(case.context.get("top_k"), settings.default_top_k)
+        agent_top_k = _clamp_agent_top_k(top_k)
         path_prefix = _optional_string(case.context.get("path_prefix"))
         tags_any = _normalize_string_list(case.context.get("tags_any"))
         tags_all = _normalize_string_list(case.context.get("tags_all"))
@@ -64,7 +65,7 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
                     path_prefix=path_prefix,
                     tags_any=tags_any,
                     tags_all=tags_all,
-                    top_k=top_k,
+                    top_k=agent_top_k,
                 ),
             ),
             settings,
@@ -175,6 +176,10 @@ def _coerce_int(value: object, default: int) -> int:
     if isinstance(value, int):
         return value
     return int(str(value))
+
+
+def _clamp_agent_top_k(value: int) -> int:
+    return min(value, 10)
 
 
 def _ratio(passed: int, total: int) -> float:
