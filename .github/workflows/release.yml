@@ -86,7 +86,7 @@ jobs:
           bundle_root="ailss-service-${VERSION}"
           stage="${RUNNER_TEMP}/${bundle_root}"
 
-          mkdir -p "${stage}/packages/core" "${stage}/packages/mcp" "${stage}/packages/indexer"
+          mkdir -p "${stage}/packages/core" "${stage}/packages/mcp" "${stage}/packages/indexer" "${stage}/apps/api"
 
           cat > "${stage}/package.json" <<'JSON'
           {
@@ -105,18 +105,21 @@ jobs:
           YAML
 
           cat > "${stage}/README.md" <<'MD'
-          # AILSS service bundle (mcp + indexer)
+          # AILSS service bundle (mcp + indexer + api)
 
-          This bundle contains the prebuilt AILSS service packages:
+          This bundle contains the prebuilt AILSS service packages and the Python API app source:
 
           - `@ailss/mcp` (MCP server)
           - `@ailss/indexer` (indexer CLI)
           - `@ailss/core` (shared runtime)
+          - `apps/api` (Python-first local backend)
 
           ## Requirements
 
           - Node.js >= 20
           - pnpm 10.20.0
+          - Python 3.12+
+          - `uv`
 
           ## Install
 
@@ -127,6 +130,12 @@ jobs:
           ```
 
           Native dependencies (e.g. `better-sqlite3`) may require build tools on your OS.
+
+          Python backend (optional):
+
+          ```bash
+          uv run --directory apps/api ailss-api --help
+          ```
 
           ## Run
 
@@ -157,6 +166,12 @@ jobs:
 
           cp -R "packages/indexer/dist" "${stage}/packages/indexer/dist"
           cp "packages/indexer/package.json" "${stage}/packages/indexer/package.json"
+
+          cp "apps/api/README.md" "${stage}/apps/api/README.md"
+          cp "apps/api/pyproject.toml" "${stage}/apps/api/pyproject.toml"
+          cp "apps/api/uv.lock" "${stage}/apps/api/uv.lock"
+          cp -R "apps/api/data" "${stage}/apps/api/data"
+          cp -R "apps/api/src" "${stage}/apps/api/src"
 
           pushd "${stage}"
           pnpm install --prod --lockfile-only

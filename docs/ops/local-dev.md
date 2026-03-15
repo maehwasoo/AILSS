@@ -152,7 +152,7 @@ If you are testing from source build output, rebuild and recopy plugin files aft
 ### Configure (inside Obsidian)
 
 - **OpenAI API key**
-- If you installed from the GitHub Release zip, the plugin bundle includes `ailss-service/` (prebuilt `core`/`mcp`/`indexer`). Install dependencies once:
+- If you installed from the GitHub Release zip, the plugin bundle includes `ailss-service/` (prebuilt `core`/`mcp`/`indexer` plus bundled `apps/api`). Install dependencies once:
   - `cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service" && pnpm install --prod`
   - Then you can leave **MCP/Indexer args** empty (the plugin resolves the bundled scripts automatically).
 - **MCP command/args** (stdio)

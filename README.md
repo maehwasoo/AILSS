@@ -129,6 +129,7 @@ pnpm install --prod
 ```
 
 4. If you want the Python backend commands, install Python 3.12+ and `uv`.
+   The release bundle already includes `ailss-service/apps/api` for the default Python backend path.
 5. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
 6. Enable the “Python backend (local)” setting if you want retrieval, agent, and eval
    commands inside Obsidian.
