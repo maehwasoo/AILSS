@@ -250,6 +250,84 @@ def set_db_meta_value(db_path: Path, key: str, value: str) -> None:
         conn.commit()
 
 
+def insert_lexical_note(
+    db_path: Path,
+    *,
+    path: str,
+    title: str | None,
+    summary: str | None,
+    chunks: list[str],
+    tags: list[str] | None = None,
+) -> None:
+    note_id = path.replace("/", "-").replace(".", "-")
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute(
+            """
+            INSERT INTO notes(
+              path,
+              note_id,
+              created,
+              title,
+              summary,
+              entity,
+              layer,
+              status,
+              updated,
+              frontmatter_json,
+              updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                path,
+                note_id,
+                "2026-03-15",
+                title,
+                summary,
+                "note",
+                "test",
+                "draft",
+                "2026-03-15",
+                "{}",
+                "2026-03-15T00:00:00",
+            ),
+        )
+        if tags:
+            conn.executemany(
+                "INSERT INTO note_tags(path, tag) VALUES (?, ?)",
+                [(path, tag) for tag in tags],
+            )
+        conn.executemany(
+            """
+            INSERT INTO chunks(
+              chunk_id,
+              path,
+              chunk_index,
+              heading,
+              heading_path_json,
+              content,
+              content_sha256,
+              embedding_input_sha256,
+              updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    f"{note_id}-{index}",
+                    path,
+                    index,
+                    "Section",
+                    '["Section"]',
+                    content,
+                    f"sha-{note_id}-{index}",
+                    f"embed-{note_id}-{index}",
+                    "2026-03-15T00:00:00",
+                )
+                for index, content in enumerate(chunks)
+            ],
+        )
+        conn.commit()
+
+
 def fake_embedding_result(vector: list[float] | None = None) -> EmbedQueryResult:
     return EmbedQueryResult(
         vector=vector or [0.1, 0.2, 0.25],
