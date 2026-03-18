@@ -134,6 +134,36 @@ def test_retrieve_surfaces_sqlite_vec_load_failures(
     )
 
 
+def test_retrieve_omits_preview_when_file_read_fails(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
+    assert settings.resolved_vault_path is not None
+    note_path = settings.resolved_vault_path / "docs" / "03-plan.md"
+    note_path.write_bytes(b"\xff\xfeinvalid-utf8")
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "python backend",
+            "top_k": 3,
+            "path_prefix": "docs/",
+            "include_file_preview": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"][0]["path"] == "docs/03-plan.md"
+    assert payload["results"][0]["preview"] is None
+    assert payload["results"][0]["preview_truncated"] is False
+
+
 def test_retrieve_rejects_blank_query_in_lexical_mode(tmp_path: Path) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     client = TestClient(create_app(settings))
@@ -474,6 +504,20 @@ def test_eval_run_rejects_non_array_dataset_payload(tmp_path: Path) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == f"Eval dataset must be a JSON array: {dataset_path}"
+
+
+def test_eval_run_rejects_unreadable_dataset_file(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
+    dataset_path.write_bytes(b"\xff\xfeinvalid-utf8")
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "golden-local-baseline", "limit": 5})
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"] == f"Eval dataset could not be read as UTF-8 text: {dataset_path}"
+    )
 
 
 def test_eval_run_rejects_invalid_dataset_entry_shape(tmp_path: Path) -> None:

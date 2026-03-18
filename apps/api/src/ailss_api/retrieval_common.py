@@ -222,7 +222,10 @@ def read_note_preview(
     if candidate is None:
         return PreviewResult(text=None, truncated=False)
 
-    text = candidate.read_text(encoding="utf-8")
+    try:
+        text = candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return PreviewResult(text=None, truncated=False)
     if len(text) <= max_chars:
         return PreviewResult(text=text.strip() or None, truncated=False)
     return PreviewResult(text=text[:max_chars].strip() or None, truncated=True)

@@ -167,6 +167,10 @@ def _load_dataset(dataset_dir: Path, dataset_id: str) -> list[EvalCase]:
 
     try:
         payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as error:
+        raise InvalidEvalDatasetError(
+            f"Eval dataset could not be read as UTF-8 text: {dataset_path}"
+        ) from error
     except JSONDecodeError as error:
         raise InvalidEvalDatasetError(f"Eval dataset is not valid JSON: {dataset_path}") from error
 
