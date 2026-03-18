@@ -1,17 +1,33 @@
 import { DEFAULT_SETTINGS } from "../settings.js";
 
-export function clampTopK(input: number): number {
+function clampTopKWithMax(input: number, max: number): number {
 	const n = Math.floor(Number.isFinite(input) ? input : DEFAULT_SETTINGS.topK);
 	if (n < 1) return 1;
-	if (n > 50) return 50;
+	if (n > max) return max;
 	return n;
 }
 
-export function clampPort(input: number): number {
-	const n = Math.floor(Number.isFinite(input) ? input : DEFAULT_SETTINGS.mcpHttpServicePort);
-	if (n < 1) return DEFAULT_SETTINGS.mcpHttpServicePort;
-	if (n > 65535) return DEFAULT_SETTINGS.mcpHttpServicePort;
+export function clampTopK(input: number): number {
+	return clampTopKWithMax(input, 50);
+}
+
+export function clampPythonApiDefaultTopK(input: number): number {
+	return clampTopKWithMax(input, 20);
+}
+
+export function clampPythonApiAgentTopK(input: number): number {
+	return clampTopKWithMax(input, 10);
+}
+
+export function clampPort(input: number, fallback = DEFAULT_SETTINGS.mcpHttpServicePort): number {
+	const n = Math.floor(Number.isFinite(input) ? input : fallback);
+	if (n < 1) return fallback;
+	if (n > 65535) return fallback;
 	return n;
+}
+
+export function clampPythonApiPort(input: number): number {
+	return clampPort(input, DEFAULT_SETTINGS.pythonApiServicePort);
 }
 
 export function clampDebounceMs(input: number): number {

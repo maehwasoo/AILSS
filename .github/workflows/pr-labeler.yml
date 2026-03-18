@@ -67,7 +67,7 @@ jobs:
               return;
             }
 
-            const alwaysAreaLabels = new Set(['plugin', 'mcp', 'indexer', 'core', 'ops']);
+            const alwaysAreaLabels = new Set(['plugin', 'mcp', 'indexer', 'core', 'api', 'ops']);
             const prFiles = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,

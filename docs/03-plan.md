@@ -5,7 +5,9 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 ## 0) Confirm assumptions / decisions
 
+- Primary goal: **JD-aligned portfolio strengthening** for backend/agent roles (closest to the Sendbird/Socra profile), not a cloud SaaS launch.
 - Support scope: **desktop-first** (Codex CLI + Obsidian desktop). Mobile support is out of scope for now.
+- Product scope: **single-user local tool** remains the product boundary for this phase.
 - Write scope: **recommendation-first**, with **explicit write tools** only when the user triggers an apply action.
   - Default write destination for “job done / capture” notes: `<vault>/100. Inbox/`
   - No auto-classification into other folders yet (triage later per vault rules).
@@ -14,6 +16,14 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Codex can trigger explicit write tools over MCP (no per-edit UI flow) once enabled.
   - Connection is configured globally once (e.g. `~/.codex/config.toml`) via a URL + token.
 - Vault path: the vault is **external** and provided via configuration (e.g., `AILSS_VAULT_PATH`).
+- Architecture direction for the next phase:
+  - Keep the Obsidian plugin as the local UX shell / launcher.
+  - Keep the current Node/TypeScript packages as the working baseline during transition.
+  - Add a **Python-first backend surface** for retrieval, agent orchestration, and evaluation.
+- Non-goals for this phase:
+  - multi-user SaaS / remote hosting
+  - heavy cloud-first infra for its own sake
+  - Samsung-specific manufacturing, optimization, or embedded scope
 
 ## Current status
 
@@ -32,6 +42,18 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
+- Python backend baseline exists (`apps/api`)
+  - FastAPI app with `GET /health`, `POST /retrieve`, `POST /agent/run`, and `POST /eval/run`
+  - Semantic retrieval over the existing SQLite + `sqlite-vec` index, plus explicit lexical baseline mode
+  - LangGraph workflow for `retrieve -> decide -> read -> answer -> validate`
+  - Eval dataset runner + local run/eval artifacts
+- Obsidian plugin now manages the local Python backend
+  - Lifecycle: start, stop, restart, readiness wait, guarded shutdown reclaim
+  - Commands: backend health, retrieval, grounded agent run, eval run
+- Gap relative to the portfolio goal:
+  - strong local MCP + retrieval + Obsidian integration already exist
+  - Python backend baseline, explicit workflow orchestration, and reproducible eval now exist
+  - remaining gaps are full LLM reasoning quality, deeper lifecycle recovery, richer eval/cost trending, and transition cleanup
 
 ## 1) Design the index schema
 
@@ -365,3 +387,144 @@ Fallback approach (acceptable, higher overhead): per-session subprocess
 - Spawn a dedicated `ailss-mcp-http` process per Codex session (one port per session, or a reverse proxy that pins one upstream per client).
 - Pros: strongest isolation, simplest correctness story.
 - Cons: more processes, more ports, more restart surface.
+
+## 11) Portfolio-aligned transition plan (Python-first, local-first)
+
+Goal:
+
+- Reposition AILSS as a **Python-first local LLM agent backend** for personal knowledge workflows.
+- Preserve the strongest existing asset: audited local retrieval and explicit tool-driven note operations.
+- Make the project legible as a backend/agent portfolio piece by showing API design, agent orchestration, evaluation, and lightweight observability.
+
+Non-goals:
+
+- No multi-tenant architecture, remote deployment, or cloud operations showcase in this phase.
+- No PostgreSQL/Redis/Celery-by-default migration unless the local single-user workflow is blocked by SQLite constraints.
+- No Samsung-specific manufacturing, anomaly-detection, optimization, or embedded extensions.
+
+Why this direction:
+
+- The current repo already demonstrates retrieval, MCP transport, local indexing, and safe write-tool contracts.
+- The main portfolio gaps are the absence of a Python API surface, explicit agent workflow orchestration, automated evaluation, and outcome reporting.
+- For a single-user local tool, adding those gaps directly is higher-signal than rebuilding the entire runtime around heavyweight infrastructure.
+
+### 11.1 Target architecture for the portfolio phase
+
+- `packages/obsidian-plugin`
+  - Keep as the local UX shell and launcher.
+  - Continue to own user-facing settings, local service lifecycle, and note-centric workflows.
+- `apps/api` (new)
+  - Add a FastAPI service as the Python backend surface.
+  - Initial endpoints:
+    - `GET /health`
+    - `POST /retrieve`
+    - `POST /agent/run`
+    - `POST /eval/run`
+- `apps/evals` (new)
+  - Add a local evaluation runner for reproducible answer-quality checks.
+  - Focus on grounding, task completion, latency, and token/cost summaries.
+- Existing Node packages
+  - Keep `packages/indexer` and `packages/mcp` as the transition baseline.
+  - Reuse the existing local DB / vault flow first; avoid rebuilding storage before the portfolio story is improved.
+
+### 11.2 Data / runtime decisions for this phase
+
+- Storage default: keep the current local SQLite + `sqlite-vec` path first.
+- Retrieval source of truth: keep the existing indexed note/chunk data model unless a Python-specific blocker appears.
+- Config model: local env vars and local filesystem config remain acceptable.
+- Execution model: synchronous local service calls are acceptable at first; background workers are optional follow-up work, not a day-one requirement.
+
+### 11.3 Phased implementation plan
+
+Phase A — narrative + contract cleanup
+
+Status: completed
+
+- Update docs/README language so the project is described as a local agent backend, not only an Obsidian MCP utility.
+- Define the minimal Python service contract and request/response shapes before implementing runtime logic.
+- Record explicit portfolio boundaries:
+  - local-first
+  - single-user
+  - evaluation required
+  - observability lightweight but explicit
+
+Phase B — Python backend skeleton
+
+Status: completed
+
+- Add `apps/api` with:
+  - FastAPI app entrypoint
+  - Pydantic settings / request / response models
+  - basic health endpoint
+  - stubbed `retrieve`, `agent/run`, and `eval/run` endpoints
+- Keep the initial service local-only and developer-friendly.
+- Avoid premature infrastructure additions that do not strengthen the portfolio evidence.
+
+Phase C — retrieval + agent workflow
+
+Status: completed for the baseline
+
+- Implement a Python retrieval path that reuses the existing local index and vault model.
+- Add a LangGraph-based workflow for the core path:
+  - `retrieve -> decide -> read -> answer -> validate`
+- Make failures explicit in the response contract:
+  - missing context
+  - ambiguous note resolution
+  - grounding failure
+  - write not allowed / apply not requested
+
+Phase D — evaluation + lightweight observability
+
+Status: completed for the baseline
+
+- Add a golden dataset for representative knowledge tasks.
+- Add an evaluation runner that reports:
+  - answer quality / grounding pass rate
+  - latency summary
+  - token and cost estimates when available
+- Persist local run artifacts/logs in a predictable place so results are inspectable.
+
+Phase E — portfolio polish
+
+Status: in progress
+
+- Add a concise architecture diagram for the Python-first local stack.
+- Publish example request/response flows for retrieval and agent execution.
+- Document failure handling and tradeoffs:
+  - why local-first
+  - why SQLite remains acceptable here
+  - what would justify a future move to heavier infra
+- Summarize eval outcomes in a way that can be cited in a resume / portfolio / interview.
+- Keep docs synchronized with the current plugin command flow and the implemented API/runtime boundaries.
+
+### 11.4 Proposed GitHub issue breakdown
+
+1. `docs: reposition AILSS around a Python-first local agent backend`
+   - update README + core docs language
+   - define scope, non-goals, and architecture narrative
+2. `feat: add local FastAPI backend skeleton`
+   - create `apps/api`
+   - define settings and API contracts
+   - add health and placeholder endpoints
+3. `feat: add retrieval bridge and LangGraph workflow`
+   - connect Python runtime to the existing local index/vault flow
+   - implement `retrieve -> decide -> read -> answer -> validate`
+4. `test: add evaluation harness for agent quality`
+   - add golden dataset
+   - add reproducible local eval command / report output
+5. `docs: add portfolio evidence and evaluation summary`
+   - architecture diagram
+   - example flows
+   - benchmark / tradeoff summary
+
+### 11.5 Acceptance criteria for the portfolio phase
+
+- AILSS can be explained credibly as a **Python-first local LLM agent backend** with Obsidian as the user-facing shell.
+- A local API can run end-to-end for health, retrieval, and at least one agent workflow.
+- The repo contains a reproducible evaluation path and at least one inspectable result summary.
+- The docs clearly surface:
+  - backend API design
+  - retrieval architecture
+  - agent workflow design
+  - evaluation / validation discipline
+  - operational tradeoffs for a local single-user system

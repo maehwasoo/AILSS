@@ -10,6 +10,14 @@ import { McpHttpServiceController } from "./mcp/mcpHttpServiceController.js";
 import type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
 import { normalizeAilssPluginDataV1, parseAilssPluginData } from "./persistence/pluginData.js";
 import {
+	requestPythonApiHealth,
+	requestPythonApiRetrieve,
+	runPythonApiAgent,
+	runPythonApiEval,
+} from "./pythonApi/client.js";
+import { PythonApiServiceController } from "./pythonApi/pythonApiServiceController.js";
+import type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiServiceTypes.js";
+import {
 	AilssObsidianSettingTab,
 	DEFAULT_SETTINGS,
 	type AilssObsidianSettings,
@@ -21,13 +29,19 @@ import {
 	openMcpStatusModal as openMcpStatusModalUi,
 } from "./ui/pluginModals.js";
 import { showErrorNotice, showNotice } from "./ui/pluginNotices.js";
+import { openPythonApiPromptModal, openTextViewModal } from "./ui/pythonApiCommandModals.js";
 import {
 	mountIndexerStatusBar,
 	mountMcpStatusBar,
 	renderIndexerStatusBar,
 	renderMcpStatusBar,
 } from "./ui/statusBars.js";
-import { clampPort } from "./utils/clamp.js";
+import {
+	clampPort,
+	clampPythonApiAgentTopK,
+	clampPythonApiDefaultTopK,
+	clampPythonApiPort,
+} from "./utils/clamp.js";
 import {
 	buildCodexMcpConfigBlock,
 	copyCodexMcpConfigBlockToClipboard as copyCodexMcpConfigBlockToClipboardImpl,
@@ -40,12 +54,14 @@ import {
 	getVaultPath,
 	resolveIndexerArgs,
 	resolveMcpHttpArgs,
+	resolvePythonApiArgs,
 } from "./utils/pluginPaths.js";
 import { type PromptKind } from "./utils/promptTemplates.js";
 import { installVaultRootPromptAtVaultRoot } from "./utils/vaultRootPromptInstaller.js";
 
 export type { AilssIndexerStatusSnapshot } from "./indexer/indexerRunner.js";
 export type { AilssMcpHttpServiceStatusSnapshot } from "./mcp/mcpHttpServiceTypes.js";
+export type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiServiceTypes.js";
 
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
@@ -69,6 +85,24 @@ export default class AilssObsidianPlugin extends Plugin {
 		onStatusChanged: () => {
 			if (!this.mcpStatusBarEl) return;
 			renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
+		},
+	});
+
+	private readonly pythonApiService = new PythonApiServiceController({
+		getSettings: () => this.settings,
+		saveSettings: async () => {
+			await this.saveSettings();
+		},
+		getVaultPath: () => getVaultPath(this.app),
+		getPluginDirRealpathOrNull: () => getPluginDirRealpathOrNull(this.app, this.manifest.id),
+		resolvePythonApiArgs: () =>
+			resolvePythonApiArgs({
+				settings: this.settings,
+				pluginDirRealpathOrNull: getPluginDirRealpathOrNull(this.app, this.manifest.id),
+			}),
+		getUrl: () => this.getPythonApiServiceUrl(),
+		onStatusChanged: () => {
+			// settings-only status for now
 		},
 	});
 
@@ -105,6 +139,7 @@ export default class AilssObsidianPlugin extends Plugin {
 		await this.loadSettings();
 		await this.ensureMcpHttpServiceToken();
 		await this.ensureMcpHttpServiceShutdownToken();
+		await this.ensurePythonApiServiceShutdownToken();
 
 		this.statusBarEl = mountIndexerStatusBar(this, {
 			onClick: () => this.openIndexerStatusModal(),
@@ -121,6 +156,9 @@ export default class AilssObsidianPlugin extends Plugin {
 		if (this.settings.mcpHttpServiceEnabled) {
 			await this.startMcpHttpService();
 		}
+		if (this.settings.pythonApiServiceEnabled) {
+			await this.startPythonApiService();
+		}
 
 		this.indexer.emitNow();
 		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
@@ -129,6 +167,9 @@ export default class AilssObsidianPlugin extends Plugin {
 	onunload(): void {
 		void this.stopMcpHttpService().catch((error) => {
 			console.error("AILSS MCP service stop failed", error);
+		});
+		void this.stopPythonApiService().catch((error) => {
+			console.error("AILSS Python backend stop failed", error);
 		});
 	}
 
@@ -163,6 +204,42 @@ export default class AilssObsidianPlugin extends Plugin {
 			lastStoppedAt: this.mcpHttpService.getLastStoppedAt(),
 			lastErrorMessage: this.mcpHttpService.getLastErrorMessage(),
 		};
+	}
+
+	getPythonApiServiceUrl(): string {
+		const port = clampPythonApiPort(this.settings.pythonApiServicePort);
+		return `http://127.0.0.1:${port}`;
+	}
+
+	getPythonApiServiceStatusSnapshot(): AilssPythonApiServiceStatusSnapshot {
+		return {
+			enabled: this.settings.pythonApiServiceEnabled,
+			url: this.getPythonApiServiceUrl(),
+			running: this.pythonApiService.isRunning(),
+			startedAt: this.pythonApiService.getStartedAt(),
+			lastExitCode: this.pythonApiService.getLastExitCode(),
+			lastStoppedAt: this.pythonApiService.getLastStoppedAt(),
+			lastErrorMessage: this.pythonApiService.getLastErrorMessage(),
+		};
+	}
+
+	getPythonApiServiceStatusLine(): string {
+		if (this.pythonApiService.isRunning()) {
+			return `Status: Running (${this.getPythonApiServiceUrl()})`;
+		}
+
+		const errorMessage = this.pythonApiService.getLastErrorMessage();
+		if (errorMessage) {
+			return `Status: Error\n${errorMessage}`;
+		}
+
+		const lastStoppedAtRaw = this.pythonApiService.getLastStoppedAt();
+		if (lastStoppedAtRaw) {
+			const lastStoppedAt = formatAilssTimestampForUi(lastStoppedAtRaw);
+			return `Status: Stopped (last: ${lastStoppedAt ?? lastStoppedAtRaw})`;
+		}
+
+		return "Status: Stopped";
 	}
 
 	getMcpHttpServiceStatusLine(): string {
@@ -259,6 +336,25 @@ export default class AilssObsidianPlugin extends Plugin {
 		await this.mcpHttpService.restart();
 	}
 
+	async startPythonApiService(): Promise<void> {
+		try {
+			await this.ensurePythonApiServiceShutdownToken();
+			await this.pythonApiService.start();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.pythonApiService.recordError(message);
+			showErrorNotice("AILSS Python backend failed", error);
+		}
+	}
+
+	async stopPythonApiService(): Promise<void> {
+		await this.pythonApiService.stop();
+	}
+
+	async restartPythonApiService(): Promise<void> {
+		await this.pythonApiService.restart();
+	}
+
 	private async ensureMcpHttpServiceToken(): Promise<void> {
 		if (this.settings.mcpHttpServiceToken.trim()) return;
 		this.settings.mcpHttpServiceToken = generateToken();
@@ -269,6 +365,162 @@ export default class AilssObsidianPlugin extends Plugin {
 		if (this.settings.mcpHttpServiceShutdownToken.trim()) return;
 		this.settings.mcpHttpServiceShutdownToken = generateToken();
 		await this.saveSettings();
+	}
+
+	private async ensurePythonApiServiceShutdownToken(): Promise<void> {
+		if (this.settings.pythonApiServiceShutdownToken.trim()) return;
+		this.settings.pythonApiServiceShutdownToken = generateToken();
+		await this.saveSettings();
+	}
+
+	private getPythonApiConnectionInfo(): { host: string; port: number } {
+		return {
+			host: "127.0.0.1",
+			port: clampPythonApiPort(this.settings.pythonApiServicePort),
+		};
+	}
+
+	private async ensurePythonApiCallable(): Promise<{ host: string; port: number } | null> {
+		if (!this.settings.pythonApiServiceEnabled) {
+			showNotice("Python backend is disabled. Enable backend in settings first.");
+			return null;
+		}
+
+		if (!this.pythonApiService.isRunning()) {
+			await this.startPythonApiService();
+		}
+		if (!this.pythonApiService.isRunning()) {
+			return null;
+		}
+
+		return this.getPythonApiConnectionInfo();
+	}
+
+	async checkPythonApiHealth(): Promise<void> {
+		const connection = await this.ensurePythonApiCallable();
+		if (!connection) return;
+
+		try {
+			const health = await requestPythonApiHealth({
+				host: connection.host,
+				port: connection.port,
+			});
+			const failingChecks = Object.entries(health.checks)
+				.filter(([, ok]) => !ok)
+				.map(([name]) => name);
+			if (failingChecks.length === 0) {
+				showNotice(`AILSS Python backend health: ${health.status}.`);
+				return;
+			}
+
+			showNotice(
+				`AILSS Python backend health: ${health.status}. Failing checks: ${failingChecks.join(", ")}.`,
+			);
+		} catch (error) {
+			showErrorNotice("AILSS Python backend health check failed", error);
+		}
+	}
+
+	async runPythonBackendEval(): Promise<void> {
+		const connection = await this.ensurePythonApiCallable();
+		if (!connection) return;
+
+		showNotice("AILSS Python backend eval started…");
+		try {
+			const result = await runPythonApiEval({
+				host: connection.host,
+				port: connection.port,
+				body: {},
+				timeoutMs: 30_000,
+			});
+			const summary = result.summary;
+			const retrievalRate = Math.round(summary.retrieval_pass_rate * 100);
+			const agentRate = Math.round(summary.agent_pass_rate * 100);
+			const artifactSuffix = result.artifact_dir ? ` Artifact: ${result.artifact_dir}` : "";
+			showNotice(
+				`AILSS Python backend eval complete. ` +
+					`${summary.cases_passed}/${summary.cases_total} passed, ` +
+					`retrieval ${retrievalRate}%, agent ${agentRate}%, ` +
+					`p95 ${Math.round(summary.latency_ms_p95)} ms.${artifactSuffix}`,
+			);
+		} catch (error) {
+			showErrorNotice("AILSS Python backend eval failed", error);
+		}
+	}
+
+	async retrieveWithPythonBackend(): Promise<void> {
+		const connection = await this.ensurePythonApiCallable();
+		if (!connection) return;
+
+		const prompt = await openPythonApiPromptModal(this.app, {
+			title: "Python backend retrieval",
+			description: "Run the local retrieval endpoint and inspect grounded note matches.",
+			submitText: "Retrieve",
+			queryPlaceholder: "What are you looking for?",
+			pathPrefixPlaceholder: "docs/ (optional)",
+		});
+		if (!prompt) return;
+
+		showNotice("AILSS Python backend retrieval started…");
+		try {
+			const result = await requestPythonApiRetrieve({
+				host: connection.host,
+				port: connection.port,
+				body: {
+					query: prompt.query,
+					top_k: clampPythonApiDefaultTopK(this.settings.topK),
+					path_prefix: prompt.pathPrefix ?? undefined,
+				},
+				timeoutMs: 15_000,
+			});
+			openTextViewModal(this.app, {
+				title: "Python backend retrieval result",
+				body: formatPythonRetrieveResult(result),
+			});
+			showNotice(
+				`AILSS Python backend retrieval complete. ${result.results.length} result(s).`,
+			);
+		} catch (error) {
+			showErrorNotice("AILSS Python backend retrieval failed", error);
+		}
+	}
+
+	async askPythonBackendAgent(): Promise<void> {
+		const connection = await this.ensurePythonApiCallable();
+		if (!connection) return;
+
+		const prompt = await openPythonApiPromptModal(this.app, {
+			title: "Python backend agent",
+			description:
+				"Run the grounded agent workflow and inspect answer, citations, and failures.",
+			submitText: "Run agent",
+			queryPlaceholder: "Ask a grounded question about your vault",
+			pathPrefixPlaceholder: "docs/ (optional)",
+		});
+		if (!prompt) return;
+
+		showNotice("AILSS Python backend agent started…");
+		try {
+			const result = await runPythonApiAgent({
+				host: connection.host,
+				port: connection.port,
+				body: {
+					input: prompt.query,
+					context: {
+						top_k: clampPythonApiAgentTopK(this.settings.topK),
+						path_prefix: prompt.pathPrefix ?? undefined,
+					},
+				},
+				timeoutMs: 30_000,
+			});
+			openTextViewModal(this.app, {
+				title: "Python backend agent result",
+				body: formatPythonAgentResult(result),
+			});
+			showNotice(`AILSS Python backend agent ${result.outcome}.`);
+		} catch (error) {
+			showErrorNotice("AILSS Python backend agent failed", error);
+		}
 	}
 
 	async reindexVault(): Promise<void> {
@@ -346,4 +598,91 @@ export default class AilssObsidianPlugin extends Plugin {
 	subscribeIndexerStatus(listener: (snapshot: AilssIndexerStatusSnapshot) => void): () => void {
 		return this.indexer.subscribe(listener);
 	}
+}
+
+function formatPythonRetrieveResult(
+	result: Awaited<ReturnType<typeof requestPythonApiRetrieve>>,
+): string {
+	const lines = [
+		`Query: ${result.query}`,
+		`Mode: ${result.mode}`,
+		`Results: ${result.results.length}`,
+		`Latency: ${Math.round(result.usage.latency_ms)} ms`,
+	];
+
+	if (result.usage.embedding_model) {
+		lines.push(`Embedding model: ${result.usage.embedding_model}`);
+	}
+	if (typeof result.usage.embedding_prompt_tokens === "number") {
+		lines.push(`Embedding prompt tokens: ${result.usage.embedding_prompt_tokens}`);
+	}
+	if (result.warnings.length > 0) {
+		lines.push("", "Warnings:");
+		for (const warning of result.warnings) {
+			lines.push(`- ${warning}`);
+		}
+	}
+
+	if (result.results.length === 0) {
+		lines.push("", "No grounded results.");
+		return lines.join("\n");
+	}
+
+	lines.push("", "Grounded matches:");
+	for (const [index, entry] of result.results.entries()) {
+		lines.push(`${index + 1}. ${entry.path}`);
+		if (entry.title) lines.push(`   Title: ${entry.title}`);
+		if (entry.summary) lines.push(`   Summary: ${entry.summary}`);
+		lines.push(`   Snippet: ${entry.snippet}`);
+		if (entry.evidence.length > 0) {
+			const citationList = entry.evidence.map((chunk) => chunk.chunk_id).join(", ");
+			lines.push(`   Evidence: ${citationList}`);
+		}
+	}
+
+	return lines.join("\n");
+}
+
+function formatPythonAgentResult(result: Awaited<ReturnType<typeof runPythonApiAgent>>): string {
+	const lines = [
+		`Run ID: ${result.run_id}`,
+		`Outcome: ${result.outcome}`,
+		`Retrieval mode: ${result.metrics.retrieval_mode}`,
+		`Selected notes: ${result.metrics.selected_notes}`,
+		`Latency: ${Math.round(result.metrics.latency_ms)} ms`,
+	];
+
+	if (typeof result.metrics.embedding_prompt_tokens === "number") {
+		lines.push(`Embedding prompt tokens: ${result.metrics.embedding_prompt_tokens}`);
+	}
+	if (result.artifact_path) {
+		lines.push(`Artifact: ${result.artifact_path}`);
+	}
+	if (result.answer) {
+		lines.push("", "Answer:", result.answer);
+	}
+	if (result.citations.length > 0) {
+		lines.push("", "Citations:");
+		for (const citation of result.citations) {
+			lines.push(`- ${citation.path}#${citation.chunk_id}`);
+		}
+	}
+	if (result.failure) {
+		lines.push("", "Failure:", `- ${result.failure.code}: ${result.failure.message}`);
+	}
+	if (result.write_actions.length > 0) {
+		lines.push("", "Write actions:");
+		for (const action of result.write_actions) {
+			lines.push(`- ${action.action}: ${action.allowed ? "allowed" : action.reason}`);
+		}
+	}
+	if (result.workflow.length > 0) {
+		lines.push("", "Workflow:");
+		for (const step of result.workflow) {
+			const detailSuffix = step.detail ? ` (${step.detail})` : "";
+			lines.push(`- ${step.name}: ${step.outcome}${detailSuffix}`);
+		}
+	}
+
+	return lines.join("\n");
 }

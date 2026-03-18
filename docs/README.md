@@ -23,6 +23,7 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 ## Architecture
 
 - Package structure: [architecture/packages.md](./architecture/packages.md)
+- Python-first local agent baseline: [architecture/python-first-local-agent-backend.md](./architecture/python-first-local-agent-backend.md)
 - Data & database: [architecture/data-db.md](./architecture/data-db.md)
 
 ## Ops

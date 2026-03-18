@@ -32,3 +32,13 @@ packages/obsidian-plugin/data.json
 *.sqlite
 *.sqlite3
 *.db
+
+# Python / uv
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.uv-cache/
+.coverage
+htmlcov/

@@ -1,0 +1,283 @@
+from __future__ import annotations
+
+import sqlite3
+from contextlib import closing
+from time import perf_counter
+
+from .config import Settings
+from .models import EvidenceChunk, RetrievalUsage, RetrieveRequest, RetrieveResponse, RetrieveResult
+from .retrieval_common import (
+    LexicalNoteAccumulator,
+    escape_like,
+    excerpt_text,
+    load_note_metadata,
+    normalize_optional_text,
+    parse_heading_path,
+    read_note_preview,
+    score_row,
+    stitch_text_segments,
+    tokenize_query,
+)
+from .retrieval_index import connect_db, ensure_index_ready, inspect_index, load_available_tables
+
+
+def run_lexical_retrieval(
+    request: RetrieveRequest,
+    settings: Settings,
+    started: float,
+) -> RetrieveResponse:
+    index_status = inspect_index(settings)
+    ensure_index_ready(index_status)
+
+    query_terms = tokenize_query(request.query)
+    search_terms = query_terms or [request.query.casefold().strip()]
+    warnings: list[str] = []
+    if not query_terms:
+        warnings.append(
+            "Query terms were too short for token scoring; using whole-query lexical matching."
+        )
+    query_text = request.query.casefold().strip()
+    candidate_limit = min(settings.max_candidates, max(request.top_k * 2, request.top_k))
+
+    with closing(connect_db(index_status.db_path, load_vector_extension=False)) as conn:
+        tables = load_available_tables(conn)
+        rows = conn.execute(
+            *build_lexical_candidate_query(
+                request,
+                query_text,
+                query_terms,
+                search_terms,
+                candidate_limit,
+            ),
+        ).fetchall()
+        results = rank_lexical_rows(
+            rows, request, query_terms, search_terms, settings, conn, tables
+        )
+
+    usage = RetrievalUsage(
+        latency_ms=round((perf_counter() - started) * 1000, 3),
+        used_chunks_k=candidate_limit,
+    )
+    return RetrieveResponse(
+        query=request.query,
+        mode="lexical_baseline",
+        results=results[: request.top_k],
+        warnings=warnings,
+        usage=usage,
+    )
+
+
+def build_lexical_candidate_query(
+    request: RetrieveRequest,
+    query_text: str,
+    query_terms: list[str],
+    search_terms: list[str],
+    limit: int,
+) -> tuple[str, list[object]]:
+    where_clauses: list[str] = []
+    where_params: list[object] = []
+
+    term_clauses: list[str] = []
+    for term in search_terms:
+        like = f"%{escape_like(term)}%"
+        term_clauses.append(
+            "("
+            "LOWER(COALESCE(n.title, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(n.summary, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(c.content) LIKE ? ESCAPE '\\'"
+            ")",
+        )
+        where_params.extend([like, like, like])
+    where_clauses.append(f"({' OR '.join(term_clauses)})")
+
+    if request.path_prefix:
+        where_params.append(f"{escape_like(request.path_prefix.strip())}%")
+        where_clauses.append("c.path LIKE ? ESCAPE '\\'")
+
+    if request.tags_any:
+        placeholders = ", ".join("?" for _ in request.tags_any)
+        where_clauses.append(
+            "EXISTS (SELECT 1 FROM note_tags t WHERE t.path = c.path AND t.tag IN "
+            f"({placeholders}))"
+        )
+        where_params.extend(request.tags_any)
+
+    for tag in request.tags_all:
+        where_clauses.append(
+            "EXISTS (SELECT 1 FROM note_tags t WHERE t.path = c.path AND t.tag = ?)"
+        )
+        where_params.append(tag)
+
+    candidate_score_sql, candidate_score_params = build_lexical_candidate_score_sql(
+        query_text=query_text,
+        query_terms=query_terms,
+        search_terms=search_terms,
+    )
+
+    sql = f"""
+        SELECT
+          c.chunk_id,
+          c.path,
+          c.chunk_index,
+          c.heading,
+          c.heading_path_json,
+          c.content,
+          n.title,
+          n.summary,
+          ({candidate_score_sql}) AS candidate_score
+        FROM chunks c
+        LEFT JOIN notes n ON n.path = c.path
+        WHERE {" AND ".join(where_clauses)}
+        ORDER BY candidate_score DESC, c.path, c.chunk_index
+        LIMIT ?
+    """
+    params: list[object] = [*candidate_score_params, *where_params, limit]
+    return sql, params
+
+
+def build_lexical_candidate_score_sql(
+    *,
+    query_text: str,
+    query_terms: list[str],
+    search_terms: list[str],
+) -> tuple[str, list[object]]:
+    path_sql = "LOWER(c.path)"
+    title_sql = "LOWER(COALESCE(n.title, ''))"
+    summary_sql = "LOWER(COALESCE(n.summary, ''))"
+    heading_sql = "LOWER(COALESCE(c.heading, ''))"
+    content_sql = "LOWER(c.content)"
+    score_parts = ["0.0"]
+    params: list[object] = []
+
+    weighted_columns = (
+        (title_sql, 2.0),
+        (summary_sql, 1.6),
+        (heading_sql, 1.3),
+        (content_sql, 1.0),
+        (path_sql, 0.5),
+    )
+    for term in query_terms:
+        for column_sql, weight in weighted_columns:
+            score_parts.append(f"({_build_occurrence_count_sql(column_sql)} * {weight})")
+            params.extend([term, term])
+
+    if query_text:
+        query_text_columns = (
+            (title_sql, 3.0),
+            (summary_sql, 2.5),
+            (content_sql, 1.5),
+        )
+        for column_sql, weight in query_text_columns:
+            score_parts.append(f"(CASE WHEN INSTR({column_sql}, ?) > 0 THEN {weight} ELSE 0.0 END)")
+            params.append(query_text)
+
+    for term in search_terms:
+        score_parts.append(f"(CASE WHEN INSTR({content_sql}, ?) > 0 THEN 0.75 ELSE 0.0 END)")
+        params.append(term)
+
+    return " + ".join(score_parts), params
+
+
+def _build_occurrence_count_sql(column_sql: str) -> str:
+    return f"((LENGTH({column_sql}) - LENGTH(REPLACE({column_sql}, ?, ''))) / LENGTH(?))"
+
+
+def rank_lexical_rows(
+    rows: list[sqlite3.Row],
+    request: RetrieveRequest,
+    query_terms: list[str],
+    search_terms: list[str],
+    settings: Settings,
+    conn: sqlite3.Connection,
+    tables: frozenset[str],
+) -> list[RetrieveResult]:
+    notes: dict[str, LexicalNoteAccumulator] = {}
+    query_text = request.query.casefold().strip()
+
+    for row in rows:
+        path = str(row["path"])
+        title = normalize_optional_text(row["title"])
+        summary = normalize_optional_text(row["summary"])
+        heading = normalize_optional_text(row["heading"])
+        content = str(row["content"])
+        score = (
+            float(row["candidate_score"])
+            if "candidate_score" in row
+            else score_row(
+                query_text=query_text,
+                query_terms=query_terms,
+                search_terms=search_terms,
+                path=path,
+                title=title,
+                summary=summary,
+                heading=heading,
+                content=content,
+            )
+        )
+        if score <= 0:
+            continue
+
+        evidence = EvidenceChunk(
+            chunk_id=str(row["chunk_id"]),
+            chunk_index=int(row["chunk_index"]),
+            kind="match",
+            heading=heading,
+            heading_path=parse_heading_path(row["heading_path_json"]),
+            text=excerpt_text(content, search_terms),
+            score=round(score, 3),
+        )
+        note_entry = notes.setdefault(
+            path,
+            LexicalNoteAccumulator(
+                path=path,
+                title=title,
+                summary=summary,
+                score=score,
+                evidence=[],
+            ),
+        )
+        note_entry.score = max(note_entry.score, score)
+        note_entry.evidence.append(evidence)
+
+    if not notes:
+        return []
+
+    metadata = load_note_metadata(conn, list(notes), tables)
+    ranked: list[RetrieveResult] = []
+    for note in notes.values():
+        top_evidence = sorted(
+            note.evidence,
+            key=lambda entry: entry.score or 0,
+            reverse=True,
+        )[: request.hit_chunks_per_note]
+        preview = read_note_preview(
+            settings, note.path, request.max_chars_per_note, request.include_file_preview
+        )
+        meta = metadata.get(note.path)
+        stitched = stitch_text_segments(
+            [chunk.text for chunk in top_evidence],
+            request.max_evidence_chars_per_note,
+        )
+        top_chunk = top_evidence[0]
+        score = round(note.score + max(0, len(top_evidence) - 1) * 0.25, 3)
+        ranked.append(
+            RetrieveResult(
+                path=note.path,
+                title=meta.title if meta else note.title,
+                summary=meta.summary if meta else note.summary,
+                tags=meta.tags if meta else [],
+                keywords=meta.keywords if meta else [],
+                score=score,
+                heading=top_chunk.heading,
+                heading_path=top_chunk.heading_path,
+                snippet=top_chunk.text[:300],
+                evidence_text=stitched.text,
+                evidence_truncated=stitched.truncated,
+                preview=preview.text,
+                preview_truncated=preview.truncated,
+                evidence=top_evidence,
+            )
+        )
+
+    ranked.sort(key=lambda result: result.score or 0, reverse=True)
+    return ranked

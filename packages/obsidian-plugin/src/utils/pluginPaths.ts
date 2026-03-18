@@ -101,3 +101,21 @@ export function resolveIndexerArgs(options: {
 
 	return [candidate];
 }
+
+export function resolvePythonApiArgs(options: {
+	settings: AilssObsidianSettings;
+	pluginDirRealpathOrNull: string | null;
+}): string[] {
+	if (options.settings.pythonApiArgs.length > 0) return options.settings.pythonApiArgs;
+	if (!options.pluginDirRealpathOrNull) return [];
+
+	const bundled = path.resolve(options.pluginDirRealpathOrNull, "ailss-service/apps/api");
+	if (fs.existsSync(bundled)) return ["run", "--directory", bundled, "ailss-api"];
+
+	const workspaceCandidate = path.resolve(options.pluginDirRealpathOrNull, "../../apps/api");
+	if (fs.existsSync(workspaceCandidate)) {
+		return ["run", "--directory", workspaceCandidate, "ailss-api"];
+	}
+
+	return [];
+}

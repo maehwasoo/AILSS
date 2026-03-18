@@ -18,6 +18,11 @@ core:
       - any-glob-to-any-file:
           - packages/core/**
 
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - apps/api/**
+
 docs:
   - changed-files:
       - any-glob-to-any-file:
