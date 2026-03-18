@@ -375,7 +375,10 @@ def _read_note_excerpt(settings: Settings, note_path: str) -> str | None:
     if candidate is None:
         return None
 
-    text = candidate.read_text(encoding="utf-8")
+    try:
+        text = candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
     excerpt = text[: settings.max_read_chars].strip()
     if len(text) > settings.max_read_chars:
         return f"{excerpt}..."
