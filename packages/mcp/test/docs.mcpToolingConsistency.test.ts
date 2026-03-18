@@ -105,6 +105,47 @@ function extractToolListFromOverview(markdown: string, sectionHeading: string): 
   return out.sort((a, b) => a.localeCompare(b));
 }
 
+function extractToolListFromTable(markdown: string, sectionHeading: string): string[] {
+  const lines = markdown.split(/\r?\n/);
+  const headingIndex = lines.findIndex((l) => l.trim() === sectionHeading);
+  if (headingIndex < 0) return [];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  let inTable = false;
+
+  for (let i = headingIndex + 1; i < lines.length; i += 1) {
+    const rawLine = lines[i] ?? "";
+    const line = rawLine.trim();
+
+    if (!line) {
+      if (inTable) break;
+      continue;
+    }
+
+    if (line.startsWith("#")) break;
+
+    if (!line.startsWith("|")) {
+      if (inTable) break;
+      continue;
+    }
+
+    inTable = true;
+    const firstCell = rawLine.split("|")[1]?.trim() ?? "";
+    if (/^:?-{3,}:?$/.test(firstCell)) continue;
+
+    const match = line.match(/^\|\s*`([^`]+)`\s*\|/);
+    if (!match?.[1]) continue;
+
+    const tool = match[1].trim();
+    if (!tool || seen.has(tool)) continue;
+    seen.add(tool);
+    out.push(tool);
+  }
+
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
 function extractYamlFrontmatterBlock(markdown: string): string | null {
   const normalized = (markdown ?? "").replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
@@ -178,6 +219,41 @@ describe("Docs/prompt MCP tool consistency", () => {
         overview,
         "Explicit write tools (apply, implemented):",
       );
+
+      expect(docsReadTools).toEqual(readTools);
+      expect(docsWriteTools).toEqual(writeTools);
+    });
+  });
+
+  it("keeps docs/architecture/python-mcp-parity.md tool coverage in sync with tools/list", async () => {
+    await withTempDir("ailss-mcp-docs-", async (dir) => {
+      const dbPath = path.join(dir, "index.sqlite");
+
+      const readTools = await withMcpHttpServer(
+        { dbPath, enableWriteTools: false },
+        async (ctx) => {
+          const sessionId = await mcpInitialize(ctx.url, ctx.token, "client-docs");
+          return toolNamesFromList(await mcpToolsList(ctx.url, ctx.token, sessionId));
+        },
+      );
+
+      const allTools = await withMcpHttpServer({ dbPath, enableWriteTools: true }, async (ctx) => {
+        const sessionId = await mcpInitialize(ctx.url, ctx.token, "client-docs");
+        return toolNamesFromList(await mcpToolsList(ctx.url, ctx.token, sessionId));
+      });
+
+      const writeTools = diffSet(allTools, readTools).sort((a, b) => a.localeCompare(b));
+
+      const parityDocPath = path.join(
+        process.cwd(),
+        "docs",
+        "architecture",
+        "python-mcp-parity.md",
+      );
+      const parityDoc = await fs.readFile(parityDocPath, "utf8");
+
+      const docsReadTools = extractToolListFromTable(parityDoc, "## Read tool parity matrix");
+      const docsWriteTools = extractToolListFromTable(parityDoc, "## Write tool parity matrix");
 
       expect(docsReadTools).toEqual(readTools);
       expect(docsWriteTools).toEqual(writeTools);
