@@ -224,8 +224,16 @@ def ensure_embedding_config_matches(
         )
 
     expected_dim = meta.get("embedding_dim")
-    if expected_dim and int(expected_dim) != embedding_dim:
-        raise IndexNotReadyError(
-            "Embedding dimension mismatch between the local DB and Python backend settings. "
-            f"DB expects {expected_dim}, query embedding was {embedding_dim}."
-        )
+    if expected_dim:
+        try:
+            expected_dim_value = int(expected_dim)
+        except ValueError as error:
+            raise IndexNotReadyError(
+                "Embedding dimension metadata in the local DB is invalid. "
+                f"DB has embedding_dim={expected_dim!r}."
+            ) from error
+        if expected_dim_value != embedding_dim:
+            raise IndexNotReadyError(
+                "Embedding dimension mismatch between the local DB and Python backend settings. "
+                f"DB expects {expected_dim}, query embedding was {embedding_dim}."
+            )

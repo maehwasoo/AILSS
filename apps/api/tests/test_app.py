@@ -173,6 +173,33 @@ def test_retrieve_surfaces_sqlite_vec_load_failures(
     )
 
 
+def test_retrieve_rejects_invalid_embedding_dim_metadata(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    assert settings.resolved_db_path is not None
+    _set_db_meta_value(settings.resolved_db_path, "embedding_dim", "not-a-number")
+    monkeypatch.setattr(
+        "ailss_api.retrieval.embed_query",
+        lambda settings, text: _fake_embedding_result([0.1, 0.2, 0.25]),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "python backend",
+            "top_k": 3,
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Embedding dimension metadata in the local DB is invalid. "
+        "DB has embedding_dim='not-a-number'."
+    )
+
+
 def test_retrieve_omits_preview_when_file_read_fails(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
@@ -348,6 +375,60 @@ def test_agent_run_falls_back_when_note_excerpt_read_fails(
     payload = response.json()
     assert payload["outcome"] == "completed"
     assert "python-first" in payload["answer"].lower()
+
+
+def test_agent_run_cites_hit_chunk_when_neighbors_precede_match(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.agent.retrieve_notes",
+        lambda request, settings: RetrieveResponse(
+            query=request.query,
+            mode="semantic_local",
+            results=[
+                RetrieveResult(
+                    path="docs/03-plan.md",
+                    title="Python-first backend baseline",
+                    summary=(
+                        "Move AILSS toward a Python-first local backend with retrieval and "
+                        "evaluation."
+                    ),
+                    snippet="Python-first backend direction for AILSS.",
+                    evidence_text="Matched evidence text.",
+                    evidence=[
+                        EvidenceChunk(
+                            chunk_id="docs-03-plan-0",
+                            chunk_index=0,
+                            kind="neighbor",
+                            text="Neighbor evidence text.",
+                        ),
+                        EvidenceChunk(
+                            chunk_id="docs-03-plan-1",
+                            chunk_index=1,
+                            kind="hit",
+                            text="Matched evidence text.",
+                        ),
+                    ],
+                )
+            ],
+            usage=RetrievalUsage(latency_ms=1.0, used_chunks_k=1),
+        ),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/agent/run",
+        json={
+            "input": "Summarize the Python-first backend direction for this repo.",
+            "context": {"top_k": 1, "neighbor_window": 1},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["outcome"] == "completed"
+    assert payload["citations"][0]["chunk_id"] == "docs-03-plan-1"
 
 
 def test_agent_run_rejects_write_request_without_apply(tmp_path: Path) -> None:
@@ -890,6 +971,12 @@ def _drop_chunk_index_column(db_path: Path) -> None:
             );
             """
         )
+        conn.commit()
+
+
+def _set_db_meta_value(db_path: Path, key: str, value: str) -> None:
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute("UPDATE db_meta SET value = ? WHERE key = ?", (value, key))
         conn.commit()
 
 

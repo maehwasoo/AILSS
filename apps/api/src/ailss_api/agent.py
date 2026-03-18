@@ -289,9 +289,9 @@ def _route_after_answer(state: AgentGraphState) -> Literal["validate_answer", "_
 
 def _validate_answer(state: AgentGraphState) -> dict[str, object]:
     citations = [
-        Citation(path=result.path, chunk_id=result.evidence[0].chunk_id)
+        Citation(path=result.path, chunk_id=chunk_id)
         for result in state["selected_results"]
-        if result.evidence
+        if (chunk_id := _select_citation_chunk_id(result)) is not None
     ]
     if not citations:
         return {
@@ -316,6 +316,16 @@ def _validate_answer(state: AgentGraphState) -> dict[str, object]:
             f"{len(citations)} citations attached",
         ),
     }
+
+
+def _select_citation_chunk_id(result: RetrieveResult) -> str | None:
+    preferred_kinds = {"hit", "match"}
+    for evidence in result.evidence:
+        if evidence.kind in preferred_kinds:
+            return evidence.chunk_id
+    if result.evidence:
+        return result.evidence[0].chunk_id
+    return None
 
 
 def _append_step(
