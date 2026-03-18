@@ -308,6 +308,36 @@ def test_eval_run_writes_artifacts(tmp_path: Path, monkeypatch: MonkeyPatch) -> 
     assert (artifact_dir / "cases.json").exists()
 
 
+def test_eval_run_surfaces_embedding_provider_failures(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    dataset_path = settings.resolved_dataset_dir / "golden-local-baseline.json"
+    dataset_path.write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "python-first-transition",
+                    "input": "Summarize the Python-first backend direction for this repo.",
+                    "context": {"path_prefix": "docs/", "top_k": 2},
+                    "expected_paths": ["docs/03-plan.md"],
+                    "expected_terms": ["python-first", "backend"],
+                }
+            ],
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("ailss_api.retrieval.embed_query", _raise_openai_error)
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "golden-local-baseline", "limit": 5})
+
+    assert response.status_code == 503
+    assert (
+        response.json()["detail"] == "Semantic retrieval embedding request failed: embedding boom"
+    )
+
+
 def test_eval_run_clamps_agent_top_k_to_agent_limit(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
@@ -434,6 +464,30 @@ def test_eval_run_rejects_blank_dataset_input(tmp_path: Path) -> None:
     detail = response.json()["detail"]
     assert detail.startswith("Eval dataset entry 0 failed validation: input:")
     assert "at least 1 character" in detail
+
+
+def test_eval_run_rejects_dataset_path_traversal(tmp_path: Path) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    outside_dataset = tmp_path / "escaped.json"
+    outside_dataset.write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "escaped-dataset",
+                    "input": "Should not load this dataset.",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post("/eval/run", json={"dataset_id": "../escaped", "limit": 5})
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"] == "Eval dataset_id must stay within the configured dataset_dir."
+    )
 
 
 def test_shutdown_requires_valid_token(tmp_path: Path) -> None:

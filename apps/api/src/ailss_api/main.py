@@ -72,6 +72,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except IndexNotReadyError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
+        except EmbeddingServiceError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
 
     @app.post("/__ailss/shutdown", include_in_schema=False)
     def shutdown(

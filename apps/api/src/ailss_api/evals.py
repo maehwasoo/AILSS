@@ -161,8 +161,8 @@ def run_eval(request: EvalRunRequest, settings: Settings) -> EvalRunResponse:
 
 
 def _load_dataset(dataset_dir: Path, dataset_id: str) -> list[EvalCase]:
-    dataset_path = dataset_dir / f"{dataset_id}.json"
-    if not dataset_path.exists():
+    dataset_path = _resolve_dataset_path(dataset_dir, dataset_id)
+    if not dataset_path.is_file():
         raise DatasetNotFoundError(f"Eval dataset not found: {dataset_path}")
 
     try:
@@ -182,6 +182,18 @@ def _load_dataset(dataset_dir: Path, dataset_id: str) -> list[EvalCase]:
                 f"Eval dataset entry {index} failed validation: {_format_validation_error(error)}"
             ) from error
     return cases
+
+
+def _resolve_dataset_path(dataset_dir: Path, dataset_id: str) -> Path:
+    dataset_root = dataset_dir.resolve()
+    candidate = (dataset_root / Path(f"{dataset_id}.json")).resolve()
+    try:
+        candidate.relative_to(dataset_root)
+    except ValueError as error:
+        raise InvalidEvalDatasetError(
+            "Eval dataset_id must stay within the configured dataset_dir."
+        ) from error
+    return candidate
 
 
 def _optional_string(value: object) -> str | None:
