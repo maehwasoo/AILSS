@@ -42,6 +42,23 @@ def test_health_reports_ready_index(tmp_path: Path) -> None:
     assert payload["checks"]["vector_index_ready"] is True
 
 
+def test_health_reports_degraded_when_required_index_columns_are_missing(
+    tmp_path: Path,
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    assert settings.resolved_db_path is not None
+    _drop_chunk_index_column(settings.resolved_db_path)
+
+    client = TestClient(create_app(settings))
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "degraded"
+    assert payload["checks"]["index_schema_ready"] is False
+    assert payload["checks"]["vector_index_ready"] is False
+
+
 def test_retrieve_returns_semantic_matches(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     settings = _build_settings_with_seed_data(tmp_path)
     monkeypatch.setattr(
@@ -66,6 +83,28 @@ def test_retrieve_returns_semantic_matches(tmp_path: Path, monkeypatch: MonkeyPa
     assert payload["results"][0]["path"] == "docs/03-plan.md"
     assert payload["results"][0]["evidence"][0]["chunk_id"] == "docs-03-plan-0"
     assert payload["usage"]["embedding_prompt_tokens"] == 7
+
+
+def test_retrieve_rejects_incomplete_index_schema_before_query_execution(
+    tmp_path: Path,
+) -> None:
+    settings = _build_settings_with_seed_data(tmp_path)
+    assert settings.resolved_db_path is not None
+    _drop_chunk_index_column(settings.resolved_db_path)
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/retrieve",
+        json={
+            "query": "python backend",
+            "top_k": 3,
+        },
+    )
+
+    assert response.status_code == 503
+    assert (
+        response.json()["detail"] == f"Index DB schema is incomplete: {settings.resolved_db_path}"
+    )
 
 
 def test_retrieve_supports_explicit_lexical_mode(tmp_path: Path) -> None:
@@ -830,6 +869,26 @@ def _seed_index_db(db_path: Path) -> None:
                 (1, "[0.1, 0.2, 0.3]"),
                 (2, "[0.9, 0.1, 0.0]"),
             ],
+        )
+        conn.commit()
+
+
+def _drop_chunk_index_column(db_path: Path) -> None:
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.executescript(
+            """
+            DROP TABLE chunks;
+            CREATE TABLE chunks (
+              chunk_id TEXT PRIMARY KEY,
+              path TEXT NOT NULL,
+              heading TEXT,
+              heading_path_json TEXT NOT NULL,
+              content TEXT NOT NULL,
+              content_sha256 TEXT NOT NULL,
+              embedding_input_sha256 TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            """
         )
         conn.commit()
 

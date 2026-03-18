@@ -13,6 +13,20 @@ from .models import HealthChecks, HealthResponse
 
 BASE_REQUIRED_TABLES = {"chunks", "db_meta", "note_tags", "notes"}
 VECTOR_REQUIRED_TABLES = {"chunk_embeddings", "chunk_rowids"}
+BASE_REQUIRED_COLUMNS = {
+    "chunks": frozenset(
+        {"chunk_id", "path", "chunk_index", "heading", "heading_path_json", "content"}
+    ),
+    "db_meta": frozenset({"key", "value"}),
+    "note_tags": frozenset({"path", "tag"}),
+    "notes": frozenset({"path", "title", "summary"}),
+}
+OPTIONAL_TABLE_COLUMNS = {
+    "note_keywords": frozenset({"path", "keyword"}),
+}
+VECTOR_REQUIRED_COLUMNS = {
+    "chunk_rowids": frozenset({"chunk_id", "rowid"}),
+}
 
 
 class IndexNotReadyError(RuntimeError):
@@ -72,11 +86,16 @@ def inspect_index(settings: Settings) -> IndexStatus:
 
     try:
         with closing(sqlite3.connect(db_path)) as conn:
-            tables = frozenset(
-                row[0]
-                for row in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')",
-                ).fetchall()
+            tables = load_available_tables(conn)
+            columns_by_table = load_table_columns(
+                conn,
+                frozenset(
+                    {
+                        *BASE_REQUIRED_COLUMNS,
+                        *VECTOR_REQUIRED_COLUMNS,
+                        *(table for table in OPTIONAL_TABLE_COLUMNS if table in tables),
+                    }
+                ),
             )
     except sqlite3.Error:
         return IndexStatus(
@@ -87,13 +106,23 @@ def inspect_index(settings: Settings) -> IndexStatus:
             vector_index_ready=False,
         )
 
+    index_schema_ready = (
+        BASE_REQUIRED_TABLES.issubset(tables)
+        and has_required_columns(columns_by_table, BASE_REQUIRED_COLUMNS)
+        and has_optional_table_columns(tables, columns_by_table, OPTIONAL_TABLE_COLUMNS)
+    )
+    vector_index_ready = (
+        index_schema_ready
+        and VECTOR_REQUIRED_TABLES.issubset(tables)
+        and has_required_columns(columns_by_table, VECTOR_REQUIRED_COLUMNS)
+    )
+
     return IndexStatus(
         db_path=db_path,
         db_configured=True,
         index_db_exists=True,
-        index_schema_ready=BASE_REQUIRED_TABLES.issubset(tables),
-        vector_index_ready=BASE_REQUIRED_TABLES.issubset(tables)
-        and VECTOR_REQUIRED_TABLES.issubset(tables),
+        index_schema_ready=index_schema_ready,
+        vector_index_ready=vector_index_ready,
         available_tables=tables,
     )
 
@@ -137,6 +166,40 @@ def load_available_tables(conn: sqlite3.Connection) -> frozenset[str]:
         for row in conn.execute(
             "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')",
         ).fetchall()
+    )
+
+
+def load_table_columns(
+    conn: sqlite3.Connection, tables: frozenset[str]
+) -> dict[str, frozenset[str]]:
+    columns_by_table: dict[str, frozenset[str]] = {}
+    for table in tables:
+        quoted_table = table.replace('"', '""')
+        columns_by_table[table] = frozenset(
+            str(row[1]) for row in conn.execute(f'PRAGMA table_info("{quoted_table}")').fetchall()
+        )
+    return columns_by_table
+
+
+def has_required_columns(
+    columns_by_table: dict[str, frozenset[str]],
+    required_columns: dict[str, frozenset[str]],
+) -> bool:
+    return all(
+        columns.issubset(columns_by_table.get(table, frozenset()))
+        for table, columns in required_columns.items()
+    )
+
+
+def has_optional_table_columns(
+    tables: frozenset[str],
+    columns_by_table: dict[str, frozenset[str]],
+    optional_columns: dict[str, frozenset[str]],
+) -> bool:
+    return all(
+        columns.issubset(columns_by_table.get(table, frozenset()))
+        for table, columns in optional_columns.items()
+        if table in tables
     )
 
 
