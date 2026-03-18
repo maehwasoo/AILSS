@@ -4,10 +4,16 @@ vi.mock("../../src/utils/tcp.js", () => ({
 	waitForTcpPortToBeAvailable: vi.fn(),
 }));
 
+vi.mock("../../src/pythonApi/client.js", () => ({
+	requestPythonApiShutdown: vi.fn(),
+	waitForPythonApiHealth: vi.fn(),
+}));
+
 import {
 	PythonApiServiceController,
 	type PythonApiServiceControllerDeps,
 } from "../../src/pythonApi/pythonApiServiceController.js";
+import { waitForPythonApiHealth } from "../../src/pythonApi/client.js";
 import { waitForTcpPortToBeAvailable } from "../../src/utils/tcp.js";
 
 type TestSettings = ReturnType<PythonApiServiceControllerDeps["getSettings"]>;
@@ -32,6 +38,7 @@ type ControllerInternals = {
 		shutdownAttempted: boolean;
 		shutdownSucceeded: boolean;
 	}>;
+	waitUntilHealthy: (preflight: StartupPreflight) => Promise<void>;
 	composePortInUseErrorMessage: (options: {
 		host: string;
 		port: number;
@@ -104,6 +111,7 @@ function createController(
 
 describe("PythonApiServiceController startup helper branches", () => {
 	const waitForPort = vi.mocked(waitForTcpPortToBeAvailable);
+	const waitForHealth = vi.mocked(waitForPythonApiHealth);
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -152,6 +160,26 @@ describe("PythonApiServiceController startup helper branches", () => {
 		});
 		expect(settings.topK).toBe(80);
 		expect(saveSettings).not.toHaveBeenCalled();
+	});
+
+	it("waits long enough for Python uv cold starts during readiness checks", async () => {
+		const { controller } = createController();
+		const internals = asInternals(controller);
+		const preflight = await internals.prepareStartupPreflight();
+		waitForHealth.mockResolvedValue({
+			status: "ok",
+			service: "ailss-api",
+			version: "0.1.0-dev",
+			checks: {},
+		});
+
+		await expect(internals.waitUntilHealthy(preflight)).resolves.toBeUndefined();
+		expect(waitForHealth).toHaveBeenCalledWith({
+			host: "127.0.0.1",
+			port: 8787,
+			timeoutMs: 30_000,
+			pollIntervalMs: 150,
+		});
 	});
 
 	it("returns available when the Python port is already free", async () => {

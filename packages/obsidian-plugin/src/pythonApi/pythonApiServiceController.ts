@@ -35,6 +35,9 @@ type PortNegotiationResult = {
 	shutdownSucceeded: boolean;
 };
 
+const PYTHON_API_READY_TIMEOUT_MS = 30_000;
+const PYTHON_API_READY_POLL_INTERVAL_MS = 150;
+
 export class PythonApiServiceController {
 	private proc: ChildProcess | null = null;
 	private stopRequested = false;
@@ -310,8 +313,8 @@ export class PythonApiServiceController {
 			await waitForPythonApiHealth({
 				host: preflight.host,
 				port: preflight.port,
-				timeoutMs: 5_000,
-				pollIntervalMs: 150,
+				timeoutMs: PYTHON_API_READY_TIMEOUT_MS,
+				pollIntervalMs: PYTHON_API_READY_POLL_INTERVAL_MS,
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);

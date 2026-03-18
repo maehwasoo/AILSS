@@ -371,13 +371,27 @@ def _compose_answer(
     results: Sequence[RetrieveResult],
     note_excerpts: list[str | None],
 ) -> str:
-    segments = [f'Local baseline answer for "{user_input}":']
+    segments: list[str] = []
     for result, note_excerpt in zip(results, note_excerpts, strict=True):
+        evidence = _select_answer_evidence_text(result, note_excerpt)
+        if evidence is None:
+            continue
         label = result.title or result.path
         summary = result.summary or result.snippet
-        evidence = note_excerpt or result.evidence_text or result.evidence[0].text
         segments.append(f"{label} ({result.path}) points to {summary}. Evidence: {evidence}")
-    return " ".join(segments)
+    if not segments:
+        return ""
+    return f'Local baseline answer for "{user_input}": ' + " ".join(segments)
+
+
+def _select_answer_evidence_text(result: RetrieveResult, note_excerpt: str | None) -> str | None:
+    if note_excerpt:
+        return note_excerpt
+    if result.evidence_text:
+        return result.evidence_text
+    if result.evidence:
+        return result.evidence[0].text
+    return None
 
 
 def _read_note_excerpt(settings: Settings, note_path: str) -> str | None:

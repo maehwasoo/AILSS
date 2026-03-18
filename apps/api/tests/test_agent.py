@@ -195,6 +195,45 @@ def test_agent_run_cites_hit_chunk_when_neighbors_precede_match(
     assert payload["citations"][0]["chunk_id"] == "docs-03-plan-1"
 
 
+def test_agent_run_fails_when_selected_results_have_no_grounding_evidence(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    settings = build_settings_with_seed_data(tmp_path)
+    monkeypatch.setattr(
+        "ailss_api.agent.retrieve_notes",
+        lambda request, settings: RetrieveResponse(
+            query=request.query,
+            mode="semantic_local",
+            results=[
+                RetrieveResult(
+                    path="missing.md",
+                    title="Ungrounded note",
+                    summary="Missing note file and no indexed evidence.",
+                    snippet="Indexed snippet without inspectable evidence.",
+                    evidence_text=None,
+                    evidence=[],
+                )
+            ],
+            usage=RetrievalUsage(latency_ms=1.0, used_chunks_k=1),
+        ),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/agent/run",
+        json={
+            "input": DEFAULT_AGENT_INPUT,
+            "context": {"top_k": 1},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["outcome"] == "failed"
+    assert payload["answer"] is None
+    assert payload["failure"]["code"] == "grounding_failure"
+
+
 def test_agent_run_rejects_write_request_without_apply(tmp_path: Path) -> None:
     settings = build_settings_with_seed_data(tmp_path)
     client = TestClient(create_app(settings))
