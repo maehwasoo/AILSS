@@ -14,7 +14,7 @@ export function renderPythonApiSection(
 	new Setting(containerEl)
 		.setName("Enable backend")
 		.setDesc(
-			`${plugin.getPythonApiServiceStatusLine()}\n\nRuns the local FastAPI backend that owns retrieval, agent workflow, and eval endpoints.`,
+			`${plugin.getPythonApiServiceStatusLine()}\n\nRuns the primary local FastAPI runtime for health, retrieval, agent workflow, and eval endpoints.`,
 		)
 		.addToggle((toggle) => {
 			toggle.setValue(plugin.settings.pythonApiServiceEnabled);
@@ -46,7 +46,11 @@ export function renderPythonApiSection(
 
 	new Setting(containerEl)
 		.setName("Controls")
-		.setDesc("Start or restart the local Python backend process from the plugin.")
+		.setDesc("Open status, run health checks, or restart the primary local backend.")
+		.addButton((button) => {
+			button.setButtonText("Open status");
+			button.onClick(() => plugin.openPythonStatusModal());
+		})
 		.addButton((button) => {
 			button.setButtonText("Restart backend");
 			button.onClick(() => void plugin.restartPythonApiService());

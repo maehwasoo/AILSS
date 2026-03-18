@@ -17,6 +17,7 @@ import {
 } from "./pythonApi/client.js";
 import { PythonApiServiceController } from "./pythonApi/pythonApiServiceController.js";
 import type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiServiceTypes.js";
+import { startConfiguredServices } from "./runtime/startConfiguredServices.js";
 import {
 	AilssObsidianSettingTab,
 	DEFAULT_SETTINGS,
@@ -27,14 +28,17 @@ import {
 	openIndexerStatusModal as openIndexerStatusModalUi,
 	openLastIndexerLogModal as openLastIndexerLogModalUi,
 	openMcpStatusModal as openMcpStatusModalUi,
+	openPythonStatusModal as openPythonStatusModalUi,
 } from "./ui/pluginModals.js";
 import { showErrorNotice, showNotice } from "./ui/pluginNotices.js";
 import { openPythonApiPromptModal, openTextViewModal } from "./ui/pythonApiCommandModals.js";
 import {
 	mountIndexerStatusBar,
 	mountMcpStatusBar,
+	mountPythonStatusBar,
 	renderIndexerStatusBar,
 	renderMcpStatusBar,
+	renderPythonStatusBar,
 } from "./ui/statusBars.js";
 import {
 	clampPort,
@@ -66,6 +70,7 @@ export type { AilssPythonApiServiceStatusSnapshot } from "./pythonApi/pythonApiS
 export default class AilssObsidianPlugin extends Plugin {
 	settings!: AilssObsidianSettings;
 
+	private pythonStatusBarEl: HTMLElement | null = null;
 	private statusBarEl: HTMLElement | null = null;
 	private mcpStatusBarEl: HTMLElement | null = null;
 
@@ -102,7 +107,8 @@ export default class AilssObsidianPlugin extends Plugin {
 			}),
 		getUrl: () => this.getPythonApiServiceUrl(),
 		onStatusChanged: () => {
-			// settings-only status for now
+			if (!this.pythonStatusBarEl) return;
+			renderPythonStatusBar(this.pythonStatusBarEl, this.getPythonApiServiceStatusSnapshot());
 		},
 	});
 
@@ -141,26 +147,31 @@ export default class AilssObsidianPlugin extends Plugin {
 		await this.ensureMcpHttpServiceShutdownToken();
 		await this.ensurePythonApiServiceShutdownToken();
 
+		this.pythonStatusBarEl = mountPythonStatusBar(this, {
+			onClick: () => this.openPythonStatusModal(),
+		});
 		this.statusBarEl = mountIndexerStatusBar(this, {
 			onClick: () => this.openIndexerStatusModal(),
 		});
 		this.mcpStatusBarEl = mountMcpStatusBar(this, {
 			onClick: () => this.openMcpStatusModal(),
 		});
+		renderPythonStatusBar(this.pythonStatusBarEl, this.getPythonApiServiceStatusSnapshot());
 		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
 
 		this.addSettingTab(new AilssObsidianSettingTab(this.app, this));
 		registerCommands(this);
 		registerAutoIndexEvents(this, this.autoIndex);
 
-		if (this.settings.mcpHttpServiceEnabled) {
-			await this.startMcpHttpService();
-		}
-		if (this.settings.pythonApiServiceEnabled) {
-			await this.startPythonApiService();
-		}
+		await startConfiguredServices({
+			pythonApiServiceEnabled: this.settings.pythonApiServiceEnabled,
+			mcpHttpServiceEnabled: this.settings.mcpHttpServiceEnabled,
+			startPythonApiService: async () => await this.startPythonApiService(),
+			startMcpHttpService: async () => await this.startMcpHttpService(),
+		});
 
 		this.indexer.emitNow();
+		renderPythonStatusBar(this.pythonStatusBarEl, this.getPythonApiServiceStatusSnapshot());
 		renderMcpStatusBar(this.mcpStatusBarEl, this.getMcpHttpServiceStatusSnapshot());
 	}
 
@@ -555,6 +566,10 @@ export default class AilssObsidianPlugin extends Plugin {
 
 	openMcpStatusModal(): void {
 		openMcpStatusModalUi(this);
+	}
+
+	openPythonStatusModal(): void {
+		openPythonStatusModalUi(this);
 	}
 
 	getLastIndexerLogSnapshot(): {
