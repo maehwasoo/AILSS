@@ -155,6 +155,7 @@ def seed_index_db(db_path: Path) -> None:
             "INSERT INTO note_tags(path, tag) VALUES (?, ?)",
             [
                 ("docs/03-plan.md", "architecture"),
+                ("docs/03-plan.md", "project"),
                 ("notes/random.md", "misc"),
             ],
         )
