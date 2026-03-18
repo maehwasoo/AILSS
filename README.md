@@ -209,6 +209,7 @@ Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 - `docs/README.md`: documentation index
 - `docs/01-overview.md`: architecture + MCP tool surface
 - `docs/architecture/python-first-local-agent-backend.md`: transition baseline, service boundaries, API contract
+- `docs/architecture/python-mcp-parity.md`: parity target, migration gate, and current gaps for the MCP tool surface
 - `docs/ops/codex-cli.md`: Codex CLI setup
 - `docs/ops/local-dev.md`: local development
 - `docs/standards/vault/README.md`: vault model and rules
