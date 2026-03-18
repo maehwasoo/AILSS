@@ -110,7 +110,11 @@ Write tools are gated and not exposed by default:
 Responsibilities:
 
 - Display recommendations in a UI.
+- Center the local runtime around the Python backend for health, retrieval, agent, eval,
+  and status flows.
 - Keep the local index DB up to date (manual reindex and optional debounced auto-index).
+- Treat the MCP transport and existing indexer as transition components while the current
+  migration remains in progress.
 - Only perform vault writes when explicitly requested (for example an MCP write tool call with `apply=true`).
 - Applying changes can be implemented either via the Obsidian Vault API or via direct filesystem writes (but must remain gated and auditable).
 
@@ -127,6 +131,8 @@ Responsibilities:
   transport, and gated vault writes.
 - The Python-first backend surface now owns the local API contracts for retrieval, agent
   orchestration, evaluation, and lightweight observability.
+- Plugin startup, status, and troubleshooting flows should center on that Python backend
+  surface while the Node-owned components remain explicit transition layers.
 - The current backend contract is `GET /health`, `POST /retrieve`, `POST /agent/run`, and
   `POST /eval/run`, with plugin-managed lifecycle plus a guarded shutdown path for stale
   local processes.
