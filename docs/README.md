@@ -25,6 +25,7 @@ This folder is organized so you can read the AILSS system docs in order: **Conte
 - Package structure: [architecture/packages.md](./architecture/packages.md)
 - Python-first local agent baseline: [architecture/python-first-local-agent-backend.md](./architecture/python-first-local-agent-backend.md)
 - Python parity for MCP tool surface: [architecture/python-mcp-parity.md](./architecture/python-mcp-parity.md)
+- Staged removal of the legacy Node/TypeScript runtime path: [architecture/legacy-node-typescript-runtime-removal.md](./architecture/legacy-node-typescript-runtime-removal.md)
 - Data & database: [architecture/data-db.md](./architecture/data-db.md)
 
 ## Ops

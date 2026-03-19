@@ -99,6 +99,8 @@ Constraints:
 
 - Remains the working baseline, not the final orchestration surface
 - Should expose stable data and tool boundaries that Python can reuse
+- The staged removal boundary and order for this layer are defined in
+  `docs/architecture/legacy-node-typescript-runtime-removal.md`
 
 ### Python backend
 

@@ -54,6 +54,10 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - strong local MCP + retrieval + Obsidian integration already exist
   - Python backend baseline, explicit workflow orchestration, and reproducible eval now exist
   - remaining gaps are full LLM reasoning quality, deeper lifecycle recovery, richer eval/cost trending, and transition cleanup
+  - transition cleanup is now split explicitly across:
+    - issue #182 parity verification for the current MCP tool surface
+    - issue #180 plugin runtime re-centering around the Python backend
+    - issue #181 staged removal planning for the legacy Node/TypeScript path
 
 ## 1) Design the index schema
 
@@ -496,6 +500,8 @@ Status: in progress
   - what would justify a future move to heavier infra
 - Summarize eval outcomes in a way that can be cited in a resume / portfolio / interview.
 - Keep docs synchronized with the current plugin command flow and the implemented API/runtime boundaries.
+- Keep transition cleanup work split across parity verification, plugin-runtime recentering,
+  and staged runtime removal so deletion does not get mixed with unfinished migration work.
 
 ### 11.4 Proposed GitHub issue breakdown
 
