@@ -2,6 +2,7 @@ import { type Plugin } from "obsidian";
 
 import type { AilssIndexerStatusSnapshot } from "../indexer/indexerRunner.js";
 import type { AilssMcpHttpServiceStatusSnapshot } from "../mcp/mcpHttpServiceTypes.js";
+import type { AilssPythonApiServiceStatusSnapshot } from "../pythonApi/pythonApiServiceTypes.js";
 import { formatAilssTimestampForUi } from "../utils/dateTime.js";
 
 export function mountIndexerStatusBar(
@@ -19,6 +20,18 @@ export function mountIndexerStatusBar(
 export function mountMcpStatusBar(plugin: Plugin, options: { onClick: () => void }): HTMLElement {
 	const el = plugin.addStatusBarItem();
 	el.addClass("ailss-obsidian-mcp-statusbar");
+	el.setAttribute("role", "button");
+	el.addEventListener("click", options.onClick);
+	plugin.register(() => el.remove());
+	return el;
+}
+
+export function mountPythonStatusBar(
+	plugin: Plugin,
+	options: { onClick: () => void },
+): HTMLElement {
+	const el = plugin.addStatusBarItem();
+	el.addClass("ailss-obsidian-python-statusbar");
 	el.setAttribute("role", "button");
 	el.addEventListener("click", options.onClick);
 	plugin.register(() => el.remove());
@@ -58,6 +71,50 @@ export function renderMcpStatusBar(
 		"title",
 		[
 			"AILSS MCP service stopped",
+			lastStoppedAt ? `Last stopped: ${lastStoppedAt}` : "",
+			snapshot.url,
+		]
+			.filter(Boolean)
+			.join("\n"),
+	);
+}
+
+export function renderPythonStatusBar(
+	el: HTMLElement,
+	snapshot: AilssPythonApiServiceStatusSnapshot,
+): void {
+	el.removeClass("is-running");
+	el.removeClass("is-error");
+
+	if (!snapshot.enabled) {
+		el.textContent = "AILSS: backend off";
+		el.setAttribute("title", "AILSS Python backend is disabled.");
+		return;
+	}
+
+	if (snapshot.running) {
+		el.textContent = "AILSS: backend running";
+		el.addClass("is-running");
+		el.setAttribute("title", ["AILSS Python backend running", snapshot.url].join("\n"));
+		return;
+	}
+
+	if (snapshot.lastErrorMessage) {
+		el.textContent = "AILSS: backend error";
+		el.addClass("is-error");
+		el.setAttribute(
+			"title",
+			["AILSS Python backend error", snapshot.lastErrorMessage].join("\n"),
+		);
+		return;
+	}
+
+	el.textContent = "AILSS: backend stopped";
+	const lastStoppedAt = formatAilssTimestampForUi(snapshot.lastStoppedAt);
+	el.setAttribute(
+		"title",
+		[
+			"AILSS Python backend stopped",
 			lastStoppedAt ? `Last stopped: ${lastStoppedAt}` : "",
 			snapshot.url,
 		]

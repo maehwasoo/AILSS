@@ -20,6 +20,12 @@ export function registerCommands(plugin: AilssObsidianPlugin): void {
 	});
 
 	plugin.addCommand({
+		id: "python-backend-status",
+		name: "AILSS: Python backend status",
+		callback: () => plugin.openPythonStatusModal(),
+	});
+
+	plugin.addCommand({
 		id: "python-backend-retrieve",
 		name: "AILSS: Retrieve with Python backend",
 		callback: () => void plugin.retrieveWithPythonBackend(),
