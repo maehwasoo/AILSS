@@ -25,6 +25,7 @@ def resolve_default_db_path(vault_path: Path) -> Path:
 
 
 def open_index_db(options: OpenIndexDbOptions) -> sqlite3.Connection:
+    options.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(options.db_path)
     conn.row_factory = sqlite3.Row
     try:

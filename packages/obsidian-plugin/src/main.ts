@@ -24,7 +24,10 @@ import {
 	createMcpHttpServiceController,
 	createPythonApiServiceController,
 } from "./runtime/pluginServiceFactories.js";
-import { startConfiguredServices } from "./runtime/startConfiguredServices.js";
+import {
+	getMcpHttpServiceAutostartBlockReason,
+	startConfiguredServices,
+} from "./runtime/startConfiguredServices.js";
 import {
 	AilssObsidianSettingTab,
 	DEFAULT_SETTINGS,
@@ -152,9 +155,18 @@ export default class AilssObsidianPlugin extends Plugin {
 		registerCommands(this);
 		registerAutoIndexEvents(this, this.autoIndex);
 
+		const mcpAutostartBlockReason = getMcpHttpServiceAutostartBlockReason({
+			mcpHttpServiceEnabled: this.settings.mcpHttpServiceEnabled,
+			openaiApiKey: this.settings.openaiApiKey,
+		});
+		if (mcpAutostartBlockReason) {
+			this.mcpHttpService.recordError(mcpAutostartBlockReason);
+		}
+
 		await startConfiguredServices({
 			pythonApiServiceEnabled: this.settings.pythonApiServiceEnabled,
-			mcpHttpServiceEnabled: this.settings.mcpHttpServiceEnabled,
+			mcpHttpServiceEnabled:
+				this.settings.mcpHttpServiceEnabled && mcpAutostartBlockReason === null,
 			startPythonApiService: async () => await this.startPythonApiService(),
 			startMcpHttpService: async () => await this.startMcpHttpService(),
 		});

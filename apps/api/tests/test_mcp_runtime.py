@@ -242,6 +242,25 @@ def test_mcp_runtime_registers_full_python_surface(
         writable.close()
 
 
+def test_open_index_db_creates_missing_parent_directory(tmp_path: Path) -> None:
+    db_path = tmp_path / "vault" / ".ailss" / "index.sqlite"
+
+    assert not db_path.parent.exists()
+
+    conn = open_index_db(
+        OpenIndexDbOptions(
+            db_path=db_path,
+            embedding_model=EMBEDDING_MODEL,
+            embedding_dim=EMBEDDING_DIM,
+        )
+    )
+    try:
+        assert db_path.parent.is_dir()
+        assert db_path.exists()
+    finally:
+        conn.close()
+
+
 def test_mcp_runtime_read_tools_use_python_index_and_vault(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
