@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+AILSS_TYPED_LINK_ONTOLOGY = (
+    {"rel": "instance_of", "constraints": None},
+    {"rel": "part_of", "constraints": None},
+    {"rel": "depends_on", "constraints": None},
+    {"rel": "uses", "constraints": None},
+    {"rel": "implements", "constraints": None},
+    {"rel": "cites", "constraints": None},
+    {"rel": "summarizes", "constraints": None},
+    {"rel": "derived_from", "constraints": None},
+    {"rel": "explains", "constraints": None},
+    {"rel": "supports", "constraints": {"conflicts_with": ("contradicts",)}},
+    {"rel": "contradicts", "constraints": None},
+    {"rel": "verifies", "constraints": None},
+    {"rel": "blocks", "constraints": None},
+    {"rel": "mitigates", "constraints": None},
+    {"rel": "measures", "constraints": None},
+    {
+        "rel": "produces",
+        "constraints": {
+            "source_entities": ("procedure", "pipeline", "workflow"),
+            "target_entities": (
+                "artifact",
+                "dataset",
+                "document",
+                "software",
+                "dashboard",
+                "reference",
+            ),
+        },
+    },
+    {
+        "rel": "authored_by",
+        "constraints": {"target_entities": ("person", "organization")},
+    },
+    {
+        "rel": "owned_by",
+        "constraints": {
+            "max_targets": 1,
+            "target_entities": ("person", "organization"),
+        },
+    },
+    {"rel": "supersedes", "constraints": None},
+    {"rel": "same_as", "constraints": None},
+)
+AILSS_TYPED_LINK_KEYS: tuple[str, ...] = tuple(
+    str(item["rel"]) for item in AILSS_TYPED_LINK_ONTOLOGY
+)
+AILSS_TYPED_LINK_ONTOLOGY_BY_REL = {item["rel"]: item for item in AILSS_TYPED_LINK_ONTOLOGY}
+
+AILSS_FRONTMATTER_STATUS_VALUES = ("draft", "in-review", "active", "archived")
+AILSS_FRONTMATTER_LAYER_VALUES = (
+    "strategic",
+    "conceptual",
+    "logical",
+    "physical",
+    "operational",
+)
+AILSS_FRONTMATTER_ENTITY_VALUES = (
+    "interface",
+    "pipeline",
+    "procedure",
+    "dashboard",
+    "checklist",
+    "workflow",
+    "decide",
+    "review",
+    "plan",
+    "implement",
+    "approve",
+    "reject",
+    "observe",
+    "measure",
+    "test",
+    "verify",
+    "learn",
+    "research",
+    "summarize",
+    "publish",
+    "meet",
+    "audit",
+    "deploy",
+    "rollback",
+    "refactor",
+    "design",
+    "delete",
+    "update",
+    "create",
+    "schedule",
+    "migrate",
+    "analyze",
+    "concept",
+    "document",
+    "project",
+    "artifact",
+    "person",
+    "organization",
+    "place",
+    "event",
+    "task",
+    "method",
+    "tool",
+    "idea",
+    "principle",
+    "heuristic",
+    "pattern",
+    "definition",
+    "question",
+    "software",
+    "dataset",
+    "reference",
+    "hub",
+    "guide",
+    "log",
+    "structure",
+    "architecture",
+)
+AILSS_REQUIRED_FRONTMATTER_KEYS = (
+    "id",
+    "created",
+    "title",
+    "summary",
+    "aliases",
+    "entity",
+    "layer",
+    "tags",
+    "keywords",
+    "status",
+    "updated",
+    "source",
+)
+
+DEFAULT_IGNORE_DIRS = frozenset(
+    {
+        ".git",
+        ".obsidian",
+        ".trash",
+        ".backups",
+        ".ailss",
+        "node_modules",
+    }
+)
