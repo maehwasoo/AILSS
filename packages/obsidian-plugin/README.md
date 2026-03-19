@@ -14,6 +14,8 @@ Current MVP:
 The plugin is **desktop-only** right now because it spawns local Python and Node processes.
 The Python backend is the primary local runtime; the indexer and MCP service remain
 transition components until later migration work completes.
+See `docs/architecture/legacy-node-typescript-runtime-removal.md` for the staged removal
+boundary, compatibility gates, and dependency order for those Node transition paths.
 
 ## Setup (local dev)
 

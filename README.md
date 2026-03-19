@@ -25,12 +25,16 @@ scope.
 
 - Obsidian plugin: local UX shell and launcher
 - Node/TypeScript packages: current indexing, MCP transport, and gated write baseline
+  (transition-only; staged removal order is documented in
+  `docs/architecture/legacy-node-typescript-runtime-removal.md`)
 - Python backend: implemented FastAPI surface for `/health`, `/retrieve`, `/agent/run`, and
   `/eval/run`, with plugin-managed lifecycle and shutdown
 - Migration rule: incremental replacement only, with existing local retrieval and explicit
   write safety preserved
 
 Architecture and API contract: `docs/architecture/python-first-local-agent-backend.md`.
+Removal sequencing and compatibility gates:
+`docs/architecture/legacy-node-typescript-runtime-removal.md`.
 
 ## Architecture
 
@@ -180,8 +184,8 @@ workflow + deterministic answer synthesis with inspectable citations.
 ## How it works
 
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite`, serves MCP over the
-Obsidian-managed Node service, and can also start a local Python backend for retrieval,
-agent execution, evaluation, and run artifacts.
+Obsidian-managed Node transition service, and can also start a local Python backend for
+retrieval, agent execution, evaluation, and run artifacts.
 
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
@@ -210,6 +214,7 @@ Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 - `docs/01-overview.md`: architecture + MCP tool surface
 - `docs/architecture/python-first-local-agent-backend.md`: transition baseline, service boundaries, API contract
 - `docs/architecture/python-mcp-parity.md`: parity target, migration gate, and current gaps for the MCP tool surface
+- `docs/architecture/legacy-node-typescript-runtime-removal.md`: staged removal boundary, order, and compatibility gates for the Node transition path
 - `docs/ops/codex-cli.md`: Codex CLI setup
 - `docs/ops/local-dev.md`: local development
 - `docs/standards/vault/README.md`: vault model and rules

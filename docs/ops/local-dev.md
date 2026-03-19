@@ -2,6 +2,10 @@
 
 This document describes how to run the indexer, MCP server, and Python backend locally.
 
+The Node indexer and MCP commands below remain supported transition paths, not the final
+runtime target. For staged removal order and compatibility gates, see
+`docs/architecture/legacy-node-typescript-runtime-removal.md`.
+
 ## 1) Environment variables
 
 Create a `.env` at the repo root based on `.env.example`, and set:
