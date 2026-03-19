@@ -1,24 +1,21 @@
-# Architecture: Python-first local agent backend baseline
+# Architecture: Python-first local agent backend
 
-This document records the baseline direction established by issue #175.
-
-It does not require a full runtime rewrite. Instead, it defines the target service
-boundaries, the first local API contract, and the acceptance criteria for the next phase of
-AILSS.
+This document records the Python-owned service boundary established by issue #175 and
+completed through issues #179 / #181.
 
 ## Current implementation snapshot
 
-- `apps/api` now runs a local FastAPI service with `GET /health`, `POST /retrieve`,
-  `POST /agent/run`, and `POST /eval/run`.
+- `apps/api` now runs the local FastAPI service, the Python MCP service, and the Python
+  indexer CLI.
 - Retrieval reuses the existing SQLite index and supports both `semantic_local`
   (`sqlite-vec` + embeddings) and `lexical_baseline` modes.
 - `POST /agent/run` now executes a LangGraph workflow for
   `retrieve -> decide -> read -> answer -> validate`.
 - The current answer stage is still a deterministic grounded baseline, not a full LLM
   reasoning agent.
-- The Obsidian plugin launches the Python backend, waits for `/health`, can reclaim stale
-  local processes through a guarded shutdown token, and exposes command entrypoints for
-  health, retrieval, agent runs, and eval runs.
+- The Obsidian plugin launches the Python backend and Python MCP service, resolves default
+  `uv run --directory ...` paths into bundled/workspace `apps/api`, and can reclaim stale
+  local processes through guarded shutdown tokens.
 
 ## Goals
 
@@ -34,16 +31,13 @@ AILSS.
 - Multi-tenant SaaS architecture
 - Remote hosting or cloud-first infrastructure expansion
 - Mandatory Redis, queue workers, or background job systems for the baseline milestone
-- Replacing the current Node/TypeScript packages before equivalent behavior exists
+- Reintroducing a separate Node-owned runtime path for indexing or MCP
 
 ## Baseline rule
 
 - Obsidian plugin stays the local UX shell.
-- Existing Node/TypeScript packages stay in place as the transition baseline for indexing,
-  MCP transport, and gated vault writes.
-- A new local FastAPI service becomes the Python-first backend surface.
-- Migration remains incremental. New Python paths should reuse the current local index and
-  vault model whenever practical instead of forcing a rewrite.
+- `apps/api` owns the local runtime surface for indexing, MCP, retrieval, agent flow, and eval.
+- The local index and vault model remain reusable assets across the Python owner path.
 
 ## Service boundaries
 
@@ -51,15 +45,12 @@ AILSS.
 flowchart LR
   vault["Obsidian vault"]
   plugin["Obsidian plugin<br/>UX shell / launcher"]
-  node["Node transition layer<br/>indexer + MCP + gated writes"]
-  python["Python backend<br/>FastAPI + agent/eval orchestration"]
+  python["Python service app<br/>indexer + MCP + FastAPI"]
   clients["Local clients<br/>Codex / scripts / future UI flows"]
   eval["Local eval artifacts<br/>reports / logs"]
 
-  vault --> node
-  plugin --> node
+  vault --> python
   plugin --> python
-  node --> python
   python --> clients
   python --> eval
 ```
@@ -79,29 +70,6 @@ Constraints:
 - Should not become the main agent orchestration layer
 - Should preserve explicit/gated write behavior for vault changes
 
-### Node/TypeScript transition layer
-
-Current packages:
-
-- `packages/core`
-- `packages/indexer`
-- `packages/mcp`
-- `packages/obsidian-plugin`
-
-Responsibilities during transition:
-
-- Maintain the indexed local note/chunk model
-- Keep MCP transport stable for existing Codex and Obsidian flows
-- Keep gated write tools as the safe mutation boundary
-- Continue to support local retrieval while Python equivalents are added
-
-Constraints:
-
-- Remains the working baseline, not the final orchestration surface
-- Should expose stable data and tool boundaries that Python can reuse
-- The staged removal boundary and order for this layer are defined in
-  `docs/architecture/legacy-node-typescript-runtime-removal.md`
-
 ### Python backend
 
 Repo location:
@@ -111,6 +79,8 @@ Repo location:
 Responsibilities:
 
 - Expose the local FastAPI contract
+- Expose the localhost MCP contract
+- Expose the index build/update/reset CLI
 - Own retrieval orchestration for Python-side agent flows
 - Own the primary agent workflow path
 - Own evaluation execution and result reporting
@@ -316,7 +286,6 @@ Failure expectation:
 - A local API can run end-to-end for health, retrieval, and at least one agent workflow.
 - The repo contains a reproducible local evaluation path and at least one inspectable result
   summary.
-- The docs clearly define service boundaries between the plugin, Node transition layer, and
-  Python backend.
+- The docs clearly define service boundaries between the plugin and the Python service app.
 - Local-first, single-user scope and explicit write safety remain non-negotiable project
   boundaries for this phase.

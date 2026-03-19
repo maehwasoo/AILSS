@@ -2,13 +2,12 @@
 
 **Actionable Integrated Linked Semantic System**.
 
-AILSS is a local-first knowledge backend for Obsidian that is moving toward a Python-first
-agent runtime. Your Obsidian vault remains the single source of truth.
+AILSS is a local-first knowledge backend for Obsidian with a Python-owned local runtime.
+Your Obsidian vault remains the single source of truth.
 
-Today, AILSS ships a Node/TypeScript indexer, MCP server, and Obsidian plugin. The next
-baseline keeps the plugin as the local UX shell, keeps the current Node packages as the
-transition layer, and adds a Python-first backend surface for retrieval, agent
-orchestration, evaluation, and lightweight observability.
+Today, AILSS ships the Obsidian plugin as the local UX shell and `apps/api` as the
+Python-owned service/runtime layer for indexing, MCP, retrieval, agent orchestration,
+evaluation, and lightweight observability.
 
 ## What AILSS Solves
 
@@ -21,40 +20,32 @@ For this phase, the product boundary stays local-first and single-user. Remote h
 multi-tenant SaaS concerns, and heavy cloud-first infrastructure are intentionally out of
 scope.
 
-## Baseline Direction
+## Runtime Direction
 
 - Obsidian plugin: local UX shell and launcher
-- Node/TypeScript packages: current indexing, MCP transport, and gated write baseline
-  (transition-only; staged removal order is documented in
-  `docs/architecture/legacy-node-typescript-runtime-removal.md`)
-- Python backend: implemented FastAPI surface for `/health`, `/retrieve`, `/agent/run`, and
-  `/eval/run`, with plugin-managed lifecycle and shutdown
-- Migration rule: incremental replacement only, with existing local retrieval and explicit
-  write safety preserved
+- Python service app (`apps/api`): indexer CLI, localhost MCP HTTP service, and FastAPI
+  backend
+- Remaining TypeScript package (`packages/core`): schema/reference utilities only, not a
+  shipped runtime service
+- Safety rule: explicit write gating stays preserved across the Python MCP surface
 
 Architecture and API contract: `docs/architecture/python-first-local-agent-backend.md`.
-Removal sequencing and compatibility gates:
+Removal completion and compatibility record:
 `docs/architecture/legacy-node-typescript-runtime-removal.md`.
 
 ## Architecture
 
-Transition runtime (current baseline):
+Python runtime (current baseline):
 
 ### Package structure (monorepo)
 
 ```mermaid
 flowchart LR
   core["@ailss/core"]
-  indexer["@ailss/indexer"]
-  mcp["@ailss/mcp"]
-  api["apps/api<br/>(ailss-api)"]
+  api["apps/api<br/>(ailss-api / ailss-indexer / ailss-mcp-http)"]
   plugin["obsidian-plugin"]
 
-  indexer -->|depends on| core
-  mcp -->|depends on| core
-
-  plugin -.->|spawns| indexer
-  plugin -.->|spawns| mcp
+  api -.->|keeps schema/tools aligned with| core
   plugin -.->|spawns| api
 ```
 
@@ -65,14 +56,14 @@ flowchart LR
   vault["Obsidian vault<br/>(Markdown notes)"]
   db["Local index DB<br/><vault>/.ailss/index.sqlite"]
 
-  indexer["Indexer<br/>(@ailss/indexer)"]
-  mcpServer["MCP server<br/>(@ailss/mcp)"]
-  pythonApi["Python backend<br/>(FastAPI + LangGraph)"]
+  indexer["Python indexer<br/>(ailss-indexer)"]
+  mcpServer["Python MCP service<br/>(ailss-mcp-http)"]
+  pythonApi["Python backend<br/>(ailss-api)"]
   clients["AI clients<br/>(Codex CLI, Claude Code, future UI flows)"]
   obsidian["Obsidian plugin"]
 
   vault -->|read| indexer -->|write| db
-  db -->|query| mcpServer -->|MCP: HTTP or stdio| clients
+  db -->|query| mcpServer -->|MCP: HTTP| clients
   db -->|query| pythonApi
   vault -->|read previews| pythonApi
 
@@ -93,20 +84,12 @@ flowchart TB
     core_indexing["src/indexing/*<br/>(chunking helpers)"]
   end
 
-  subgraph indexer["@ailss/indexer"]
-    indexer_cli["src/cli.ts<br/>(ailss-indexer)"]
-    indexer_flow["src/indexVault.ts<br/>(scan + embedding + upsert)"]
-  end
-
-  subgraph mcp["@ailss/mcp"]
-    mcp_stdio["src/stdio.ts<br/>(ailss-mcp)"]
-    mcp_http["src/http.ts<br/>(ailss-mcp-http)"]
-    mcp_tools["src/tools/*<br/>(MCP tool implementations)"]
-  end
-
   subgraph api["apps/api"]
     api_cli["src/ailss_api/cli.py<br/>(ailss-api)"]
+    api_indexer["src/ailss_api/indexer_cli.py<br/>(ailss-indexer)"]
+    api_mcp["src/ailss_api/mcp_cli.py<br/>(ailss-mcp-http)"]
     api_main["src/ailss_api/main.py<br/>(FastAPI routes)"]
+    api_mcp_runtime["src/ailss_api/mcp_runtime.py<br/>(MCP tool implementations)"]
     api_agent["src/ailss_api/agent.py<br/>(LangGraph workflow)"]
     api_retrieval["src/ailss_api/retrieval_*<br/>(semantic + lexical retrieval)"]
     api_eval["src/ailss_api/evals.py<br/>(eval artifacts)"]
@@ -125,23 +108,20 @@ flowchart TB
 
 1. Download `ailss-<ver>.zip` from GitHub Releases.
 2. Extract it into `<Vault>/.obsidian/plugins/ailss-obsidian/`.
-3. Install bundled service dependencies once:
+3. Install bundled Python service dependencies once:
 
 ```bash
-cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service"
-pnpm install --prod
+uv sync --directory "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service/apps/api" --locked
 ```
 
-4. If you want the Python backend commands, install Python 3.12+ and `uv`.
-   The release bundle already includes `ailss-service/apps/api` for the default Python backend path.
+4. Install Python 3.12+ and `uv` on the machine running Obsidian.
 5. In Obsidian plugin settings, set your `OPENAI_API_KEY` and run **AILSS: Reindex vault**.
-6. Enable the “Python backend (local)” setting if you want retrieval, agent, and eval
-   commands inside Obsidian.
-7. Enable the “MCP service (Codex, localhost)” setting and copy the token.
+6. The plugin starts the Python backend and localhost MCP service by default. Copy the MCP
+   token from settings if you want Codex/Claude Code access.
 
 ### Codex CLI
 
-8. Add this to `~/.codex/config.toml` (replace `<token>`):
+7. Add this to `~/.codex/config.toml` (replace `<token>`):
 
 ```toml
 [mcp_servers.ailss]
@@ -151,7 +131,7 @@ http_headers = { Authorization = "Bearer <token>" }
 
 ### Claude Code
 
-8. Add the MCP server in Claude Code:
+7. Add the MCP server in Claude Code:
 
 ```json
 {
@@ -184,8 +164,8 @@ workflow + deterministic answer synthesis with inspectable citations.
 ## How it works
 
 AILSS writes a local index DB at `<vault>/.ailss/index.sqlite`, serves MCP over the
-Obsidian-managed Node transition service, and can also start a local Python backend for
-retrieval, agent execution, evaluation, and run artifacts.
+Obsidian-managed Python localhost service, and starts a local Python backend for retrieval,
+agent execution, evaluation, and run artifacts.
 
 This setup lets Codex connect over HTTP without needing direct vault filesystem permissions.
 
@@ -212,9 +192,9 @@ Full reference: `docs/01-overview.md` and `docs/reference/mcp-tools.md`.
 
 - `docs/README.md`: documentation index
 - `docs/01-overview.md`: architecture + MCP tool surface
-- `docs/architecture/python-first-local-agent-backend.md`: transition baseline, service boundaries, API contract
-- `docs/architecture/python-mcp-parity.md`: parity target, migration gate, and current gaps for the MCP tool surface
-- `docs/architecture/legacy-node-typescript-runtime-removal.md`: staged removal boundary, order, and compatibility gates for the Node transition path
+- `docs/architecture/python-first-local-agent-backend.md`: Python-owned service boundaries and API contract
+- `docs/architecture/python-mcp-parity.md`: Python MCP tool surface and parity verification record
+- `docs/architecture/legacy-node-typescript-runtime-removal.md`: removal completion record for the retired Node runtime path
 - `docs/ops/codex-cli.md`: Codex CLI setup
 - `docs/ops/local-dev.md`: local development
 - `docs/standards/vault/README.md`: vault model and rules

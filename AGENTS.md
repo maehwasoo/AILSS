@@ -53,12 +53,12 @@ Use this to “fully utilize” docs without loading unrelated context:
 ### 2.4 Dependency direction
 
 - `@ailss/core` contains shared logic only (must not depend on other packages)
-- `@ailss/indexer` and `@ailss/mcp` depend only on `@ailss/core`
+- `apps/api` is the active local runtime owner for indexing, MCP, retrieval, agent flow, and eval
 
 ### 2.5 Environment variables / security
 
 - `.env` is local-dev only; do not commit (`.gitignore`)
-- Centralize env loading via `@ailss/core/src/env.ts` `loadEnv()`
+- Centralize Python runtime env loading via `apps/api/src/ailss_api/config.py`
 - MCP server provides read-only behavior by default:
   - Write tools require `AILSS_VAULT_PATH`
   - Write tools default to `apply=false` (dry-run) and only write when `apply=true`

@@ -2,13 +2,14 @@
 
 ## What this folder is
 
-`@ailss/core` is the **shared library** used by the CLI (`@ailss/indexer`) and MCP server (`@ailss/mcp`).
+`@ailss/core` is the **shared library / reference layer** that remains in the repo after the
+Node runtime removal.
 
 ## What it does
 
 - Vault filesystem and parsing helpers (markdown/frontmatter)
 - Local DB helpers (SQLite schema, queries, migrations)
-- Shared types/utilities used across packages
+- Shared types/utilities kept for package-level references and schema drift checks
 
 ## Entry points
 
@@ -18,7 +19,8 @@
 ## Boundaries
 
 - Must **not** depend on other workspace packages.
-- Avoid CLI concerns (arg parsing, `process.exit`, user-facing output) — those belong in `@ailss/indexer` or `@ailss/mcp`.
+- Avoid CLI concerns (arg parsing, `process.exit`, user-facing output) — active runtime
+  ownership now lives in `apps/api`.
 - Treat vault paths as untrusted input; guard against path traversal.
 
 ## Conventions

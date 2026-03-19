@@ -37,16 +37,15 @@ jobs:
           version="$(node <<'NODE'
           const fs = require("fs");
           const read = (path) => JSON.parse(fs.readFileSync(path, "utf8"));
-          const version = read("packages/core/package.json").version;
+          const version = read("packages/obsidian-plugin/package.json").version;
 
           if (!version) {
-            console.error("packages/core/package.json version missing");
+            console.error("packages/obsidian-plugin/package.json version missing");
             process.exit(1);
           }
 
           const pkgPaths = [
-            "packages/mcp/package.json",
-            "packages/indexer/package.json",
+            "packages/core/package.json",
             "packages/obsidian-plugin/package.json",
             "packages/obsidian-plugin/manifest.json",
           ];

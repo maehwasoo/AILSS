@@ -2,7 +2,7 @@
 
 This is a reference for the MCP tool surface exposed by AILSS.
 
-Source of truth: `packages/mcp/src/tools/*.ts`.
+Source of truth: `apps/api/src/ailss_api/mcp_runtime.py`.
 
 ## Read tools (always available)
 
