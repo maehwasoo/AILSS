@@ -31,8 +31,8 @@ def register_context_tools(server: FastMCP, runtime: McpRuntime) -> None:
         path_prefix: str | None = None,
         tags_any: list[str] | None = None,
         tags_all: list[str] | None = None,
-        top_k: Annotated[int, Field(ge=1, le=50)] = runtime.default_top_k,
-        expand_top_k: Annotated[int, Field(ge=0, le=50)] = 5,
+        top_k: Annotated[int, Field(ge=1, le=20)] = runtime.default_top_k,
+        expand_top_k: Annotated[int, Field(ge=0, le=20)] = 5,
         hit_chunks_per_note: Annotated[int, Field(ge=1, le=5)] = 2,
         neighbor_window: Annotated[int, Field(ge=0, le=3)] = 1,
         max_evidence_chars_per_note: Annotated[int, Field(ge=200, le=20_000)] = 1500,
@@ -74,6 +74,7 @@ def register_context_tools(server: FastMCP, runtime: McpRuntime) -> None:
                 runtime.settings,
             )
             results = response.results[:top_k]
+            expanded_result_count = min(max(0, expand_top_k), len(results))
             return {
                 "query": query,
                 "top_k": top_k,
@@ -85,7 +86,7 @@ def register_context_tools(server: FastMCP, runtime: McpRuntime) -> None:
                     "tags_all": normalized_tags_all,
                 },
                 "params": {
-                    "expand_top_k": min(max(0, expand_top_k), top_k),
+                    "expand_top_k": expanded_result_count,
                     "hit_chunks_per_note": hit_chunks_per_note,
                     "neighbor_window": neighbor_window,
                     "max_evidence_chars_per_note": max_evidence_chars_per_note,
@@ -103,23 +104,33 @@ def register_context_tools(server: FastMCP, runtime: McpRuntime) -> None:
                         "heading": item.heading,
                         "heading_path": item.heading_path,
                         "snippet": item.snippet,
-                        "evidence_text": item.evidence_text,
-                        "evidence_truncated": item.evidence_truncated,
-                        "evidence_chunks": [
-                            {
-                                "chunk_id": chunk.chunk_id,
-                                "chunk_index": chunk.chunk_index or 0,
-                                "kind": chunk.kind if chunk.kind in {"hit", "neighbor"} else "hit",
-                                "distance": chunk.distance,
-                                "heading": chunk.heading,
-                                "heading_path": chunk.heading_path,
-                            }
-                            for chunk in item.evidence
-                        ],
+                        "evidence_text": item.evidence_text
+                        if index < expanded_result_count
+                        else None,
+                        "evidence_truncated": (
+                            item.evidence_truncated if index < expanded_result_count else False
+                        ),
+                        "evidence_chunks": (
+                            [
+                                {
+                                    "chunk_id": chunk.chunk_id,
+                                    "chunk_index": chunk.chunk_index or 0,
+                                    "kind": (
+                                        chunk.kind if chunk.kind in {"hit", "neighbor"} else "hit"
+                                    ),
+                                    "distance": chunk.distance,
+                                    "heading": chunk.heading,
+                                    "heading_path": chunk.heading_path,
+                                }
+                                for chunk in item.evidence
+                            ]
+                            if index < expanded_result_count
+                            else []
+                        ),
                         "preview": item.preview,
                         "preview_truncated": item.preview_truncated,
                     }
-                    for item in results
+                    for index, item in enumerate(results)
                 ],
             }
 

@@ -14,8 +14,8 @@ Source of truth: `apps/api/src/ailss_api/mcp_runtime.py`.
   - `path_prefix` (string, optional) — literal vault-relative prefix match for candidate notes (not SQL wildcard semantics)
   - `tags_any` (string[], default: `[]`) — candidate notes must include at least one tag
   - `tags_all` (string[], default: `[]`) — candidate notes must include all tags
-  - `top_k` (int, default: `10`, range: `1–50`)
-  - `expand_top_k` (int, default: `5`, range: `0–50`) — how many of the top_k notes include stitched evidence text
+  - `top_k` (int, default: `10`, range: `1–20`)
+  - `expand_top_k` (int, default: `5`, range: `0–20`) — how many of the top_k notes include stitched evidence text
   - `hit_chunks_per_note` (int, default: `2`, range: `1–5`)
   - `neighbor_window` (int, default: `1`, range: `0–3`) — stitches ±window around the best hit
   - `max_evidence_chars_per_note` (int, default: `1500`, range: `200–20,000`)

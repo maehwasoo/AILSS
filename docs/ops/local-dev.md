@@ -80,7 +80,7 @@ Notes:
 Optional:
 
 - `AILSS_ENABLE_WRITE_TOOLS=1` (enables explicit write tools like `edit_note`)
-- `AILSS_GET_CONTEXT_DEFAULT_TOP_K=<n>` (sets the default `get_context.top_k` when the caller omits `top_k`; clamped to 1–50; default: 10)
+- `AILSS_GET_CONTEXT_DEFAULT_TOP_K=<n>` (sets the default `get_context.top_k` when the caller omits `top_k`; clamped to 1–20; default: 10)
 
 ## 5) Run Python backend (FastAPI)
 

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 from mcp.server.fastmcp import FastMCP
 from openai import OpenAI
 from pytest import MonkeyPatch
@@ -320,13 +321,26 @@ def test_mcp_runtime_read_tools_use_python_index_and_vault(
             path_prefix="docs/",
             tags_any=["project"],
             top_k=2,
+            expand_top_k=1,
         )
         results = cast(list[dict[str, object]], context["results"])
+        params = cast(dict[str, object], context["params"])
         assert len(results) == 2
         assert {cast(str, item["path"]) for item in results} == {
             "docs/Child.md",
             "docs/Parent.md",
         }
+        assert params["expand_top_k"] == 1
+        assert sum(1 for item in results if item["evidence_text"] is not None) == 1
+        assert sum(1 for item in results if item["evidence_chunks"]) == 1
+
+        with pytest.raises(Exception, match="less than or equal to 20"):
+            _call_tool(
+                harness.server,
+                "get_context",
+                query="child dependency",
+                top_k=21,
+            )
     finally:
         harness.close()
 

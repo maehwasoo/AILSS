@@ -48,7 +48,7 @@ export function renderOpenAiSection(
 
 	new Setting(containerEl)
 		.setName("Top K")
-		.setDesc("Default get_context.top_k when the caller omits top_k (1–50).")
+		.setDesc("Default get_context.top_k when the caller omits top_k (1–20).")
 		.addText((text) => {
 			text.setPlaceholder("10");
 			text.setValue(String(plugin.settings.topK));

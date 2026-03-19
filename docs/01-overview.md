@@ -35,7 +35,7 @@ Example tools:
 Read-first tools (implemented in this repo):
 
 - `get_context`: semantic retrieval for a query → returns top matching notes (deduped by path) with note metadata and stitched evidence chunks
-  - Default `top_k` can be set via `AILSS_GET_CONTEXT_DEFAULT_TOP_K` (applies only when the caller omits `top_k`; clamped to 1–50; default: 10)
+  - Default `top_k` can be set via `AILSS_GET_CONTEXT_DEFAULT_TOP_K` (applies only when the caller omits `top_k`; clamped to 1–20; default: 10)
   - Returns note metadata + stitched evidence chunks by default (file-start previews are disabled unless explicitly enabled)
   - Default `max_chars_per_note` is 800 (applies only when the caller omits it; clamped to 200–50,000; used for file-start previews when enabled)
   - Optional scoped candidate filters are available: `path_prefix` (literal path prefix), `tags_any`, `tags_all`

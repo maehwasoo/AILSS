@@ -55,7 +55,7 @@ def create_mcp_server_from_env() -> FastMCP:
         openai_client=OpenAI(api_key=openai_api_key),
         diagnostics=ToolFailureDiagnostics(vault_path=settings.resolved_vault_path, cwd=Path.cwd()),
         enable_write_tools=os.environ.get("AILSS_ENABLE_WRITE_TOOLS", "").strip() == "1",
-        default_top_k=max(1, min(default_top_k, 50)),
+        default_top_k=max(1, min(default_top_k, 20)),
         shutdown_token=shutdown_token,
     )
 

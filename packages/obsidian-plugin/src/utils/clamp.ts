@@ -8,7 +8,7 @@ function clampTopKWithMax(input: number, max: number): number {
 }
 
 export function clampTopK(input: number): number {
-	return clampTopKWithMax(input, 50);
+	return clampTopKWithMax(input, 20);
 }
 
 export function clampPythonApiDefaultTopK(input: number): number {

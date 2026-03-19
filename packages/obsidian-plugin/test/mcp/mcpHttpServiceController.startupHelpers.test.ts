@@ -191,9 +191,9 @@ describe("McpHttpServiceController startup helper unit branches", () => {
 				asInternals(controller).normalizeStartupSettings(settings),
 			).resolves.toEqual({
 				port: 31415,
-				topK: 50,
+				topK: 20,
 			});
-			expect(settings.topK).toBe(50);
+			expect(settings.topK).toBe(20);
 			expect(saveSettings).toHaveBeenCalledTimes(1);
 		});
 
