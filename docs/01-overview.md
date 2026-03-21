@@ -1,11 +1,12 @@
 # System overview
 
-This document describes the current AILSS runtime and the transition baseline established by
-issue #175.
+This document describes the current AILSS runtime established through issues #175, #179,
+and #181.
 
-Today, the implemented system is split into **three parts**. The next baseline keeps those
-parts in place while adding a Python-first local backend surface for retrieval, agent
-orchestration, evaluation, and lightweight observability.
+Today, the implemented system is split into **three current runtime parts** backed by the
+Python service app in `apps/api`: the indexer, the localhost MCP service, and the
+Obsidian plugin shell. `packages/core` remains a shared TypeScript utility package, not a
+launched runtime service.
 
 ## 1) Indexer
 
@@ -71,7 +72,8 @@ Transport / client integration:
     - Drop cached session ID
     - Send a fresh `initialize` request to obtain a new `Mcp-Session-Id`
     - Retry the original request once with the new session ID
-- Local dev still supports running the MCP server over stdio (CLI).
+- Local dev can run the Python MCP service directly from the CLI
+  (`uv run --directory apps/api ailss-mcp-http`).
 - Optional shutdown endpoint (disabled by default):
   - If `AILSS_MCP_HTTP_SHUTDOWN_TOKEN` is set (or `startAilssMcpHttpServer({ shutdown: { token } })` is used), the server exposes `POST /__ailss/shutdown`.
   - This endpoint requires the shutdown token (separate from the normal MCP request token) and shuts down the HTTP server + all MCP sessions.
@@ -110,11 +112,11 @@ Write tools are gated and not exposed by default:
 Responsibilities:
 
 - Display recommendations in a UI.
-- Center the local runtime around the Python backend for health, retrieval, agent, eval,
-  and status flows.
+- Center the local runtime around the Python backend, Python MCP service, and Python
+  indexer in `apps/api`.
 - Keep the local index DB up to date (manual reindex and optional debounced auto-index).
-- Treat the MCP transport and existing indexer as transition components while the current
-  migration remains in progress.
+- Keep explicit launch overrides available for users who need custom `uv run --directory
+... apps/api` paths.
 - Only perform vault writes when explicitly requested (for example an MCP write tool call with `apply=true`).
 - Applying changes can be implemented either via the Obsidian Vault API or via direct filesystem writes (but must remain gated and auditable).
 
@@ -124,19 +126,20 @@ Responsibilities:
 - Recommendation = DB read
 - Apply = file write; requires an explicit action (Obsidian UI or MCP write tool with `apply=true`, including `capture_note`/`edit_note`).
 
-## Transition baseline (issue #175)
+## Current runtime baseline
 
 - Obsidian plugin remains the local UX shell and launcher.
-- Existing Node/TypeScript packages remain the transition baseline for indexing, MCP
-  transport, and gated vault writes.
-- The Python-first backend surface now owns the local API contracts for retrieval, agent
+- `apps/api` owns the shipped local runtime for indexing, MCP transport, retrieval, agent
   orchestration, evaluation, and lightweight observability.
-- Plugin startup, status, and troubleshooting flows should center on that Python backend
-  surface while the Node-owned components remain explicit transition layers.
+- `packages/core` remains the shared TypeScript utility/schema package, not an
+  independently launched service.
+- Plugin startup, status, and troubleshooting flows center on the Python-owned runtime.
 - The current backend contract is `GET /health`, `POST /retrieve`, `POST /agent/run`, and
   `POST /eval/run`, with plugin-managed lifecycle plus a guarded shutdown path for stale
   local processes.
 - Local-first, single-user scope remains the project boundary for this phase.
 
 See `docs/architecture/python-first-local-agent-backend.md` for the service boundaries,
-contract details, and acceptance criteria.
+contract details, and acceptance criteria. See
+`docs/architecture/legacy-node-typescript-runtime-removal.md` for the retirement record of
+the removed Node runtime path.
