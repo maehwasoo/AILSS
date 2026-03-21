@@ -1,12 +1,14 @@
 # AILSS API
 
-Local FastAPI app for the Python-first AILSS backend baseline.
+Python service app for the AILSS local runtime.
 
 ## Commands
 
 ```bash
-uv sync --directory apps/api
+uv sync --directory apps/api --locked
 uv run --directory apps/api ailss-api --host 127.0.0.1 --port 8000
+uv run --directory apps/api ailss-mcp-http
+uv run --directory apps/api ailss-indexer --help
 uv run --directory apps/api pytest
 ```
 

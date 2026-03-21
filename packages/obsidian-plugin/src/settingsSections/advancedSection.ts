@@ -49,7 +49,7 @@ export function renderAdvancedSection(
 			});
 		});
 
-	advancedContainer.createEl("h4", { text: "MCP service (transition layer)" });
+	advancedContainer.createEl("h4", { text: "MCP service (localhost)" });
 
 	new Setting(advancedContainer)
 		.setName("Command")

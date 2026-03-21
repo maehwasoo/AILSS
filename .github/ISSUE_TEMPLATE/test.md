@@ -13,8 +13,9 @@ Use labels for component tagging instead.
 
 Which area should be covered?
 
-- [ ] Indexer (`packages/indexer`)
-- [ ] MCP server (`packages/mcp`)
+- [ ] Python backend/API (`apps/api`)
+- [ ] MCP service (`apps/api`)
+- [ ] Indexer CLI (`apps/api`)
 - [ ] Obsidian plugin (`packages/obsidian-plugin`)
 - [ ] Core/shared (`packages/core`)
 - [ ] Docs

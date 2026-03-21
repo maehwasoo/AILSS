@@ -51,7 +51,7 @@ body:
     attributes:
       label: Validation
       description: Which checks/tests will confirm behavior is preserved?
-      placeholder: "- pnpm --filter @ailss/core test\n- pnpm --filter @ailss/mcp test"
+      placeholder: "- pnpm --filter @ailss/core test\n- pnpm py:test"
     validations:
       required: true
 

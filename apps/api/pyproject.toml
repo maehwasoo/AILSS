@@ -1,7 +1,7 @@
 [project]
 name = "ailss-api"
 version = "0.1.0"
-description = "Python-first local agent backend baseline for AILSS"
+description = "Python service app for the AILSS local runtime"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

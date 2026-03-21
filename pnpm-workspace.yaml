@@ -1,5 +1,6 @@
 packages:
-  - "packages/*"
+  - "packages/core"
+  - "packages/obsidian-plugin"
 
 # pnpm v10 supply-chain security: only allow dependencies that need build scripts
 onlyBuiltDependencies:

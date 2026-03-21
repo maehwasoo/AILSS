@@ -14,8 +14,9 @@ Use the component checklist below and labels instead.
 
 Where is the issue happening?
 
-- [ ] Indexer (`packages/indexer`)
-- [ ] MCP server (`packages/mcp`)
+- [ ] Python backend/API (`apps/api`)
+- [ ] MCP service (`apps/api`)
+- [ ] Indexer CLI (`apps/api`)
 - [ ] Obsidian plugin (`packages/obsidian-plugin`)
 - [ ] Core/shared (`packages/core`)
 - [ ] Docs

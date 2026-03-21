@@ -17,8 +17,9 @@ body:
       label: Component
       description: Where is the issue happening?
       options:
-        - Indexer (packages/indexer)
-        - MCP server (packages/mcp)
+        - Python backend/API (apps/api)
+        - MCP service (apps/api)
+        - Indexer CLI (apps/api)
         - Obsidian plugin (packages/obsidian-plugin)
         - Core/shared (packages/core)
         - Docs
@@ -31,7 +32,7 @@ body:
     attributes:
       label: What happened?
       description: What did you do, what happened, and what did you expect?
-      placeholder: "Indexer crashes with ... / MCP tool returns ..."
+      placeholder: "Python backend returns 503 with ... / MCP service startup fails with ..."
     validations:
       required: true
 
@@ -42,7 +43,7 @@ body:
       description: Minimal steps so we can reproduce
       placeholder: |
         1. Set OPENAI_EMBEDDING_MODEL=...
-        2. Run pnpm -C packages/indexer start -- ...
+        2. Run uv run --directory apps/api ailss-indexer --vault "$AILSS_VAULT_PATH"
         3. Observe ...
     validations:
       required: true
