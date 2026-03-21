@@ -3,6 +3,12 @@
 This document lists an implementation sequence that starts small and then expands.
 It also records a few **hard decisions** so code and docs stay consistent.
 
+> Status note (2026-03-22): the migration to a Python-owned local runtime is complete.
+> `apps/api` now owns the indexer CLI, localhost MCP service, retrieval, agent flow, and
+> eval path. Historical sections below preserve the staged implementation record and may
+> mention retired Node runtime paths; use `Current status`, `docs/01-overview.md`, and
+> `docs/architecture/python-first-local-agent-backend.md` for the live architecture.
+
 ## 0) Confirm assumptions / decisions
 
 - Primary goal: **JD-aligned portfolio strengthening** for backend/agent roles (closest to the Sendbird/Socra profile), not a cloud SaaS launch.
@@ -16,10 +22,11 @@ It also records a few **hard decisions** so code and docs stay consistent.
   - Codex can trigger explicit write tools over MCP (no per-edit UI flow) once enabled.
   - Connection is configured globally once (e.g. `~/.codex/config.toml`) via a URL + token.
 - Vault path: the vault is **external** and provided via configuration (e.g., `AILSS_VAULT_PATH`).
-- Architecture direction for the next phase:
+- Architecture direction for the current phase:
   - Keep the Obsidian plugin as the local UX shell / launcher.
-  - Keep the current Node/TypeScript packages as the working baseline during transition.
-  - Add a **Python-first backend surface** for retrieval, agent orchestration, and evaluation.
+  - `apps/api` owns the local runtime for indexing, MCP, retrieval, agent orchestration,
+    and evaluation.
+  - `packages/core` remains the shared TypeScript utility/schema package.
 - Non-goals for this phase:
   - multi-user SaaS / remote hosting
   - heavy cloud-first infra for its own sake
@@ -27,37 +34,34 @@ It also records a few **hard decisions** so code and docs stay consistent.
 
 ## Current status
 
-- Indexer MVP exists (`packages/indexer`)
-  - Supports full-vault indexing and path-scoped updates (`--paths`)
-  - Supports explicit DB reset (`--reset-db`) when switching embedding models
-  - Validates DB embedding identity (model/dimension) and fails fast on mismatch
-  - Full-vault runs prune DB entries for deleted files
-  - Has a deterministic wrapper test (stubbed embeddings; no network)
-- MCP server MVP exists (`packages/mcp`)
-- Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `list_typed_link_rels`, `get_tool_failure_report`
-- Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `canonicalize_typed_links`, `edit_note`, `improve_frontmatter`, `relocate_note`
-  - Transport: stdio + streamable HTTP (`/mcp` on localhost; supports multiple concurrent sessions)
+- Python runtime now owns the shipped local services in `apps/api`
+  - `ailss-indexer` supports full-vault indexing, path-scoped updates (`--paths`), and
+    explicit DB reset (`--reset-db`) when switching embedding models
+  - `ailss-mcp-http` is the active localhost MCP surface
+  - Read-first tools: `get_context`, `expand_typed_links_outgoing`, `find_typed_links_incoming`, `resolve_note`, `read_note`, `get_vault_tree`, `frontmatter_validate`, `find_broken_links`, `search_notes`, `list_tags`, `list_keywords`, `list_typed_link_rels`, `get_tool_failure_report`
+  - Explicit write tools (gated; `AILSS_ENABLE_WRITE_TOOLS=1`): `capture_note`, `canonicalize_typed_links`, `edit_note`, `improve_frontmatter`, `relocate_note`
 - Obsidian plugin MVP exists (`packages/obsidian-plugin`)
   - UI: status modals for indexing and the localhost MCP service
-  - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the indexer process)
+  - Indexing: `AILSS: Reindex vault` command + optional auto-index on file changes (debounced; spawns the Python indexer process)
   - MCP service: optional localhost MCP server for Codex (URL + token; can expose gated write tools)
     - Supports multiple concurrent MCP sessions (multiple Codex processes)
-- Python backend baseline exists (`apps/api`)
+- Python backend exists in `apps/api`
   - FastAPI app with `GET /health`, `POST /retrieve`, `POST /agent/run`, and `POST /eval/run`
   - Semantic retrieval over the existing SQLite + `sqlite-vec` index, plus explicit lexical baseline mode
   - LangGraph workflow for `retrieve -> decide -> read -> answer -> validate`
   - Eval dataset runner + local run/eval artifacts
-- Obsidian plugin now manages the local Python backend
-  - Lifecycle: start, stop, restart, readiness wait, guarded shutdown reclaim
-  - Commands: backend health, retrieval, grounded agent run, eval run
+- Shared TypeScript utilities remain in `packages/core`
 - Gap relative to the portfolio goal:
   - strong local MCP + retrieval + Obsidian integration already exist
-  - Python backend baseline, explicit workflow orchestration, and reproducible eval now exist
-  - remaining gaps are full LLM reasoning quality, deeper lifecycle recovery, richer eval/cost trending, and transition cleanup
-  - transition cleanup is now split explicitly across:
-    - issue #182 parity verification for the current MCP tool surface
-    - issue #180 plugin runtime re-centering around the Python backend
-    - issue #181 staged removal planning for the legacy Node/TypeScript path
+  - Python runtime, explicit workflow orchestration, and reproducible eval now exist
+  - remaining gaps are full LLM reasoning quality, deeper lifecycle recovery, and richer eval/cost trending
+  - legacy runtime cleanup completed through issues #179 / #181; historical notes remain below for traceability
+
+Historical note:
+
+- Sections below preserve the staged implementation record. When they mention retired Node
+  packages or transition-only runtime ownership, treat those references as historical
+  context rather than the current architecture.
 
 ## 1) Design the index schema
 
@@ -245,7 +249,7 @@ Plan:
 - DX: make the MCP server runnable like `npx … --vault <path>` (CLI args + published package/wrapper)
 - Upgrades: document schema/model change behavior (when a full reindex is required)
 
-## 10) Codex integration via plugin-hosted MCP service (localhost)
+## 10) Codex integration via plugin-hosted MCP service (historical implementation record)
 
 Goal:
 
@@ -392,7 +396,7 @@ Fallback approach (acceptable, higher overhead): per-session subprocess
 - Pros: strongest isolation, simplest correctness story.
 - Cons: more processes, more ports, more restart surface.
 
-## 11) Portfolio-aligned transition plan (Python-first, local-first)
+## 11) Portfolio-aligned transition plan (historical record)
 
 Goal:
 

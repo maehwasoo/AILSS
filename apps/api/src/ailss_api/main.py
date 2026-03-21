@@ -37,7 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="AILSS API",
         version="0.1.0-dev",
-        summary="Python-first local agent backend baseline",
+        summary="Python-owned local service runtime",
     )
 
     @app.get("/health", response_model=HealthResponse)

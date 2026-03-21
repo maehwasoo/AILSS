@@ -6,12 +6,21 @@ plugin:
 mcp:
   - changed-files:
       - any-glob-to-any-file:
-          - packages/mcp/**
+          - apps/api/src/ailss_api/mcp*.py
+          - apps/api/tests/test_mcp_runtime.py
+          - docs/reference/mcp-tools.md
+          - packages/obsidian-plugin/src/mcp/**
+          - packages/obsidian-plugin/src/settingsSections/mcpServiceSection.ts
+          - packages/obsidian-plugin/test/mcp/**
 
 indexer:
   - changed-files:
       - any-glob-to-any-file:
-          - packages/indexer/**
+          - apps/api/src/ailss_api/indexer*.py
+          - packages/obsidian-plugin/src/indexer/**
+          - packages/obsidian-plugin/src/settingsSections/indexMaintenanceSection.ts
+          - packages/obsidian-plugin/src/ui/indexDbResetFlow.ts
+          - packages/obsidian-plugin/src/ui/indexer*.ts
 
 core:
   - changed-files:
