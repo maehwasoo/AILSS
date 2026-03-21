@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { AilssObsidianSettings } from "../settings.js";
-import { replaceBasename } from "./misc.js";
 
 export function getVaultPath(app: Plugin["app"]): string {
 	const adapter = app.vault.adapter;
@@ -39,48 +38,38 @@ export function resolvePathFromPluginDir(options: {
 	return path.resolve(options.pluginDirRealpathOrNull, trimmed);
 }
 
+function resolveApiAppDir(pluginDirRealpathOrNull: string | null): string | null {
+	if (!pluginDirRealpathOrNull) return null;
+
+	const bundled = path.resolve(pluginDirRealpathOrNull, "ailss-service/apps/api");
+	if (fs.existsSync(bundled)) return bundled;
+
+	const workspaceCandidate = path.resolve(pluginDirRealpathOrNull, "../../apps/api");
+	if (fs.existsSync(workspaceCandidate)) return workspaceCandidate;
+
+	return null;
+}
+
+function resolveUvRunnerArgs(pluginDirRealpathOrNull: string | null, entrypoint: string): string[] {
+	const apiDir = resolveApiAppDir(pluginDirRealpathOrNull);
+	if (!apiDir) return [];
+	return ["run", "--directory", apiDir, entrypoint];
+}
+
 export function resolveMcpArgs(options: {
 	settings: AilssObsidianSettings;
 	pluginDirRealpathOrNull: string | null;
 }): string[] {
 	if (options.settings.mcpArgs.length > 0) return options.settings.mcpArgs;
-	if (!options.pluginDirRealpathOrNull) return [];
-
-	const bundled = path.resolve(
-		options.pluginDirRealpathOrNull,
-		"ailss-service/packages/mcp/dist/stdio.js",
-	);
-	if (fs.existsSync(bundled)) return [bundled];
-
-	const candidate = path.resolve(options.pluginDirRealpathOrNull, "../mcp/dist/stdio.js");
-	if (!fs.existsSync(candidate)) return [];
-
-	return [candidate];
+	return resolveUvRunnerArgs(options.pluginDirRealpathOrNull, "ailss-mcp-http");
 }
 
 export function resolveMcpHttpArgs(options: {
 	settings: AilssObsidianSettings;
 	pluginDirRealpathOrNull: string | null;
 }): string[] {
-	const base = resolveMcpArgs(options);
-	const first = base[0];
-	if (typeof first === "string" && first.trim()) {
-		const resolvedFirst = resolvePathFromPluginDir({
-			pluginDirRealpathOrNull: options.pluginDirRealpathOrNull,
-			maybePath: first,
-		});
-		const candidate = replaceBasename(resolvedFirst, "stdio.js", "http.js");
-		if (candidate && fs.existsSync(candidate)) {
-			return [candidate, ...base.slice(1)];
-		}
-	}
-
-	if (!options.pluginDirRealpathOrNull) return [];
-
-	const candidate = path.resolve(options.pluginDirRealpathOrNull, "../mcp/dist/http.js");
-	if (!fs.existsSync(candidate)) return [];
-
-	return [candidate];
+	if (options.settings.mcpArgs.length > 0) return options.settings.mcpArgs;
+	return resolveUvRunnerArgs(options.pluginDirRealpathOrNull, "ailss-mcp-http");
 }
 
 export function resolveIndexerArgs(options: {
@@ -88,18 +77,7 @@ export function resolveIndexerArgs(options: {
 	pluginDirRealpathOrNull: string | null;
 }): string[] {
 	if (options.settings.indexerArgs.length > 0) return options.settings.indexerArgs;
-	if (!options.pluginDirRealpathOrNull) return [];
-
-	const bundled = path.resolve(
-		options.pluginDirRealpathOrNull,
-		"ailss-service/packages/indexer/dist/cli.js",
-	);
-	if (fs.existsSync(bundled)) return [bundled];
-
-	const candidate = path.resolve(options.pluginDirRealpathOrNull, "../indexer/dist/cli.js");
-	if (!fs.existsSync(candidate)) return [];
-
-	return [candidate];
+	return resolveUvRunnerArgs(options.pluginDirRealpathOrNull, "ailss-indexer");
 }
 
 export function resolvePythonApiArgs(options: {
@@ -107,15 +85,5 @@ export function resolvePythonApiArgs(options: {
 	pluginDirRealpathOrNull: string | null;
 }): string[] {
 	if (options.settings.pythonApiArgs.length > 0) return options.settings.pythonApiArgs;
-	if (!options.pluginDirRealpathOrNull) return [];
-
-	const bundled = path.resolve(options.pluginDirRealpathOrNull, "ailss-service/apps/api");
-	if (fs.existsSync(bundled)) return ["run", "--directory", bundled, "ailss-api"];
-
-	const workspaceCandidate = path.resolve(options.pluginDirRealpathOrNull, "../../apps/api");
-	if (fs.existsSync(workspaceCandidate)) {
-		return ["run", "--directory", workspaceCandidate, "ailss-api"];
-	}
-
-	return [];
+	return resolveUvRunnerArgs(options.pluginDirRealpathOrNull, "ailss-api");
 }

@@ -155,7 +155,7 @@ export class IndexerRunner {
 			const indexerArgs = this.deps.resolveIndexerArgs();
 			if (!indexerCommand || indexerArgs.length === 0) {
 				throw new Error(
-					"Missing indexer command/args. Set it in settings (e.g. command=node, args=/abs/path/to/packages/indexer/dist/cli.js).",
+					"Missing indexer command/args. Ensure apps/api exists or configure the Python indexer command + args in settings.",
 				);
 			}
 

@@ -25,15 +25,15 @@ When making schema/ontology decisions, treat these docs as the canonical entrypo
 Typed-link ontology (relation keys, semantics, canonical key order):
 
 - `packages/core/src/vault/typedLinkOntology.ts`
-- `packages/mcp/src/lib/ailssNoteTemplate.ts`
+- `apps/api/src/ailss_api/vault_runtime.py`
 - `docs/standards/vault/typed-links.md`
 - `docs/standards/vault/frontmatter-schema.md`
-- `packages/mcp/test/docs.typedLinkOntologyConsistency.test.ts`
+- `apps/api/tests/test_mcp_runtime.py`
 - `docs/ops/codex-skills/prometheus-agent/SKILL.md`
 
 Frontmatter required keys / ordering (templates + emitted YAML):
 
-- `packages/mcp/src/lib/ailssNoteTemplate.ts`
+- `apps/api/src/ailss_api/vault_runtime.py`
 - `docs/standards/vault/frontmatter-schema.md`
 
 Prompt installer bundle composition (what gets stitched into installed prompts):

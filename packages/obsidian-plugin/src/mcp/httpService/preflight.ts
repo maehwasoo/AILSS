@@ -67,7 +67,7 @@ export async function prepareStartupPreflight(options: {
 	const mcpArgs = options.resolveMcpHttpArgs();
 	if (!mcpCommand || mcpArgs.length === 0) {
 		throw new Error(
-			"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
+			"Missing MCP HTTP server args. Ensure apps/api exists or configure the Python MCP command + args in settings.",
 		);
 	}
 

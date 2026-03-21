@@ -14,7 +14,7 @@ export function renderMcpServiceSection(
 	new Setting(containerEl)
 		.setName("Enable service")
 		.setDesc(
-			`${plugin.getMcpHttpServiceStatusLine()}\n\nRuns an optional localhost transition service for Codex while the plugin remains centered on the Python backend runtime.`,
+			`${plugin.getMcpHttpServiceStatusLine()}\n\nRuns the primary localhost MCP service for Codex on top of the Python index/runtime.`,
 		)
 		.addToggle((toggle) => {
 			toggle.setValue(plugin.settings.mcpHttpServiceEnabled);
@@ -47,7 +47,7 @@ export function renderMcpServiceSection(
 	new Setting(containerEl)
 		.setName("Enable write tools over MCP")
 		.setDesc(
-			"Allows the optional MCP transition service to expose write tools like edit_note (still requires apply=true).",
+			"Allows the localhost MCP service to expose write tools like edit_note (still requires apply=true).",
 		)
 		.addToggle((toggle) => {
 			toggle.setValue(plugin.settings.mcpHttpServiceEnableWriteTools);
@@ -76,7 +76,7 @@ export function renderMcpServiceSection(
 	new Setting(containerEl)
 		.setName("Codex config")
 		.setDesc(
-			"Copies a ready-to-paste ~/.codex/config.toml block for the optional localhost MCP transition service.",
+			"Copies a ready-to-paste ~/.codex/config.toml block for the localhost Python MCP service.",
 		)
 		.addButton((button) => {
 			button.setButtonText("Copy config block");

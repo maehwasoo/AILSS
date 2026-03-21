@@ -46,8 +46,6 @@ Scope expresses where the change happened. Prefer one of:
 
 - `monorepo`: workspace-level config (root tsconfig, lockfile, etc.)
 - `core`: `packages/core`
-- `indexer`: `packages/indexer`
-- `mcp`: `packages/mcp`
 - `plugin`: `packages/obsidian-plugin`
 - `api`: `apps/api`
 - `docs`: `docs/*`

@@ -28,4 +28,4 @@ This note describes how to run multiple Codex CLI sessions against the same AILS
 
 ## Troubleshooting
 
-- If you see `HTTP status client error (400 Bad Request) ... initialize`, the MCP service likely only supports a single session. Restart the plugin-hosted server or update `@ailss/mcp`.
+- If you see `HTTP status client error (400 Bad Request) ... initialize`, the plugin-hosted Python MCP service likely only supports a single session. Restart the plugin-hosted server or update the plugin bundle + bundled `apps/api`.

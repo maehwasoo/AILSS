@@ -117,5 +117,5 @@ If you still see the handshake failure:
 3. Confirm the index DB exists at `<vault>/.ailss/index.sqlite` (or run the indexer).
 4. Confirm your Codex session includes `writable_roots` for the vault (or `<vault>/.ailss/` at minimum).
 
-If you see `HTTP status client error (400 Bad Request) ... initialize`, you are likely running an older MCP service build that only supports a single initialized session.
-Restart the plugin-hosted MCP service (or update/rebuild the plugin + `@ailss/mcp`) so the service supports multiple concurrent sessions.
+If you see `HTTP status client error (400 Bad Request) ... initialize`, you are likely running an outdated plugin-hosted Python MCP service build.
+Restart the plugin-hosted MCP service (or update/rebuild the plugin bundle + bundled `apps/api`) so the service supports multiple concurrent sessions.

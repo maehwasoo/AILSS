@@ -1,6 +1,7 @@
 # Local development
 
-This document describes how to run the indexer, MCP server, and Python backend locally.
+This document describes how to run the Python indexer, Python MCP service, and Python
+backend locally.
 
 ## 1) Environment variables
 
@@ -17,7 +18,8 @@ Create a `.env` at the repo root based on `.env.example`, and set:
 
 Notes:
 
-- The Node services and the Python backend load `.env` by searching upwards from the current working directory for the nearest `.env` file.
+- The Python CLIs and backend load `.env` by searching upwards from the current working
+  directory for the nearest `.env` file.
 
 ## 2) Install / build
 
@@ -39,7 +41,7 @@ Requirements:
 ## 3) Run indexing
 
 ```bash
-pnpm -C packages/indexer start
+uv run --directory apps/api ailss-indexer --vault "$AILSS_VAULT_PATH"
 ```
 
 Options:
@@ -55,10 +57,12 @@ Note:
 
 - The index DB records the embedding model/dimension and refuses to start on mismatch. Use `--reset-db` (or a different `--db` path) when switching models.
 
-## 4) Run MCP server (STDIO)
+## 4) Run MCP service (localhost HTTP)
 
 ```bash
-pnpm -C packages/mcp start
+AILSS_MCP_HTTP_TOKEN=dev-token \
+AILSS_MCP_HTTP_SHUTDOWN_TOKEN=dev-shutdown-token \
+uv run --directory apps/api ailss-mcp-http
 ```
 
 Required:
@@ -70,29 +74,13 @@ Required:
 
 Notes:
 
-- The index DB uses SQLite **WAL mode** (Write-Ahead Logging), which creates sidecar files next to the DB (e.g. `index.sqlite-wal` and `index.sqlite-shm`). The MCP server and indexer therefore need **write access to the DB directory**, even when only running read-only tools.
+- The index DB uses SQLite **WAL mode** (Write-Ahead Logging), which creates sidecar files next to the DB (e.g. `index.sqlite-wal` and `index.sqlite-shm`). The Python MCP service and indexer therefore need **write access to the DB directory**, even when only running read-only tools.
 - If you run the MCP server via Codex CLI with `sandbox_mode = "workspace-write"`, you must allow writes to the vault DB directory via `sandbox_workspace_write.writable_roots`. See: [Codex CLI integration](./codex-cli.md).
 
 Optional:
 
 - `AILSS_ENABLE_WRITE_TOOLS=1` (enables explicit write tools like `edit_note`)
-- `AILSS_GET_CONTEXT_DEFAULT_TOP_K=<n>` (sets the default `get_context.top_k` when the caller omits `top_k`; clamped to 1–50; default: 10)
-
-### Test tools with MCP Inspector (optional)
-
-Before wiring the MCP server into Codex CLI or the Obsidian plugin, it can be useful to call tools directly via the MCP Inspector UI.
-
-Notes:
-
-- The inspector will launch the STDIO server command you provide and let you call tools like `get_context` and `expand_typed_links_outgoing`.
-- For write tools (e.g. `edit_note`), prefer `apply=false` first and only confirm/apply when you are sure the target path and patch ops are correct.
-
-Example:
-
-```bash
-# From the repo root (reads .env if present)
-npx @modelcontextprotocol/inspector node packages/mcp/dist/stdio.js
-```
+- `AILSS_GET_CONTEXT_DEFAULT_TOP_K=<n>` (sets the default `get_context.top_k` when the caller omits `top_k`; clamped to 1–20; default: 10)
 
 ## 5) Run Python backend (FastAPI)
 
@@ -106,7 +94,7 @@ Notes:
 
 - The CLI default port is `8000`; `8787` matches the plugin's default Python backend port.
 - `GET /health`, `POST /retrieve`, `POST /agent/run`, and `POST /eval/run` are the current baseline routes.
-- The backend reads the existing local SQLite index and expects the same vault/DB env configuration as the Node tools.
+- The backend reads the existing local SQLite index and expects the same vault/DB env configuration as the Python MCP/indexer CLIs.
 
 Quick check:
 
@@ -140,11 +128,10 @@ If you install from GitHub Release, extract `ailss-<version>.zip` into:
 
 - `<Vault>/.obsidian/plugins/ailss-obsidian/`
 
-Then install service dependencies once:
+Then install Python service dependencies once:
 
 ```bash
-cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service"
-pnpm install --prod
+uv sync --directory "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service/apps/api" --locked
 ```
 
 If you are testing from source build output, rebuild and recopy plugin files after changes.
@@ -152,22 +139,20 @@ If you are testing from source build output, rebuild and recopy plugin files aft
 ### Configure (inside Obsidian)
 
 - **OpenAI API key**
-- If you installed from the GitHub Release zip, the plugin bundle includes `ailss-service/` (prebuilt `core`/`mcp`/`indexer` plus bundled `apps/api`). Install dependencies once:
-  - `cd "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service" && pnpm install --prod`
-  - Then you can leave **MCP/Indexer args** empty (the plugin resolves the bundled scripts automatically).
-- **MCP command/args** (stdio)
-  - Release archive default: command `node`, args empty
-  - Source build example: command `node`, args `/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js`
-- **Python backend** (optional; enables retrieval/agent/eval commands)
-  - Requires Python 3.12+ and `uv`
+- If you installed from the GitHub Release zip, the plugin bundle includes `ailss-service/apps/api`. Install dependencies once:
+  - `uv sync --directory "<Vault>/.obsidian/plugins/ailss-obsidian/ailss-service/apps/api" --locked`
+  - Then you can leave **Python backend/MCP/Indexer args** empty (the plugin resolves the bundled runners automatically).
+- **Python backend**
   - Default command: `uv`
   - Default args: empty in settings, resolved to `run --directory <workspace-or-bundled>/apps/api ailss-api`
   - Default port: `8787`
-  - If you see `spawn uv ENOENT`, set the command to your absolute `uv` path
-- **Indexer command/args** (optional; enables reindex + auto-index)
-  - Release archive default: command `node`, args empty
-  - Source build example: command `node`, args `/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js`
-- If you see `spawn node ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute Node path (run `which node` on macOS/Linux, or `where node` on Windows).
+- **MCP command/args**
+  - Default command: `uv`
+  - Default args: empty in settings, resolved to `run --directory <workspace-or-bundled>/apps/api ailss-mcp-http`
+- **Indexer command/args**
+  - Default command: `uv`
+  - Default args: empty in settings, resolved to `run --directory <workspace-or-bundled>/apps/api ailss-indexer`
+- If you see `spawn uv ENOENT`: Obsidian may not inherit your shell `PATH` (especially on macOS). Set the command to your absolute `uv` path (run `which uv` on macOS/Linux, or `where uv` on Windows).
 - Index maintenance: use **Reset index DB** if you switch embedding models (e.g. `text-embedding-3-small` ↔ `text-embedding-3-large`); use **Indexer logs** to see which file failed.
 - Command palette: `AILSS: Reindex vault`
 - Optional: enable auto indexing (debounced; costs money)

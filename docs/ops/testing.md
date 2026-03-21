@@ -1,7 +1,7 @@
 # Testing
 
-AILSS uses **Vitest** for the Node/TypeScript packages and **pytest** for the Python
-backend.
+AILSS uses **Vitest** for the remaining TypeScript packages/plugin and **pytest** for the
+Python service/runtime.
 
 ## Quick start
 
@@ -18,10 +18,8 @@ backend.
 Tests live under each package or app:
 
 - `packages/core/test/**/*.test.ts` — pure utilities and indexing behavior (offline)
-- `packages/indexer/test/**/*.test.ts` — indexer integration behavior (offline)
-- `packages/mcp/test/**/*.test.ts` — MCP protocol and HTTP server behaviors (offline)
 - `packages/obsidian-plugin/test/**/*.test.ts` — plugin service controllers and settings behavior
-- `apps/api/tests/**/*.py` — FastAPI routes, retrieval, and backend lifecycle behavior
+- `apps/api/tests/**/*.py` — FastAPI routes, Python MCP/indexer behavior, retrieval, and backend lifecycle behavior
 
 ## What we test (examples)
 
@@ -33,17 +31,17 @@ File: `packages/core/test/frontmatter.test.ts`
 - YAML scalar coercion (`id` as number, `created`/`updated` as Date → string)
 - `source` normalization (trim + dedupe) into a stable string list
 
-### MCP: frontmatter_validate behavior
+### Python MCP runtime: parity surface + reindex behavior
 
-File: `packages/mcp/test/httpTools.frontmatterValidate.test.ts`
+File: `apps/api/tests/test_mcp_runtime.py`
 
-- Valid notes count as ok when required keys exist
-- Notes without frontmatter are reported as issues
-- Notes with frontmatter but missing required keys (for example `source`) are reported as issues
+- Registered read/write tool names match the shipped Python MCP surface
+- Read tools resolve notes, typed links, broken links, vault tree, and semantic retrieval
+- Write tools apply changes and reindex the DB through the Python owner path
 
 ### Python backend: API contract and shutdown guard
 
-File: `apps/api/tests/test_app.py`
+File: `apps/api/tests/test_health.py`, `apps/api/tests/test_retrieve.py`, `apps/api/tests/test_shutdown.py`
 
 - `GET /health` returns the current local readiness shape
 - `POST /retrieve`, `POST /agent/run`, and `POST /eval/run` fail explicitly when the index or dataset is not ready

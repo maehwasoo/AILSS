@@ -54,10 +54,10 @@ export function renderAdvancedSection(
 	new Setting(advancedContainer)
 		.setName("Command")
 		.setDesc(
-			"How to launch the optional AILSS MCP service transition path. If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
+			"How to launch the local MCP service. If you see 'spawn uv ENOENT', set this to your absolute uv path.",
 		)
 		.addText((text) => {
-			text.setPlaceholder("node");
+			text.setPlaceholder("uv");
 			text.setValue(plugin.settings.mcpCommand);
 			text.onChange(async (value) => {
 				await updateSetting("mcpCommand", value.trim() || DEFAULT_SETTINGS.mcpCommand);
@@ -68,9 +68,9 @@ export function renderAdvancedSection(
 		.setName("Arguments (one per line)")
 		.setDesc(
 			[
-				"Optional script path override for the MCP service transition path.",
-				"Leave empty to use the bundled service (release zip) when available.",
-				'Example: "/absolute/path/to/AILSS-project/packages/mcp/dist/stdio.js" (for command "node").',
+				"Optional override for the MCP service args.",
+				"Leave empty to use the bundled Python apps/api runner when available.",
+				'Example: "run", "--directory", "/absolute/path/to/AILSS-project/apps/api", "ailss-mcp-http".',
 			].join("\n"),
 		)
 		.addTextArea((text) => {
@@ -84,10 +84,10 @@ export function renderAdvancedSection(
 	new Setting(advancedContainer)
 		.setName("Command")
 		.setDesc(
-			"How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite). If you see 'spawn node ENOENT', set this to your absolute Node path (run 'which node' on macOS/Linux, or 'where node' on Windows).",
+			"How to launch the AILSS indexer (writes <vault>/.ailss/index.sqlite). If you see 'spawn uv ENOENT', set this to your absolute uv path.",
 		)
 		.addText((text) => {
-			text.setPlaceholder("node");
+			text.setPlaceholder("uv");
 			text.setValue(plugin.settings.indexerCommand);
 			text.onChange(async (value) => {
 				await updateSetting(
@@ -101,9 +101,9 @@ export function renderAdvancedSection(
 		.setName("Arguments (one per line)")
 		.setDesc(
 			[
-				"Optional script path override for the indexer.",
-				"Leave empty to use the bundled service (release zip) when available.",
-				'Example: "/absolute/path/to/AILSS-project/packages/indexer/dist/cli.js" (for command "node").',
+				"Optional override for the indexer args.",
+				"Leave empty to use the bundled Python apps/api runner when available.",
+				'Example: "run", "--directory", "/absolute/path/to/AILSS-project/apps/api", "ailss-indexer".',
 			].join("\n"),
 		)
 		.addTextArea((text) => {

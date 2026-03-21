@@ -11,13 +11,13 @@ This document defines coding conventions for the AILSS codebase.
 ## Package structure and dependency direction
 
 - `@ailss/core` contains shared logic only (must not depend on other packages)
-- `@ailss/indexer` and `@ailss/mcp` may depend only on `@ailss/core`
+- `apps/api` owns the shipped local runtime for indexing, MCP, retrieval, agent flow, and eval
 - The MCP server provides read-only tools by default (file writes must be a separate explicit action)
 
 ## Environment variables
 
 - Local development may use `.env` (see `.env.example`)
-- Environment loading in code is standardized via `@ailss/core/src/env.ts` `loadEnv()`
+- Environment loading in the shipped runtime is standardized via `apps/api/src/ailss_api/config.py`
 - If required values are missing, throw an error that enables the next action (what to set / how to fix)
 
 ## Files / modules
@@ -33,7 +33,7 @@ This document defines coding conventions for the AILSS codebase.
 
 ## Errors / logs
 
-- The CLI (indexer) may use `console.log` for progress output
+- The Python indexer CLI may use progress-oriented stdout logs
 - The MCP server must return clear errors on input validation failure
 - Error messages should be phrased as “cause + next action”
 

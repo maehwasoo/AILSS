@@ -53,15 +53,15 @@ function createSettings(overrides: Partial<TestSettings> = {}): TestSettings {
 		openaiApiKey: "sk-test",
 		openaiEmbeddingModel: "text-embedding-3-large",
 		topK: 10,
-		mcpCommand: "pnpm",
-		mcpArgs: ["--filter", "@ailss/mcp", "exec", "node", "dist/http.js"],
+		mcpCommand: "uv",
+		mcpArgs: ["run", "--directory", "apps/api", "ailss-mcp-http"],
 		mcpHttpServiceEnabled: false,
 		mcpHttpServicePort: 31415,
 		mcpHttpServiceToken: "service-token",
 		mcpHttpServiceShutdownToken: "shutdown-token",
 		mcpHttpServiceEnableWriteTools: false,
-		indexerCommand: "pnpm",
-		indexerArgs: [],
+		indexerCommand: "uv",
+		indexerArgs: ["run", "--directory", "apps/api", "ailss-indexer"],
 		autoIndexEnabled: false,
 		autoIndexDebounceMs: 5000,
 		...overrides,
@@ -141,7 +141,7 @@ describe("McpHttpServiceController startup helper unit branches", () => {
 			});
 
 			await expect(asInternals(controller).prepareStartupPreflight()).rejects.toThrow(
-				"Missing MCP HTTP server args. Build @ailss/mcp and ensure dist/http.js exists (or configure the MCP server path in settings).",
+				"Missing MCP HTTP server args. Ensure apps/api exists or configure the Python MCP command + args in settings.",
 			);
 		});
 	});
@@ -191,9 +191,9 @@ describe("McpHttpServiceController startup helper unit branches", () => {
 				asInternals(controller).normalizeStartupSettings(settings),
 			).resolves.toEqual({
 				port: 31415,
-				topK: 50,
+				topK: 20,
 			});
-			expect(settings.topK).toBe(50);
+			expect(settings.topK).toBe(20);
 			expect(saveSettings).toHaveBeenCalledTimes(1);
 		});
 
